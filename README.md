@@ -1,0 +1,2 @@
+# warkop1001cc
+CASHIER,MANAGEMENT,KDS
