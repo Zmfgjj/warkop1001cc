@@ -7,7 +7,7 @@ exports.getMeja = async (req, res) => {
     );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -15,6 +15,11 @@ exports.updateStatusMeja = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+
+    const allowedStatus = ['kosong', 'terisi'];
+    if (!status || !allowedStatus.includes(status)) {
+      return res.status(400).json({ message: 'Status tidak valid' });
+    }
 
     await db.query('UPDATE meja SET status = ? WHERE id = ?', [status, id]);
 
@@ -25,7 +30,7 @@ exports.updateStatusMeja = async (req, res) => {
 
     res.json({ message: 'Status meja diupdate' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -46,7 +51,7 @@ exports.tambahMeja = async (req, res) => {
 
     res.status(201).json({ message: 'Meja ditambahkan', id: result.insertId });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -54,10 +59,13 @@ exports.hapusMeja = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Cek meja sedang dipakai
+    // Cek meja ada dan sedang dipakai
     const [cek] = await db.query(
       'SELECT status FROM meja WHERE id = ?', [id]
     );
+    if (cek.length === 0) {
+      return res.status(404).json({ message: 'Meja tidak ditemukan' });
+    }
     if (cek[0].status === 'terisi') {
       return res.status(400).json({ message: 'Meja sedang terisi, tidak bisa dihapus' });
     }
@@ -65,7 +73,7 @@ exports.hapusMeja = async (req, res) => {
     await db.query('DELETE FROM meja WHERE id = ?', [id]);
     res.json({ message: 'Meja dihapus' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -78,7 +86,8 @@ exports.generateQR = async (req, res) => {
       return res.status(404).json({ message: 'Meja tidak ditemukan' });
     }
 
-    const qr_url = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/menu?meja=${meja[0].nomor}&id=${id}`;
+    const baseUrl = process.env.FRONTEND_URL || 'http://localhost:5174';
+    const qr_url = `${baseUrl}/menu/${meja[0].nomor}`;
     
     await db.query('UPDATE meja SET qr_code = ? WHERE id = ?', [qr_url, id]);
 
@@ -88,6 +97,6 @@ exports.generateQR = async (req, res) => {
       nomor_meja: meja[0].nomor
     });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };
