@@ -30,27 +30,22 @@ exports.buatPembayaran = async (req, res) => {
     // Insert pembayaran
     const [result] = await conn.query(
       'INSERT INTO pembayaran (pesanan_id, metode, jumlah, status) VALUES (?, ?, ?, ?)',
-      [pesanan_id, metode, pesanan[0].total, metode === 'cash' ? 'sukses' : 'pending']
+      [pesanan_id, metode, pesanan[0].total, (metode === 'cash' || metode === 'tunai') ? 'sukses' : 'pending']
     );
 
-    // Kalau cash langsung selesai
-    if (metode === 'cash') {
-      await conn.query('UPDATE pesanan SET status = "selesai" WHERE id = ?', [pesanan_id]);
-      if (pesanan[0].meja_id) {
-        await conn.query('UPDATE meja SET status = "kosong" WHERE id = ?', [pesanan[0].meja_id]);
-      }
-    }
+    // Pesanan tetap pending, biarkan KDS yang handle status pesanan
+    // Meja tetap terisi sampai KDS menyelesaikan pesanan
 
     await conn.commit();
 
     // Emit socket
     const io = req.app.get('io');
     if (io) {
-      io.emit('pembayaran', { pesanan_id, metode, status: metode === 'cash' ? 'sukses' : 'pending' });
+      io.emit('pembayaran', { pesanan_id, metode, status: (metode === 'cash' || metode === 'tunai') ? 'sukses' : 'pending' });
     }
 
     res.status(201).json({
-      message: metode === 'cash' ? 'Pembayaran berhasil' : 'Menunggu pembayaran QRIS',
+      message: (metode === 'cash' || metode === 'tunai') ? 'Pembayaran berhasil' : 'Menunggu pembayaran QRIS',
       pembayaran_id: result.insertId,
       jumlah: pesanan[0].total,
       metode
@@ -58,7 +53,7 @@ exports.buatPembayaran = async (req, res) => {
 
   } catch (err) {
     await conn.rollback();
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   } finally {
     conn.release();
   }
@@ -76,7 +71,7 @@ exports.getPembayaran = async (req, res) => {
     `);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -97,12 +92,7 @@ exports.konfirmasiQris = async (req, res) => {
     }
 
     await conn.query('UPDATE pembayaran SET status = "sukses" WHERE id = ?', [id]);
-    await conn.query('UPDATE pesanan SET status = "selesai" WHERE id = ?', [pembayaran[0].pesanan_id]);
-
-    const [pesanan] = await conn.query('SELECT meja_id FROM pesanan WHERE id = ?', [pembayaran[0].pesanan_id]);
-    if (pesanan[0].meja_id) {
-      await conn.query('UPDATE meja SET status = "kosong" WHERE id = ?', [pesanan[0].meja_id]);
-    }
+    // Pesanan tetap pending/diproses, biarkan KDS yang handle
 
     await conn.commit();
 
@@ -114,7 +104,7 @@ exports.konfirmasiQris = async (req, res) => {
     res.json({ message: 'Pembayaran QRIS dikonfirmasi' });
   } catch (err) {
     await conn.rollback();
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   } finally {
     conn.release();
   }

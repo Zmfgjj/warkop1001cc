@@ -63,7 +63,7 @@ exports.ringkasan = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -73,11 +73,11 @@ exports.laporanBulanan = async (req, res) => {
     const bln = bulan || new Date().getMonth() + 1;
     const thn = tahun || new Date().getFullYear();
 
-    const [harian] = await db.query(`
+    // Pendapatan harian dari pembayaran sukses
+    const [harianPendapatan] = await db.query(`
       SELECT 
         DATE(pb.created_at) as tanggal,
-        SUM(pb.jumlah) as pendapatan,
-        COUNT(DISTINCT pb.pesanan_id) as total_pesanan
+        SUM(pb.jumlah) as pendapatan
       FROM pembayaran pb
       WHERE pb.status = 'sukses'
       AND MONTH(pb.created_at) = ?
@@ -86,17 +86,61 @@ exports.laporanBulanan = async (req, res) => {
       ORDER BY tanggal
     `, [bln, thn]);
 
-    const totalBulan = harian.reduce((sum, h) => sum + parseInt(h.pendapatan), 0);
+    // Total pesanan harian (termasuk yang belum bayar, kecuali batal)
+    const [harianPesanan] = await db.query(`
+      SELECT 
+        DATE(p.created_at) as tanggal,
+        COUNT(*) as total_pesanan
+      FROM pesanan p
+      WHERE p.status != 'batal'
+      AND MONTH(p.created_at) = ?
+      AND YEAR(p.created_at) = ?
+      GROUP BY DATE(p.created_at)
+      ORDER BY tanggal
+    `, [bln, thn]);
+
+    // Gabungkan data harian
+    const pesananMap = {};
+    harianPesanan.forEach(h => {
+      const tgl = new Date(h.tanggal).toISOString().split('T')[0];
+      pesananMap[tgl] = h.total_pesanan;
+    });
+
+    const harian = harianPendapatan.map(h => {
+      const tgl = new Date(h.tanggal).toISOString().split('T')[0];
+      return {
+        tanggal: h.tanggal,
+        pendapatan: h.pendapatan,
+        total_pesanan: pesananMap[tgl] || 0,
+      };
+    });
+
+    // Tambahkan tanggal yang ada pesanan tapi belum ada pembayaran
+    harianPesanan.forEach(h => {
+      const tgl = new Date(h.tanggal).toISOString().split('T')[0];
+      if (!harian.find(d => new Date(d.tanggal).toISOString().split('T')[0] === tgl)) {
+        harian.push({
+          tanggal: h.tanggal,
+          pendapatan: 0,
+          total_pesanan: h.total_pesanan,
+        });
+      }
+    });
+
+    // Sort by tanggal
+    harian.sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
+
+    const totalBulan = harian.reduce((sum, h) => sum + parseInt(h.pendapatan || 0), 0);
 
     res.json({
-      bulan: bln,
-      tahun: thn,
+      bulan: parseInt(bln),
+      tahun: parseInt(thn),
       total_pendapatan: totalBulan,
       harian
     });
 
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -129,6 +173,6 @@ exports.laporanMenu = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };

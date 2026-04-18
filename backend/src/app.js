@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const db = require('./config/database');
@@ -15,10 +17,19 @@ const io = new Server(server, {
   }
 });
 
+// Setup folder uploads
+const uploadsDir = path.join(__dirname, '../public/uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve static files for uploads
+app.use('/uploads', express.static(uploadsDir));
 
 // Routes
 const pesananRoutes = require('./routes/pesanan');
@@ -35,6 +46,10 @@ const authRoutes = require('./routes/auth');
 app.use('/api/auth', authRoutes);
 const menuRoutes = require('./routes/menu');
 app.use('/api/menu', menuRoutes);
+const settingsRoutes = require('./routes/settings');
+app.use('/api/settings', settingsRoutes);
+const publikRoutes = require('./routes/publik');
+app.use('/api/publik', publikRoutes);
 
 // Test route
 app.get('/', (req, res) => {
@@ -52,6 +67,12 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('❌ Client disconnected:', socket.id);
   });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ message: 'Server error' });
 });
 
 // Start server

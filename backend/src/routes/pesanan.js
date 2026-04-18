@@ -7,5 +7,6 @@ router.get('/', auth(['owner', 'manager', 'kasir', 'dapur']), pesananController.
 router.post('/', auth(['kasir', 'owner']), pesananController.buatPesanan);
 router.put('/:id/status', auth(['kasir', 'owner', 'dapur']), pesananController.updateStatus);
 router.put('/detail/:id/status', auth(['dapur', 'kasir', 'owner']), pesananController.updateStatusDetail);
+router.put('/detail/:id/catatan', auth(['dapur', 'kasir', 'owner']), pesananController.updateDetailCatatan);
 
 module.exports = router;

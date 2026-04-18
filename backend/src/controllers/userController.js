@@ -8,13 +8,22 @@ exports.getUsers = async (req, res) => {
     );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };
 
 exports.tambahUser = async (req, res) => {
   try {
     const { nama, username, password, role } = req.body;
+
+    if (!nama || !username || !password || !role) {
+      return res.status(400).json({ message: 'Semua field wajib diisi' });
+    }
+
+    const allowedRoles = ['owner', 'manager', 'kasir', 'dapur'];
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ message: 'Role tidak valid' });
+    }
 
     // Cek username sudah ada
     const [existing] = await db.query('SELECT id FROM users WHERE username = ?', [username]);
@@ -30,7 +39,7 @@ exports.tambahUser = async (req, res) => {
 
     res.status(201).json({ message: 'User ditambahkan', id: result.insertId });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -63,7 +72,7 @@ exports.updateUser = async (req, res) => {
 
     res.json({ message: 'User diupdate' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -79,7 +88,7 @@ exports.hapusUser = async (req, res) => {
     await db.query('DELETE FROM users WHERE id = ?', [id]);
     res.json({ message: 'User dihapus' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -100,6 +109,6 @@ exports.gantiPassword = async (req, res) => {
 
     res.json({ message: 'Password berhasil diganti' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+    console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };
