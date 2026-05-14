@@ -8,13 +8,30 @@ require('dotenv').config();
 
 const db = require('./config/database');
 
+const rateLimit = require('express-rate-limit');
+
 const app = express();
 const server = http.createServer(app);
+
+// CORS Config
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',') 
+  : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:4173', 'capacitor://localhost', 'http://localhost'];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+};
+
 const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE']
-  }
+  cors: corsOptions
 });
 
 // Setup folder uploads
@@ -23,8 +40,26 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 1000, // Limit each IP to 1000 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Terlalu banyak request, silakan coba lagi nanti.' }
+});
+
+const strictLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs for auth/publik
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Terlalu banyak percobaan, silakan coba lagi nanti.' }
+});
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
+app.use(limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -43,13 +78,13 @@ app.use('/api/user', userRoutes);
 const pembayaranRoutes = require('./routes/pembayaran');
 app.use('/api/pembayaran', pembayaranRoutes);
 const authRoutes = require('./routes/auth');
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', strictLimiter, authRoutes);
 const menuRoutes = require('./routes/menu');
 app.use('/api/menu', menuRoutes);
 const settingsRoutes = require('./routes/settings');
 app.use('/api/settings', settingsRoutes);
 const publikRoutes = require('./routes/publik');
-app.use('/api/publik', publikRoutes);
+app.use('/api/publik', strictLimiter, publikRoutes);
 
 // Test route
 app.get('/', (req, res) => {
