@@ -148,37 +148,65 @@ exports.buatPesananPublik = async (req, res) => {
       validatedItems.push({ menu_id: menuId, qty, harga: menuRows[0].harga, catatan: itemCatatan });
     }
 
-    // Insert pesanan (kasir_id = null for web orders, tipe = 'dine-in' for table orders)
-    const [result] = await conn.query(
-      'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total) VALUES (?, NULL, ?, ?, ?)',
-      [Number(meja_id), 'dine-in', sanitizedCatatan, total]
+    // Check Open Bill
+    const [openBill] = await conn.query(
+      "SELECT id, total FROM pesanan WHERE meja_id = ? AND is_open_bill = 1 AND status != 'selesai' AND status != 'batal' LIMIT 1",
+      [Number(meja_id)]
     );
-    const pesanan_id = result.insertId;
 
-    // Insert detail
-    for (const item of validatedItems) {
-      await conn.query(
-        'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, catatan) VALUES (?, ?, ?, ?, ?)',
-        [pesanan_id, item.menu_id, item.qty, item.harga, item.catatan || null]
+    let pesanan_id;
+    let finalTotal = 0;
+
+    if (openBill.length > 0) {
+      pesanan_id = openBill[0].id;
+      finalTotal = parseFloat(openBill[0].total) + total;
+      
+      // Update pesanan total
+      await conn.query('UPDATE pesanan SET total = ? WHERE id = ?', [finalTotal, pesanan_id]);
+      
+      // Insert detail
+      for (const item of validatedItems) {
+        await conn.query(
+          'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, catatan) VALUES (?, ?, ?, ?, ?)',
+          [pesanan_id, item.menu_id, item.qty, item.harga, item.catatan || null]
+        );
+      }
+    } else {
+      finalTotal = total;
+      // Insert pesanan (kasir_id = null for web orders, tipe = 'dine-in' for table orders)
+      const [result] = await conn.query(
+        'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total) VALUES (?, NULL, ?, ?, ?)',
+        [Number(meja_id), 'dine-in', sanitizedCatatan, finalTotal]
       );
-    }
+      pesanan_id = result.insertId;
 
-    // Update meja status
-    await conn.query('UPDATE meja SET status = "terisi" WHERE id = ?', [Number(meja_id)]);
+      // Insert detail
+      for (const item of validatedItems) {
+        await conn.query(
+          'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, catatan) VALUES (?, ?, ?, ?, ?)',
+          [pesanan_id, item.menu_id, item.qty, item.harga, item.catatan || null]
+        );
+      }
+
+      // Update meja status
+      await conn.query('UPDATE meja SET status = "terisi" WHERE id = ?', [Number(meja_id)]);
+    }
 
     await conn.commit();
 
     // Emit socket events to KDS and ManajemenMeja
     const io = req.app.get('io');
     if (io) {
-      io.emit('pesanan_baru', { pesanan_id, meja_id: Number(meja_id), total, sumber: 'web' });
-      io.emit('status_meja', { meja_id: Number(meja_id), status: 'terisi' });
+      io.emit('pesanan_baru', { pesanan_id, meja_id: Number(meja_id), total: finalTotal, sumber: 'web' });
+      if (openBill.length === 0) {
+        io.emit('status_meja', { meja_id: Number(meja_id), status: 'terisi' });
+      }
     }
 
     res.status(201).json({
       message: 'Pesanan berhasil dikirim ke dapur!',
       pesanan_id,
-      total
+      total: finalTotal
     });
   } catch (err) {
     await conn.rollback();

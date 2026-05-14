@@ -1,4 +1,9 @@
-import { useAuth } from '../hooks/useAuth'
+const fs = require('fs');
+const path = require('path');
+
+const file = path.join(__dirname, 'src/pages/Laporan.jsx');
+
+const newContent = `import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut, Download } from 'lucide-react';
@@ -83,10 +88,10 @@ export default function Laporan() {
       const ws = XLSX.utils.json_to_sheet(sheets)
       XLSX.utils.book_append_sheet(wb, ws, 'Laporan')
     }
-    XLSX.writeFile(wb, `${filename}.xlsx`)
+    XLSX.writeFile(wb, \`\${filename}.xlsx\`)
   }
 
-  const fRp = (n) => `Rp ${Number(n).toLocaleString('id-ID')}`
+  const fRp = (n) => \`Rp \${Number(n).toLocaleString('id-ID')}\`
 
   // -------------------------------------------------------------
   // EXCEL STYLING UTILS
@@ -143,7 +148,7 @@ export default function Laporan() {
       ['Gross Revenue (Total Penjualan Kotor)', createCell(gross, styleCurrency)],
       ['Total Diskon / Promo', createCell(0, styleCurrency)],
       ['Service Charge', createCell(0, styleCurrency)],
-      [`PPN (${ppnRate}%)`, createCell(d.ppn_amount || 0, styleCurrency)],
+      [\`PPN (\${ppnRate}%)\`, createCell(d.ppn_amount || 0, styleCurrency)],
       [createCell('Net Revenue (Pendapatan Bersih)', styleBold), createCell(d.net_revenue || gross, styleCurrencyBold)],
       ['Jumlah Transaksi', createCell(d.total_pesanan, styleCenter)],
       ['Average Order Value (AOV)', createCell(d.aov || 0, styleCurrency)],
@@ -159,7 +164,7 @@ export default function Laporan() {
     ringkasan.push([])
     ringkasan.push([createCell('C. MENU TERLARIS', styleSubHeader)])
     ringkasan.push([createCell('Menu', styleHeader), createCell('Total Terjual', styleHeader)])
-    ;(d.menu_terlaris || []).forEach(m => ringkasan.push([m.nama, createCell(`${m.total_terjual} porsi`, styleCenter)]))
+    ;(d.menu_terlaris || []).forEach(m => ringkasan.push([m.nama, createCell(\`\${m.total_terjual} porsi\`, styleCenter)]))
 
     ringkasan.push([])
     ringkasan.push([createCell('D. PENJUALAN PER MENU (HPP & PROFIT)', styleSubHeader)])
@@ -177,7 +182,7 @@ export default function Laporan() {
     ws['!cols'] = [{ wch: 35 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 18 }]
     ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }]
 
-    exportToExcel([{ ws, name: 'Laporan Harian' }], `Laporan-Harian-${d.tanggal}`)
+    exportToExcel([{ ws, name: 'Laporan Harian' }], \`Laporan-Harian-\${d.tanggal}\`)
   }
 
   const handleExportBulanan = () => {
@@ -190,12 +195,12 @@ export default function Laporan() {
     const rows = [
       [createCell('LAPORAN POS BULANAN – WARKOP 1001 CC', styleTitle), '', '', ''],
       [],
-      [createCell('Periode', styleBold), createCell(`${bulanNama[d.bulan - 1]} ${d.tahun}`, styleBold)],
+      [createCell('Periode', styleBold), createCell(\`\${bulanNama[d.bulan - 1]} \${d.tahun}\`, styleBold)],
       [],
       [createCell('A. RINGKASAN PENJUALAN', styleSubHeader)],
       [createCell('Keterangan', styleHeader), createCell('Nilai (Rp)', styleHeader)],
       ['Gross Revenue', createCell(gross, styleCurrency)],
-      [`PPN (${ppnRate}%)`, createCell(d.ppn_amount || 0, styleCurrency)],
+      [\`PPN (\${ppnRate}%)\`, createCell(d.ppn_amount || 0, styleCurrency)],
       [createCell('Net Revenue', styleBold), createCell(d.net_revenue || gross, styleCurrencyBold)],
       ['Total Transaksi', createCell(d.total_pesanan || 0, styleCenter)],
       ['Average Order Value', createCell(gross > 0 && d.total_pesanan > 0 ? Math.round(gross / d.total_pesanan) : 0, styleCurrency)],
@@ -233,7 +238,7 @@ export default function Laporan() {
     ws['!cols'] = [{ wch: 35 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 18 }]
     ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }]
 
-    exportToExcel([{ ws, name: 'Laporan Bulanan' }], `Laporan-Bulanan-${d.bulan}-${d.tahun}`)
+    exportToExcel([{ ws, name: 'Laporan Bulanan' }], \`Laporan-Bulanan-\${d.bulan}-\${d.tahun}\`)
   }
 
   const fetchHistori = async (page) => {
@@ -256,7 +261,7 @@ export default function Laporan() {
     const rows = [
       [createCell('HISTORI PEMBELIAN POS – WARKOP 1001 CC', styleTitle), '', '', '', '', '', '', ''],
       [],
-      [createCell('Periode', styleBold), `${dariHistori} s/d ${sampaiHistori}`],
+      [createCell('Periode', styleBold), \`\${dariHistori} s/d \${sampaiHistori}\`],
       [],
       [
         createCell('No Pesanan', styleHeader),
@@ -275,9 +280,9 @@ export default function Laporan() {
     dataHistori.data.forEach(p => {
       (p.items || []).forEach((item, idx) => {
         rows.push([
-          idx === 0 ? `#${String(p.id).padStart(4, '0')}` : '',
+          idx === 0 ? \`#\${String(p.id).padStart(4, '0')}\` : '',
           idx === 0 ? new Date(p.created_at).toLocaleString('id-ID') : '',
-          idx === 0 ? (p.tipe === 'take-away' ? 'Take Away' : `Meja #${String(p.nomor_meja || '?').padStart(3, '0')}`) : '',
+          idx === 0 ? (p.tipe === 'take-away' ? 'Take Away' : \`Meja #\${String(p.nomor_meja || '?').padStart(3, '0')}\`) : '',
           idx === 0 ? (p.nama_kasir || 'Web Order') : '',
           item.nama_menu,
           createCell(item.qty, styleCenter),
@@ -293,7 +298,7 @@ export default function Laporan() {
     ws['!cols'] = [{ wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 25 }, { wch: 8 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }]
     ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }]
 
-    exportToExcel([{ ws, name: 'Histori' }], `Histori-Pembelian-${dataHistori.dari}-to-${dataHistori.sampai}`)
+    exportToExcel([{ ws, name: 'Histori' }], \`Histori-Pembelian-\${dataHistori.dari}-to-\${dataHistori.sampai}\`)
   }
 
   const renderMenuDetailTable = (menuData, ppnRate, sectionLabel) => {
@@ -307,7 +312,7 @@ export default function Laporan() {
       <div className="bg-white rounded-3xl p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex flex-col">
         <div className="flex justify-between items-center mb-6">
           <h2 className="font-bold text-xl flex items-center gap-2" style={{ color: '#634930' }}>
-             ${sectionLabel}. Penjualan Per Menu (HPP & Profit)
+             \${sectionLabel}. Penjualan Per Menu (HPP & Profit)
           </h2>
         </div>
         <div className="overflow-x-auto">
@@ -338,7 +343,7 @@ export default function Laporan() {
                     <td className="py-3.5 text-right font-bold text-amber-600">{m.total_terjual}</td>
                     <td className="py-3.5 text-right font-bold text-emerald-600">{fRp(omset)}</td>
                     <td className="py-3.5 text-right font-bold text-red-500">{fRp(hppTotal)}</td>
-                    <td className={`py-3.5 text-right font-black ${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{fRp(profit)}</td>
+                    <td className={\`py-3.5 text-right font-black \${profit >= 0 ? 'text-emerald-600' : 'text-red-500'}\`}>{fRp(profit)}</td>
                   </tr>
                 )
               })}
@@ -346,7 +351,7 @@ export default function Laporan() {
                 <td colSpan={5} className="py-4 font-black text-amber-900 text-right">TOTAL KESELURUHAN :</td>
                 <td className="py-4 text-right font-black text-emerald-700">{fRp(totalOmset)}</td>
                 <td className="py-4 text-right font-black text-red-600">{fRp(totalHpp)}</td>
-                <td className={`py-4 text-right font-black ${totalProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{fRp(totalProfit)}</td>
+                <td className={\`py-4 text-right font-black \${totalProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}\`}>{fRp(totalProfit)}</td>
               </tr>
             </tbody>
           </table>
@@ -430,7 +435,7 @@ export default function Laporan() {
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-2 px-6 py-2.5 font-bold text-sm rounded-xl transition-all duration-300 ${tab === t.id ? 'bg-[#634930] text-white shadow-md' : 'text-gray-500 hover:bg-amber-50 hover:text-[#634930]'}`}
+                  className={\`flex items-center gap-2 px-6 py-2.5 font-bold text-sm rounded-xl transition-all duration-300 \${tab === t.id ? 'bg-[#634930] text-white shadow-md' : 'text-gray-500 hover:bg-amber-50 hover:text-[#634930]'}\`}
                 >
                   <span>{t.icon}</span> {t.label}
                 </button>
@@ -487,11 +492,11 @@ export default function Laporan() {
                         <div className="space-y-4">
                           {[
                             ['Gross Revenue (Kotor)', fRp(dataHarian.pendapatan), 'text-gray-600'],
-                            [`PPN (${dataHarian.ppn_rate || 11}%)`, fRp(dataHarian.ppn_amount || 0), 'text-orange-500'],
+                            [\`PPN (\${dataHarian.ppn_rate || 11}%)\`, fRp(dataHarian.ppn_amount || 0), 'text-orange-500'],
                           ].map(([label, val, color], i) => (
                             <div key={i} className="flex justify-between items-center pb-3 border-b border-dashed border-gray-200">
                               <span className="font-medium text-gray-500">{label}</span>
-                              <span className={`font-bold ${color}`}>{val}</span>
+                              <span className={\`font-bold \${color}\`}>{val}</span>
                             </div>
                           ))}
                           <div className="flex justify-between items-center py-4 px-5 bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl border border-emerald-100">
@@ -686,8 +691,8 @@ export default function Laporan() {
                               <td className="px-6 py-4 font-black text-[#634930]">#{String(p.id).padStart(4, '0')}</td>
                               <td className="px-6 py-4 text-gray-600 font-medium">{new Date(p.created_at).toLocaleString('id-ID', {dateStyle: 'medium', timeStyle: 'short'})}</td>
                               <td className="px-6 py-4">
-                                <span className={`px-3 py-1 rounded-lg text-xs font-bold ${p.tipe === 'take-away' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
-                                  {p.tipe === 'take-away' ? 'Take Away' : `Meja ${String(p.nomor_meja || '?').padStart(2, '0')}`}
+                                <span className={\`px-3 py-1 rounded-lg text-xs font-bold \${p.tipe === 'take-away' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}\`}>
+                                  {p.tipe === 'take-away' ? 'Take Away' : \`Meja \${String(p.nomor_meja || '?').padStart(2, '0')}\`}
                                 </span>
                               </td>
                               <td className="px-6 py-4 text-gray-600 font-medium">{p.nama_kasir || 'Web Order'}</td>
@@ -739,3 +744,7 @@ export default function Laporan() {
     </div>
   )
 }
+`
+
+fs.writeFileSync(file, newContent);
+console.log('Laporan.jsx overwritten successfully');

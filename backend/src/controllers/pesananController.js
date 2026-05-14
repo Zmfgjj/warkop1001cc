@@ -12,46 +12,104 @@ exports.buatPesanan = async (req, res) => {
       return res.status(400).json({ message: 'Items pesanan wajib diisi' });
     }
 
-    // Hitung total
+    // Hitung total dari DB
+    let totalBaru = 0;
+    const validatedItems = [];
+    for (const item of items) {
+      const [menu] = await conn.query('SELECT harga FROM menu WHERE id = ?', [item.menu_id]);
+      if (menu.length > 0) {
+        totalBaru += menu[0].harga * item.qty;
+        validatedItems.push({ ...item, harga: menu[0].harga });
+      }
+    }
+
+    let pesanan_id;
     let total = 0;
-    for (const item of items) {
-      const [menu] = await conn.query('SELECT harga FROM menu WHERE id = ?', [item.menu_id]);
-      total += menu[0].harga * item.qty;
-    }
 
-    // Insert pesanan
-    const [result] = await conn.query(
-      'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total) VALUES (?, ?, ?, ?, ?)',
-      [meja_id, kasir_id, tipe, catatan, total]
+    // Cek Open Bill
+    const [openBill] = await conn.query(
+      "SELECT id, total FROM pesanan WHERE meja_id = ? AND is_open_bill = 1 AND status != 'selesai' AND status != 'batal' LIMIT 1",
+      [meja_id]
     );
-    const pesanan_id = result.insertId;
 
-    // Insert detail
-    for (const item of items) {
-      const [menu] = await conn.query('SELECT harga FROM menu WHERE id = ?', [item.menu_id]);
-      await conn.query(
-        'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, catatan) VALUES (?, ?, ?, ?, ?)',
-        [pesanan_id, item.menu_id, item.qty, menu[0].harga, item.catatan || null]
+    if (openBill.length > 0) {
+      pesanan_id = openBill[0].id;
+      total = parseFloat(openBill[0].total) + totalBaru;
+      
+      await conn.query('UPDATE pesanan SET total = ? WHERE id = ?', [total, pesanan_id]);
+      
+      for (const item of validatedItems) {
+        await conn.query(
+          'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, catatan) VALUES (?, ?, ?, ?, ?)',
+          [pesanan_id, item.menu_id, item.qty, item.harga, item.catatan || null]
+        );
+      }
+    } else {
+      total = totalBaru;
+      const [result] = await conn.query(
+        'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total) VALUES (?, ?, ?, ?, ?)',
+        [meja_id, kasir_id, tipe, catatan, total]
       );
-    }
+      pesanan_id = result.insertId;
 
-    // Update status meja
-    if (meja_id) {
-      await conn.query('UPDATE meja SET status = "terisi" WHERE id = ?', [meja_id]);
+      for (const item of validatedItems) {
+        await conn.query(
+          'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, catatan) VALUES (?, ?, ?, ?, ?)',
+          [pesanan_id, item.menu_id, item.qty, item.harga, item.catatan || null]
+        );
+      }
+
+      if (meja_id) {
+        await conn.query('UPDATE meja SET status = "terisi" WHERE id = ?', [meja_id]);
+      }
     }
 
     await conn.commit();
 
-    // Emit socket
     const io = req.app.get('io');
     if (io) {
       io.emit('pesanan_baru', { pesanan_id, meja_id, total });
-      if (meja_id) {
+      if (meja_id && openBill.length === 0) {
         io.emit('status_meja', { meja_id, status: 'terisi' });
       }
     }
 
-    res.status(201).json({ message: 'Pesanan dibuat', pesanan_id, total });
+    res.status(201).json({ message: 'Pesanan dibuat/diperbarui', pesanan_id, total });
+  } catch (err) {
+    await conn.rollback();
+    console.error(err); res.status(500).json({ message: 'Server error' });
+  } finally {
+    conn.release();
+  }
+};
+
+exports.buatReservasi = async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const { meja_id, nama_pelanggan, dp_amount } = req.body;
+    const kasir_id = req.user?.id || null;
+
+    if (!meja_id || !nama_pelanggan) {
+      return res.status(400).json({ message: 'Meja dan nama pelanggan wajib diisi' });
+    }
+
+    const [result] = await conn.query(
+      'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total, is_open_bill, dp_amount, nama_pelanggan) VALUES (?, ?, "dine-in", "", 0, true, ?, ?)',
+      [meja_id, kasir_id, dp_amount || 0, nama_pelanggan]
+    );
+
+    await conn.query('UPDATE meja SET status = "reservasi" WHERE id = ?', [meja_id]);
+
+    await conn.commit();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('status_meja', { meja_id, status: 'reservasi' });
+      io.emit('pesanan_baru', { pesanan_id: result.insertId, meja_id, total: 0 });
+    }
+
+    res.status(201).json({ message: 'Reservasi berhasil dibuat', pesanan_id: result.insertId });
   } catch (err) {
     await conn.rollback();
     console.error(err); res.status(500).json({ message: 'Server error' });
