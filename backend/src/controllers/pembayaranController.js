@@ -27,11 +27,20 @@ exports.buatPembayaran = async (req, res) => {
       return res.status(400).json({ message: 'Pesanan sudah dibayar' });
     }
 
+    const totalTagihan = pesanan[0].total;
+    const dpAmount = parseFloat(pesanan[0].dp_amount || 0);
+    const jumlahBayar = Math.max(0, totalTagihan - dpAmount);
+
     // Insert pembayaran
     const [result] = await conn.query(
       'INSERT INTO pembayaran (pesanan_id, metode, jumlah, status) VALUES (?, ?, ?, ?)',
-      [pesanan_id, metode, pesanan[0].total, (metode === 'cash' || metode === 'tunai') ? 'sukses' : 'pending']
+      [pesanan_id, metode, jumlahBayar, (metode === 'cash' || metode === 'tunai') ? 'sukses' : 'pending']
     );
+
+    // Close open bill if cash/tunai (or wait for QRIS)
+    if (metode === 'cash' || metode === 'tunai') {
+      await conn.query('UPDATE pesanan SET is_open_bill = 0 WHERE id = ?', [pesanan_id]);
+    }
 
     // Pesanan tetap pending, biarkan KDS yang handle status pesanan
     // Meja tetap terisi sampai KDS menyelesaikan pesanan
@@ -47,7 +56,7 @@ exports.buatPembayaran = async (req, res) => {
     res.status(201).json({
       message: (metode === 'cash' || metode === 'tunai') ? 'Pembayaran berhasil' : 'Menunggu pembayaran QRIS',
       pembayaran_id: result.insertId,
-      jumlah: pesanan[0].total,
+      jumlah: jumlahBayar,
       metode
     });
 
@@ -92,6 +101,7 @@ exports.konfirmasiQris = async (req, res) => {
     }
 
     await conn.query('UPDATE pembayaran SET status = "sukses" WHERE id = ?', [id]);
+    await conn.query('UPDATE pesanan SET is_open_bill = 0 WHERE id = ?', [pembayaran[0].pesanan_id]);
     // Pesanan tetap pending/diproses, biarkan KDS yang handle
 
     await conn.commit();
