@@ -25,7 +25,7 @@ exports.getMenu = async (req, res) => {
 
 exports.tambahMenu = async (req, res) => {
   try {
-    const { kategori_id, nama, deskripsi, harga } = req.body;
+    const { kategori_id, nama, deskripsi, harga, hpp } = req.body;
     let gambar = '';
 
     if (!nama || !harga || !kategori_id) {
@@ -45,8 +45,8 @@ exports.tambahMenu = async (req, res) => {
     }
     
     const [result] = await db.query(
-      'INSERT INTO menu (kategori_id, nama, deskripsi, harga, gambar) VALUES (?, ?, ?, ?, ?)',
-      [kategori_id, nama, deskripsi, harga, gambar]
+      'INSERT INTO menu (kategori_id, nama, deskripsi, harga, hpp, gambar) VALUES (?, ?, ?, ?, ?, ?)',
+      [kategori_id, nama, deskripsi, harga, hpp || 0, gambar]
     );
     
     // Emit real-time event
@@ -67,7 +67,7 @@ exports.tambahMenu = async (req, res) => {
 exports.updateMenu = async (req, res) => {
   try {
     const { id } = req.params;
-    const { kategori_id, nama, deskripsi, harga, tersedia } = req.body;
+    const { kategori_id, nama, deskripsi, harga, hpp, tersedia } = req.body;
     let gambar = req.body.gambar; // Keep existing if no new file
     
     if (req.file) {
@@ -75,8 +75,8 @@ exports.updateMenu = async (req, res) => {
     }
     
     await db.query(
-      'UPDATE menu SET kategori_id=?, nama=?, deskripsi=?, harga=?, gambar=?, tersedia=? WHERE id=?',
-      [kategori_id, nama, deskripsi, harga, gambar, tersedia, id]
+      'UPDATE menu SET kategori_id=?, nama=?, deskripsi=?, harga=?, hpp=?, gambar=?, tersedia=? WHERE id=?',
+      [kategori_id, nama, deskripsi, harga, hpp || 0, gambar, tersedia, id]
     );
     
     // Emit real-time event
@@ -104,6 +104,9 @@ exports.hapusMenu = async (req, res) => {
     
     res.json({ message: 'Menu dihapus' });
   } catch (err) {
+    if (err.code === 'ER_ROW_IS_REFERENCED_2') {
+      return res.status(400).json({ message: 'Menu tidak bisa dihapus karena sudah tercatat di riwayat pesanan. Silakan Edit menu ini dan jadikan "Tidak Tersedia".' });
+    }
     console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };

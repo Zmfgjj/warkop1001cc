@@ -1,6 +1,7 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 
@@ -71,13 +72,13 @@ export default function Kasir() {
   const totalTransaksi = pesanan.reduce((sum, p) => sum + Number(p.total || 0), 0)
 
   const menuItems = [
-    { icon: '🏠', label: 'Dashboard', path: '/kasir' },
-    { icon: '🧾', label: 'Kasir (POS)', path: '/kasir/pos' },
-    { icon: '🛒', label: 'Manajemen Menu', path: '/kasir/menu' },
-    { icon: '📋', label: 'Manajemen Meja', path: '/kasir/meja' },
-    { icon: '📡', label: 'KDS', path: '/kasir/kds' },
-    { icon: '📊', label: 'Laporan', path: '/kasir/laporan' },
-    { icon: '👤', label: 'User Manage', path: '/kasir/user-manage' },
+    { icon: <LayoutDashboard size={20}/>, label: 'Dashboard', path: '/kasir' },
+    { icon: <ReceiptText size={20}/>, label: 'Kasir (POS)', path: '/kasir/pos' },
+    { icon: <ShoppingCart size={20}/>, label: 'Manajemen Menu', path: '/kasir/menu' },
+    { icon: <Grid2X2 size={20}/>, label: 'Manajemen Meja', path: '/kasir/meja' },
+    { icon: <MonitorPlay size={20}/>, label: 'KDS', path: '/kasir/kds' },
+    { icon: <BarChart3 size={20}/>, label: 'Laporan', path: '/kasir/laporan' },
+    { icon: <Users size={20}/>, label: 'User Manage', path: '/kasir/user-manage' },
   ]
 
   return (
@@ -86,14 +87,8 @@ export default function Kasir() {
       {/* Sidebar */}
       <div className="w-64 flex flex-col items-center py-8 px-4 shadow-lg" style={{ backgroundColor: '#EDE0CC' }}>
         <div className="mb-8">
-          <div className="w-28 h-28 rounded-full border-4 flex items-center justify-center bg-white overflow-hidden" style={{ borderColor: '#634930' }}>
-            <svg width="90" height="90" viewBox="0 0 80 80" fill="none">
-              <circle cx="40" cy="40" r="38" fill="#fff" stroke="#634930" strokeWidth="3"/>
-              <path d="M20 30h40l-8 40H28L20 30z" fill="#634930" />
-              <path d="M60 38h12a8 8 0 010 16H60" stroke="#634930" strokeWidth="3" fill="none" />
-              <ellipse cx="40" cy="30" rx="20" ry="4" fill="#8B6F47" />
-              <rect x="16" y="70" width="48" height="4" rx="2" fill="#634930" />
-            </svg>
+          <div className="w-28 h-28 rounded-full border-4 flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
+            <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-cover" />
           </div>
         </div>
 
@@ -119,7 +114,7 @@ export default function Kasir() {
           className="w-full mt-4 py-3 rounded-xl font-medium text-sm transition-all"
           style={{ color: '#634930', border: '2px solid #634930' }}
         >
-          🚪 Logout
+          <LogOut size={20} className="inline mr-2"/> Logout
         </button>
       </div>
 

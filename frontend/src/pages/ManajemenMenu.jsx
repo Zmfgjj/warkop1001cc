@@ -1,6 +1,7 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 
@@ -12,16 +13,17 @@ export default function ManajemenMenu() {
   const [menuList, setMenuList] = useState([])
   const [kategoriList, setKategoriList] = useState([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Modal tambah menu
   const [showTambah, setShowTambah] = useState(false)
-  const [formTambah, setFormTambah] = useState({ nama: '', harga: '', kategori_id: '', gambar: null, gambarPreview: '', deskripsi: '' })
+  const [formTambah, setFormTambah] = useState({ nama: '', harga: '', hpp: '', kategori_id: '', gambar: null, gambarPreview: '', deskripsi: '' })
   const [loadingTambah, setLoadingTambah] = useState(false)
 
   // Modal edit menu
   const [showEdit, setShowEdit] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
-  const [formEdit, setFormEdit] = useState({ nama: '', harga: '', kategori_id: '', gambar: null, gambarPreview: '', deskripsi: '' })
+  const [formEdit, setFormEdit] = useState({ nama: '', harga: '', hpp: '', kategori_id: '', gambar: null, gambarPreview: '', deskripsi: '', tersedia: true })
   const [loadingEdit, setLoadingEdit] = useState(false)
 
   // Modal hapus
@@ -91,13 +93,13 @@ export default function ManajemenMenu() {
   const canEdit = ['owner', 'manager'].includes(user?.role)
 
   const menuNav = [
-    { icon: '🏠', label: 'Dashboard', path: '/kasir' },
-    { icon: '🧾', label: 'Kasir (POS)', path: '/kasir/pos' },
-    { icon: '🛒', label: 'Manajemen Menu', path: '/kasir/menu' },
-    { icon: '📋', label: 'Manajemen Meja', path: '/kasir/meja' },
-    { icon: '📡', label: 'KDS', path: '/kasir/kds' },
-    { icon: '📊', label: 'Laporan', path: '/kasir/laporan' },
-    { icon: '👤', label: 'User Manage', path: '/kasir/user-manage' },
+    { icon: <LayoutDashboard size={20}/>, label: 'Dashboard', path: '/kasir' },
+    { icon: <ReceiptText size={20}/>, label: 'Kasir (POS)', path: '/kasir/pos' },
+    { icon: <ShoppingCart size={20}/>, label: 'Manajemen Menu', path: '/kasir/menu' },
+    { icon: <Grid2X2 size={20}/>, label: 'Manajemen Meja', path: '/kasir/meja' },
+    { icon: <MonitorPlay size={20}/>, label: 'KDS', path: '/kasir/kds' },
+    { icon: <BarChart3 size={20}/>, label: 'Laporan', path: '/kasir/laporan' },
+    { icon: <Users size={20}/>, label: 'User Manage', path: '/kasir/user-manage' },
   ]
 
   const handleTambahMenu = async () => {
@@ -109,6 +111,7 @@ export default function ManajemenMenu() {
       const formData = new FormData()
       formData.append('nama', formTambah.nama)
       formData.append('harga', formTambah.harga)
+      formData.append('hpp', formTambah.hpp || 0)
       formData.append('kategori_id', formTambah.kategori_id)
       formData.append('deskripsi', formTambah.deskripsi)
       if (formTambah.gambar) {
@@ -121,7 +124,7 @@ export default function ManajemenMenu() {
       })
       console.log('✅ Menu ditambahkan:', res.data)
       setShowTambah(false)
-      setFormTambah({ nama: '', harga: '', kategori_id: kategoriList[0]?.id || '', gambar: null, gambarPreview: '', deskripsi: '' })
+      setFormTambah({ nama: '', harga: '', hpp: '', kategori_id: kategoriList[0]?.id || '', gambar: null, gambarPreview: '', deskripsi: '' })
       fetchMenu()
     } catch (err) {
       console.error('❌ Error tambah menu:', err.response?.data)
@@ -140,8 +143,10 @@ export default function ManajemenMenu() {
       const formData = new FormData()
       formData.append('nama', formEdit.nama)
       formData.append('harga', formEdit.harga)
+      formData.append('hpp', formEdit.hpp || 0)
       formData.append('kategori_id', formEdit.kategori_id)
       formData.append('deskripsi', formEdit.deskripsi)
+      formData.append('tersedia', formEdit.tersedia ? 1 : 0)
       // Only append new file if selected, otherwise keep existing
       if (formEdit.gambar instanceof File) {
         formData.append('gambar', formEdit.gambar)
@@ -181,11 +186,13 @@ export default function ManajemenMenu() {
     setEditTarget(menu)
     setFormEdit({ 
       nama: menu.nama, 
-      harga: menu.harga, 
+      harga: menu.harga,
+      hpp: menu.hpp || 0,
       kategori_id: menu.kategori_id, 
       gambar: null,
       gambarPreview: menu.gambar,
-      deskripsi: menu.deskripsi || ''
+      deskripsi: menu.deskripsi || '',
+      tersedia: menu.tersedia !== 0
     })
     setShowEdit(true)
   }
@@ -196,14 +203,8 @@ export default function ManajemenMenu() {
       {/* Sidebar */}
       <div className="w-64 flex flex-col items-center py-8 px-4 shadow-lg" style={{ backgroundColor: '#EDE0CC' }}>
         <div className="mb-8">
-          <div className="w-28 h-28 rounded-full border-4 flex items-center justify-center bg-white overflow-hidden" style={{ borderColor: '#634930' }}>
-            <svg width="90" height="90" viewBox="0 0 80 80" fill="none">
-              <circle cx="40" cy="40" r="38" fill="#fff" stroke="#634930" strokeWidth="3"/>
-              <path d="M20 30h40l-8 40H28L20 30z" fill="#634930" />
-              <path d="M60 38h12a8 8 0 010 16H60" stroke="#634930" strokeWidth="3" fill="none" />
-              <ellipse cx="40" cy="30" rx="20" ry="4" fill="#8B6F47" />
-              <rect x="16" y="70" width="48" height="4" rx="2" fill="#634930" />
-            </svg>
+          <div className="w-28 h-28 rounded-full border-4 flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
+            <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-cover" />
           </div>
         </div>
         <nav className="w-full space-y-1 flex-1">
@@ -227,7 +228,7 @@ export default function ManajemenMenu() {
           className="w-full mt-4 py-3 rounded-xl font-medium text-sm transition-all"
           style={{ color: '#634930', border: '2px solid #634930' }}
         >
-          🚪 Logout
+          <LogOut size={20} className="inline mr-2"/> Logout
         </button>
       </div>
 
@@ -259,15 +260,25 @@ export default function ManajemenMenu() {
               </div>
               <h1 className="text-2xl font-bold" style={{ color: '#634930' }}>Manajemen Menu</h1>
             </div>
-            {canEdit && (
-              <button
-                onClick={() => setShowTambah(true)}
-                className="px-6 py-2 rounded-lg font-semibold text-white transition-all hover:opacity-90"
-                style={{ backgroundColor: '#634930' }}
-              >
-                ➕ Tambah Menu
-              </button>
-            )}
+            <div className="flex gap-3 items-center">
+              <input
+                type="text"
+                placeholder="Cari Menu..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="px-4 py-2 border rounded-lg focus:outline-none"
+                style={{ borderColor: '#634930', width: '250px' }}
+              />
+              {canEdit && (
+                <button
+                  onClick={() => setShowTambah(true)}
+                  className="px-6 py-2 rounded-lg font-semibold text-white transition-all hover:opacity-90"
+                  style={{ backgroundColor: '#634930' }}
+                >
+                  ➕ Tambah Menu
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Menu List */}
@@ -281,7 +292,11 @@ export default function ManajemenMenu() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {menuList.map((menu) => (
+              {menuList.filter(m => m.nama.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 ? (
+                <div className="col-span-full flex items-center justify-center py-12">
+                  <p style={{ color: '#8B6F47' }}>Tidak ada menu yang cocok</p>
+                </div>
+              ) : menuList.filter(m => m.nama.toLowerCase().includes(searchQuery.toLowerCase())).map((menu) => (
                 <div key={menu.id} className="p-4 rounded-xl shadow-md" style={{ backgroundColor: '#fff', borderLeft: '4px solid #634930' }}>
                   {menu.gambar && (
                     <img src={menu.gambar} alt={menu.nama} className="w-full h-40 object-cover rounded-lg mb-4" />
@@ -334,9 +349,17 @@ export default function ManajemenMenu() {
               />
               <input
                 type="number"
-                placeholder="Harga"
+                placeholder="Harga Jual"
                 value={formTambah.harga}
                 onChange={(e) => setFormTambah({ ...formTambah, harga: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
+                style={{ borderColor: '#634930' }}
+              />
+              <input
+                type="number"
+                placeholder="HPP (Harga Pokok)"
+                value={formTambah.hpp}
+                onChange={(e) => setFormTambah({ ...formTambah, hpp: e.target.value })}
                 className="w-full px-4 py-2 border rounded-lg focus:outline-none"
                 style={{ borderColor: '#634930' }}
               />
@@ -423,9 +446,17 @@ export default function ManajemenMenu() {
               />
               <input
                 type="number"
-                placeholder="Harga"
+                placeholder="Harga Jual"
                 value={formEdit.harga}
                 onChange={(e) => setFormEdit({ ...formEdit, harga: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
+                style={{ borderColor: '#634930' }}
+              />
+              <input
+                type="number"
+                placeholder="HPP (Harga Pokok)"
+                value={formEdit.hpp}
+                onChange={(e) => setFormEdit({ ...formEdit, hpp: e.target.value })}
                 className="w-full px-4 py-2 border rounded-lg focus:outline-none"
                 style={{ borderColor: '#634930' }}
               />
@@ -448,6 +479,16 @@ export default function ManajemenMenu() {
                 className="w-full px-4 py-2 border rounded-lg focus:outline-none"
                 style={{ borderColor: '#634930' }}
               />
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="tersedia"
+                  checked={formEdit.tersedia}
+                  onChange={(e) => setFormEdit({ ...formEdit, tersedia: e.target.checked })}
+                  className="w-5 h-5 accent-[#634930]"
+                />
+                <label htmlFor="tersedia" className="font-semibold" style={{ color: '#634930' }}>Menu Tersedia</label>
+              </div>
               <div>
                 <label style={{ color: '#634930' }} className="block font-semibold mb-2">📸 Gambar (ubah opsional)</label>
                 <input

@@ -1,8 +1,10 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
+import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
+import { cetakStruk, cetakStrukThermal } from '../utils/printStruk'
 
 export default function KasirPOS() {
   const { user, logout } = useAuth()
@@ -116,13 +118,13 @@ export default function KasirPOS() {
   }
 
   const menuNav = [
-    { icon: '🏠', label: 'Dashboard', path: '/kasir' },
-    { icon: '🧾', label: 'Kasir (POS)', path: '/kasir/pos' },
-    { icon: '🛒', label: 'Manajemen Menu', path: '/kasir/menu' },
-    { icon: '📋', label: 'Manajemen Meja', path: '/kasir/meja' },
-    { icon: '📡', label: 'KDS', path: '/kasir/kds' },
-    { icon: '📊', label: 'Laporan', path: '/kasir/laporan' },
-    { icon: '👤', label: 'User Manage', path: '/kasir/user-manage' },
+    { icon: <LayoutDashboard size={20}/>, label: 'Dashboard', path: '/kasir' },
+    { icon: <ReceiptText size={20}/>, label: 'Kasir (POS)', path: '/kasir/pos' },
+    { icon: <ShoppingCart size={20}/>, label: 'Manajemen Menu', path: '/kasir/menu' },
+    { icon: <Grid2X2 size={20}/>, label: 'Manajemen Meja', path: '/kasir/meja' },
+    { icon: <MonitorPlay size={20}/>, label: 'KDS', path: '/kasir/kds' },
+    { icon: <BarChart3 size={20}/>, label: 'Laporan', path: '/kasir/laporan' },
+    { icon: <Users size={20}/>, label: 'User Manage', path: '/kasir/user-manage' },
   ]
 
   const filteredMenu = menuList.filter(m => {
@@ -179,6 +181,30 @@ export default function KasirPOS() {
         metode: metodeBayar.toLowerCase(),
         jumlah: total,
       })
+
+      // Cetak struk 2x (pelanggan + laporan)
+      const strukData = {
+        pesananId: resPesanan.data.pesanan_id,
+        items: order,
+        subtotal,
+        ppn,
+        ppnRate,
+        total,
+        metodeBayar,
+        jumlahBayar: parseInt(jumlahBayar.replace(/\D/g, '') || 0),
+        kembali,
+        meja: selectedMeja?.nomor,
+        tipe: tipeOrder,
+        kasir: user?.username,
+        tanggal: new Date(),
+      }
+
+      // Coba thermal printer dulu, fallback ke window.print()
+      const thermalOk = await cetakStrukThermal(strukData).catch(() => false)
+      if (!thermalOk) {
+        cetakStruk(strukData)
+      }
+
       alert('Pesanan berhasil dibuat & pembayaran tercatat!')
       setOrder([])
       setJumlahBayar('')
@@ -203,14 +229,8 @@ export default function KasirPOS() {
       {/* Sidebar */}
       <div className="w-64 flex flex-col items-center py-8 px-4 shadow-lg" style={{ backgroundColor: '#EDE0CC' }}>
         <div className="mb-8">
-          <div className="w-28 h-28 rounded-full border-4 flex items-center justify-center bg-white overflow-hidden" style={{ borderColor: '#634930' }}>
-            <svg width="90" height="90" viewBox="0 0 80 80" fill="none">
-              <circle cx="40" cy="40" r="38" fill="#fff" stroke="#634930" strokeWidth="3"/>
-              <path d="M20 30h40l-8 40H28L20 30z" fill="#634930" />
-              <path d="M60 38h12a8 8 0 010 16H60" stroke="#634930" strokeWidth="3" fill="none" />
-              <ellipse cx="40" cy="30" rx="20" ry="4" fill="#8B6F47" />
-              <rect x="16" y="70" width="48" height="4" rx="2" fill="#634930" />
-            </svg>
+                    <div className="w-28 h-28 rounded-full border-4 flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
+            <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-cover" />
           </div>
         </div>
         <nav className="w-full space-y-1 flex-1">
@@ -234,7 +254,7 @@ export default function KasirPOS() {
           className="w-full mt-4 py-3 rounded-xl font-medium text-sm"
           style={{ color: '#634930', border: '2px solid #634930' }}
         >
-          🚪 Logout
+          <LogOut size={20} className="inline mr-2"/> Logout
         </button>
       </div>
 
@@ -344,17 +364,12 @@ export default function KasirPOS() {
                     return (
                       <div
                         key={menu.id}
-                        className="rounded-2xl p-3 flex flex-col items-center shadow-sm"
+                        className="rounded-2xl p-3 flex flex-col items-center justify-center shadow-sm"
                         style={{
                           backgroundColor: '#EDE0CC',
                           border: qty > 0 ? '2px solid #634930' : '2px solid transparent',
                         }}
                       >
-                        {menu.gambar ? (
-                          <img src={menu.gambar} alt={menu.nama} className="w-16 h-16 object-cover rounded-xl mb-2" />
-                        ) : (
-                          <div className="w-16 h-16 rounded-xl mb-2 flex items-center justify-center text-2xl" style={{ backgroundColor: '#D4B896' }}>🍽️</div>
-                        )}
                         <p className="text-xs font-medium text-center mb-1 line-clamp-2" style={{ color: '#634930' }}>{menu.nama}</p>
                         <p className="text-xs mb-3" style={{ color: '#8B6F47' }}>Rp {Number(menu.harga).toLocaleString('id-ID')}</p>
 
@@ -402,13 +417,6 @@ export default function KasirPOS() {
                   <p className="text-center text-sm py-8" style={{ color: '#8B6F47' }}>Belum ada item</p>
                 ) : order.map(o => (
                   <div key={o.menu_id} className="flex gap-3 pb-3 border-b" style={{ borderColor: '#EDE0CC' }}>
-                    <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0" style={{ backgroundColor: '#EDE0CC' }}>
-                      {o.gambar ? (
-                        <img src={o.gambar} alt={o.nama} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xl">🍽️</div>
-                      )}
-                    </div>
                     <div className="flex-1">
                       <div className="flex justify-between items-start">
                         <p className="text-sm font-medium" style={{ color: '#634930' }}>{o.nama}</p>
