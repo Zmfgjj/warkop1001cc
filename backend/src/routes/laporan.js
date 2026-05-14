@@ -6,5 +6,6 @@ const auth = require('../middleware/auth');
 router.get('/ringkasan', auth(['owner', 'manager']), laporanController.ringkasan);
 router.get('/bulanan', auth(['owner', 'manager']), laporanController.laporanBulanan);
 router.get('/menu', auth(['owner', 'manager']), laporanController.laporanMenu);
+router.get('/histori', auth(['owner', 'manager']), laporanController.historiPembelian);
 
 module.exports = router;

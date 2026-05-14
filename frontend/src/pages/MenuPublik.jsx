@@ -175,6 +175,10 @@ export default function MenuPublik() {
           <div className="text-7xl mb-4">✅</div>
           <h2 className="text-2xl font-bold text-[#442D1D] mb-2">Pesanan Terkirim!</h2>
           <p className="text-[#8B6F47] mb-1">No. Pesanan: <strong className="text-[#634930]">#{String(pesananId).padStart(4,'0')}</strong></p>
+          <div className="bg-[#ECD7B1] rounded-xl p-4 mb-4">
+            <p className="text-sm font-bold text-[#442D1D] mb-1">💳 Pembayaran via QRIS</p>
+            <p className="text-xs text-[#8B6F47]">Silakan lakukan pembayaran QRIS di kasir. Tunjukkan nomor pesanan kamu.</p>
+          </div>
           <p className="text-[#8B6F47] mb-6 text-sm">Pesanan kamu sudah masuk ke dapur. Mohon tunggu sebentar 😊</p>
           <button
             onClick={() => setSubmitted(false)}
@@ -193,11 +197,16 @@ export default function MenuPublik() {
     <div className="min-h-screen bg-[#FFFAF1] flex flex-col">
       {/* Header */}
       <header className="bg-[#ECD7B1] h-[70px] flex items-center px-4 shadow-sm sticky top-0 z-30">
-        <div className="flex-1">
-          <h1 className="text-xl font-bold text-[#442D1D]">☕ Warkop 1001 CC</h1>
-          {mejaInfo && (
-            <p className="text-xs text-[#8B6F47]">Meja {mejaInfo.nomor}</p>
-          )}
+        <div className="flex-1 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-2 flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
+            <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-cover" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-[#442D1D] leading-tight">Warkop 1001 CC</h1>
+            {mejaInfo && (
+              <p className="text-xs text-[#8B6F47]">Meja {mejaInfo.nomor}</p>
+            )}
+          </div>
         </div>
         {/* Mobile cart button */}
         <button
@@ -220,7 +229,7 @@ export default function MenuPublik() {
           <div className="bg-white border-b border-[#ECD7B1] px-4 py-3 flex gap-3 overflow-x-auto">
             <button
               onClick={() => setActiveKat(null)}
-              className={`px-5 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition ${
+              className={`px-5 py-2 rounded-full text-base font-semibold whitespace-nowrap transition ${
                 activeKat === null
                   ? 'bg-[#ECD7B1] text-[#442D1D]'
                   : 'bg-[#FFF5E5] text-[#8B6F47] hover:bg-[#ECD7B1]'
@@ -232,7 +241,7 @@ export default function MenuPublik() {
               <button
                 key={k.id}
                 onClick={() => setActiveKat(k.nama)}
-                className={`px-5 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition ${
+                className={`px-5 py-2 rounded-full text-base font-semibold whitespace-nowrap transition ${
                   activeKat === k.nama
                     ? 'bg-[#ECD7B1] text-[#442D1D]'
                     : 'bg-[#FFF5E5] text-[#8B6F47] hover:bg-[#ECD7B1]'
@@ -279,18 +288,18 @@ export default function MenuPublik() {
                           </div>
                         )}
                       </div>
-                      <div className="px-3 pt-2 pb-3">
-                        <p className="text-xs text-center text-[#442D1D] font-medium leading-tight line-clamp-2 min-h-[2rem]">
+                      <div className="px-3 pt-3 pb-4">
+                        <p className="text-sm text-center text-[#442D1D] font-bold leading-tight line-clamp-2 min-h-[2.5rem]">
                           {menu.nama}
                         </p>
-                        <p className="text-xs font-bold text-center text-[#0B8500] mt-1">
+                        <p className="text-sm font-bold text-center text-[#0B8500] mt-1">
                           {formatRupiah(menu.harga)}
                         </p>
                         <div className="mt-2">
                           {qty === 0 ? (
                             <button
                               onClick={() => addToCart(menu)}
-                              className="w-full py-1.5 rounded-full bg-[#D9FFA5]/60 text-xs font-semibold text-[#442D1D] hover:bg-[#D9FFA5] transition"
+                              className="w-full py-2 rounded-full bg-[#D9FFA5]/60 text-sm font-bold text-[#442D1D] hover:bg-[#D9FFA5] transition"
                             >
                               + Tambah
                             </button>
@@ -298,14 +307,14 @@ export default function MenuPublik() {
                             <div className="flex items-center justify-between bg-white border-2 border-[#22B214] rounded-full px-2 py-1">
                               <button
                                 onClick={() => removeFromCart(menu.id)}
-                                className="w-6 h-6 rounded-full bg-[#21B214] text-white text-sm font-bold flex items-center justify-center"
+                                className="w-8 h-8 rounded-full bg-[#21B214] text-white text-base font-bold flex items-center justify-center"
                               >
                                 −
                               </button>
-                              <span className="text-sm font-semibold text-[#442D1D]">{qty}</span>
+                              <span className="text-base font-bold text-[#442D1D]">{qty}</span>
                               <button
                                 onClick={() => addToCart(menu)}
-                                className="w-6 h-6 rounded-full bg-[#21B214] text-white text-sm font-bold flex items-center justify-center"
+                                className="w-8 h-8 rounded-full bg-[#21B214] text-white text-base font-bold flex items-center justify-center"
                               >
                                 +
                               </button>
@@ -375,26 +384,26 @@ export default function MenuPublik() {
                   <div key={item.menu_id} className="bg-[#FFFAF1] rounded-xl p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-[#442D1D] leading-tight">{item.nama}</p>
-                        <p className="text-xs text-[#8B6F47]">{formatRupiah(item.harga)} / porsi</p>
+                        <p className="text-base font-bold text-[#442D1D] leading-tight">{item.nama}</p>
+                        <p className="text-sm text-[#8B6F47]">{formatRupiah(item.harga)} / porsi</p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button
                           onClick={() => removeFromCart(item.menu_id)}
-                          className="w-6 h-6 rounded-full bg-[#21B214] text-white text-sm flex items-center justify-center"
+                          className="w-8 h-8 rounded-full bg-[#21B214] text-white text-base font-bold flex items-center justify-center"
                         >
                           −
                         </button>
-                        <span className="text-sm font-bold text-[#442D1D] w-5 text-center">{item.qty}</span>
+                        <span className="text-base font-bold text-[#442D1D] w-6 text-center">{item.qty}</span>
                         <button
                           onClick={() => addToCart({ id: item.menu_id, nama: item.nama, harga: item.harga })}
-                          className="w-6 h-6 rounded-full bg-[#21B214] text-white text-sm flex items-center justify-center"
+                          className="w-8 h-8 rounded-full bg-[#21B214] text-white text-base font-bold flex items-center justify-center"
                         >
                           +
                         </button>
                       </div>
                     </div>
-                    <p className="text-xs font-bold text-[#0B8500] mt-1 text-right">
+                    <p className="text-sm font-bold text-[#0B8500] mt-1 text-right">
                       {formatRupiah(item.harga * item.qty)}
                     </p>
                     <input
@@ -403,7 +412,7 @@ export default function MenuPublik() {
                       value={item.catatan}
                       maxLength={100}
                       onChange={e => updateCatatanCart(item.menu_id, e.target.value)}
-                      className="mt-2 w-full border border-[#ECD7B1] rounded-lg px-3 py-1.5 text-xs text-[#442D1D] bg-white focus:outline-none focus:border-[#634930]"
+                      className="mt-2 w-full border border-[#ECD7B1] rounded-lg px-3 py-2 text-sm text-[#442D1D] bg-white focus:outline-none focus:border-[#634930]"
                     />
                   </div>
                 ))
@@ -424,17 +433,22 @@ export default function MenuPublik() {
 
             {/* Summary & actions */}
             <div className="border-t border-[#ECD7B1] px-5 py-4 space-y-2">
-              <div className="flex justify-between text-sm text-[#8B6F47]">
+              <div className="flex justify-between text-base text-[#8B6F47]">
                 <span>Subtotal</span>
                 <span>{formatRupiah(subtotal)}</span>
               </div>
-              <div className="flex justify-between text-sm text-[#8B6F47]">
+              <div className="flex justify-between text-base text-[#8B6F47]">
                 <span>PPN {ppn}%</span>
                 <span>{formatRupiah(ppnAmount)}</span>
               </div>
-              <div className="flex justify-between text-base font-bold text-[#442D1D]">
+              <div className="flex justify-between text-xl font-bold text-[#442D1D]">
                 <span>Total</span>
                 <span>{formatRupiah(total)}</span>
+              </div>
+
+              <div className="flex items-center gap-2 bg-[#EFF8FF] rounded-lg px-3 py-2">
+                <span className="text-lg">💳</span>
+                <span className="text-xs font-semibold text-[#2563EB]">Pembayaran QRIS Only — bayar di kasir</span>
               </div>
 
               {error && (

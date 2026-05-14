@@ -41,16 +41,8 @@ export default function Login() {
         
         {/* Logo */}
         <div className="mb-4">
-          <div className="w-24 h-24 rounded-full border-4 overflow-hidden flex items-center justify-center" style={{ borderColor: '#634930', backgroundColor: '#fff' }}>
-            <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
-              <circle cx="40" cy="40" r="38" fill="#fff" stroke="#634930" strokeWidth="3"/>
-              <path d="M20 30h40l-8 40H28L20 30z" fill="#634930" />
-              <path d="M60 38h12a8 8 0 010 16H60" stroke="#634930" strokeWidth="3" fill="none" />
-              <ellipse cx="40" cy="30" rx="20" ry="4" fill="#8B6F47" />
-              <rect x="16" y="70" width="48" height="4" rx="2" fill="#634930" />
-              <text x="40" y="24" textAnchor="middle" fontSize="7" fontWeight="bold" fill="#634930">WARKOP</text>
-              <text x="40" y="34" textAnchor="middle" fontSize="9" fontWeight="bold" fill="#fff">1001cc</text>
-            </svg>
+          <div className="w-24 h-24 rounded-full border-4 overflow-hidden flex items-center justify-center bg-black" style={{ borderColor: '#634930' }}>
+            <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-cover" />
           </div>
         </div>
 
