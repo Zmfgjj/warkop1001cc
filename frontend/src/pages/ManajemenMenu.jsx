@@ -1,7 +1,7 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut, Plus, Search, Edit2, Trash2, Image as ImageIcon } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 
@@ -115,14 +115,12 @@ export default function ManajemenMenu() {
       formData.append('kategori_id', formTambah.kategori_id)
       formData.append('deskripsi', formTambah.deskripsi)
       if (formTambah.gambar) {
-        console.log('📸 Upload file:', formTambah.gambar.name)
         formData.append('gambar', formTambah.gambar)
       }
       
       const res = await api.post('/menu', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
-      console.log('✅ Menu ditambahkan:', res.data)
       setShowTambah(false)
       setFormTambah({ nama: '', harga: '', hpp: '', kategori_id: kategoriList[0]?.id || '', gambar: null, gambarPreview: '', deskripsi: '' })
       fetchMenu()
@@ -147,11 +145,10 @@ export default function ManajemenMenu() {
       formData.append('kategori_id', formEdit.kategori_id)
       formData.append('deskripsi', formEdit.deskripsi)
       formData.append('tersedia', formEdit.tersedia ? 1 : 0)
-      // Only append new file if selected, otherwise keep existing
+      
       if (formEdit.gambar instanceof File) {
         formData.append('gambar', formEdit.gambar)
       } else if (formEdit.gambarPreview) {
-        // Send existing path in body
         formData.append('gambar', formEdit.gambarPreview)
       }
       
@@ -198,134 +195,175 @@ export default function ManajemenMenu() {
   }
 
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: '#F5F0E8' }}>
+    <div className="flex min-h-screen font-sans" style={{ backgroundColor: '#F9F5F0' }}>
 
       {/* Sidebar */}
-      <div className="w-64 flex flex-col items-center py-8 px-4 shadow-lg" style={{ backgroundColor: '#EDE0CC' }}>
-        <div className="mb-8">
-          <div className="w-28 h-28 rounded-full border-4 flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
-            <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-cover" />
+      <div className="w-64 flex flex-col items-center py-8 px-4 shadow-xl z-10" style={{ backgroundColor: '#EDE0CC' }}>
+        <div className="mb-8 relative group cursor-pointer">
+          <div className="absolute inset-0 bg-amber-600 rounded-full blur-md opacity-20 group-hover:opacity-40 transition duration-300"></div>
+          <div className="w-28 h-28 rounded-full border-4 relative flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
+            <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-cover transform group-hover:scale-110 transition duration-500" />
           </div>
         </div>
-        <nav className="w-full space-y-1 flex-1">
+
+        <nav className="w-full space-y-2 flex-1 mt-4">
           {menuNav.map((item) => (
             <button
               key={item.label}
               onClick={() => item.path ? navigate(item.path) : setActiveMenu(item.label)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all font-medium text-sm"
+              className="w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-left transition-all font-semibold text-sm group"
               style={{
                 backgroundColor: activeMenu === item.label ? '#634930' : 'transparent',
                 color: activeMenu === item.label ? '#fff' : '#634930',
+                boxShadow: activeMenu === item.label ? '0 4px 14px 0 rgba(99, 73, 48, 0.39)' : 'none'
               }}
             >
-              <span>{item.icon}</span>
+              <span className={activeMenu !== item.label ? "group-hover:scale-110 transition-transform" : ""}>{item.icon}</span>
               <span>{item.label}</span>
             </button>
           ))}
         </nav>
+
         <button
           onClick={handleLogout}
-          className="w-full mt-4 py-3 rounded-xl font-medium text-sm transition-all"
+          className="w-full mt-4 py-3.5 rounded-xl font-bold text-sm transition-all hover:bg-red-50 hover:text-red-600 hover:border-red-600"
           style={{ color: '#634930', border: '2px solid #634930' }}
         >
           <LogOut size={20} className="inline mr-2"/> Logout
         </button>
       </div>
 
-      {/* Main */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
 
-        {/* Header */}
-        <div className="flex justify-between items-center px-8 py-4 shadow-sm" style={{ backgroundColor: '#EDE0CC' }}>
-          <h2 className="text-lg font-bold" style={{ color: '#634930' }}>Manajemen Menu</h2>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-bold" style={{ color: '#634930' }}>Kasir</p>
-              <p className="text-sm" style={{ color: '#8B6F47' }}>{user?.username}</p>
+        {/* Top Header */}
+        <div className="flex justify-between items-center px-10 py-5 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-amber-100/50 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-50 text-[#634930] flex items-center justify-center shadow-sm border border-amber-100">
+              <ShoppingCart size={24} />
             </div>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: '#634930' }}>
+            <div>
+              <h1 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
+                Manajemen Menu
+              </h1>
+              <p className="text-sm text-gray-500 font-medium mt-0.5">Atur menu yang ditawarkan oleh Warkop 1001 CC</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-sm font-bold" style={{ color: '#634930' }}>Halo, {user?.username}</p>
+              <p className="text-xs uppercase" style={{ color: '#8B6F47' }}>{user?.role || 'Kasir'}</p>
+            </div>
+            <div className="w-12 h-12 rounded-full shadow-md flex items-center justify-center text-white font-bold text-xl bg-gradient-to-br from-[#634930] to-[#8B6F47] border-2 border-white">
               {(user?.username || 'K')[0].toUpperCase()}
             </div>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 p-8 overflow-auto">
+        {/* Content Area */}
+        <div className="flex-1 overflow-auto p-10 scroll-smooth">
 
-          {/* Page Title & Button */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#EDE0CC' }}>
-                <span className="text-xl">🛒</span>
+          {/* Action Bar */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+            <div className="relative group w-full sm:w-80">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-stone-400 group-focus-within:text-[#5C4033] transition-colors">
+                <Search size={18} />
               </div>
-              <h1 className="text-2xl font-bold" style={{ color: '#634930' }}>Manajemen Menu</h1>
-            </div>
-            <div className="flex gap-3 items-center">
               <input
                 type="text"
-                placeholder="Cari Menu..."
+                placeholder="Cari Menu Kesukaanmu..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="px-4 py-2 border rounded-lg focus:outline-none"
-                style={{ borderColor: '#634930', width: '250px' }}
+                className="w-full pl-11 pr-4 py-3 bg-white border border-stone-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all shadow-sm text-sm"
               />
-              {canEdit && (
-                <button
-                  onClick={() => setShowTambah(true)}
-                  className="px-6 py-2 rounded-lg font-semibold text-white transition-all hover:opacity-90"
-                  style={{ backgroundColor: '#634930' }}
-                >
-                  ➕ Tambah Menu
-                </button>
-              )}
             </div>
+            
+            {canEdit && (
+              <button
+                onClick={() => setShowTambah(true)}
+                className="flex items-center gap-2 px-6 py-3 rounded-2xl font-medium text-amber-50 bg-[#5C4033] hover:bg-[#4A3320] transition-all duration-300 shadow-lg shadow-[#5C4033]/20 hover:shadow-[#5C4033]/30 hover:-translate-y-0.5 active:scale-95"
+              >
+                <Plus size={18} /> Tambah Menu Baru
+              </button>
+            )}
           </div>
 
-          {/* Menu List */}
+          {/* Menu Grid */}
           {loading ? (
-            <div className="flex items-center justify-center py-24">
-              <p style={{ color: '#8B6F47' }}>Memuat menu...</p>
+            <div className="flex flex-col items-center justify-center py-32 space-y-4">
+              <div className="w-12 h-12 border-4 border-[#5C4033]/20 border-t-[#5C4033] rounded-full animate-spin"></div>
+              <p className="text-stone-500 font-medium animate-pulse">Meracik data menu...</p>
             </div>
           ) : menuList.length === 0 ? (
-            <div className="flex items-center justify-center py-24">
-              <p style={{ color: '#8B6F47' }}>Belum ada menu</p>
+            <div className="flex flex-col items-center justify-center py-32 bg-white rounded-3xl border border-stone-100 shadow-sm border-dashed">
+              <div className="w-16 h-16 bg-stone-50 text-stone-400 rounded-2xl flex items-center justify-center mb-4">
+                <ShoppingCart size={32} />
+              </div>
+              <p className="text-stone-500 font-medium text-lg">Belum ada menu yang ditambahkan</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-5">
               {menuList.filter(m => m.nama.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 ? (
-                <div className="col-span-full flex items-center justify-center py-12">
-                  <p style={{ color: '#8B6F47' }}>Tidak ada menu yang cocok</p>
+                <div className="col-span-full flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-stone-100 shadow-sm">
+                  <p className="text-stone-500 font-medium">Tidak ada menu yang cocok dengan pencarian "{searchQuery}"</p>
                 </div>
               ) : menuList.filter(m => m.nama.toLowerCase().includes(searchQuery.toLowerCase())).map((menu) => (
-                <div key={menu.id} className="p-4 rounded-xl shadow-md" style={{ backgroundColor: '#fff', borderLeft: '4px solid #634930' }}>
-                  {menu.gambar && (
-                    <img src={menu.gambar} alt={menu.nama} className="w-full h-40 object-cover rounded-lg mb-4" />
-                  )}
-                  <h3 className="font-bold text-lg mb-2" style={{ color: '#634930' }}>{menu.nama}</h3>
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm px-3 py-1 rounded-full font-medium" style={{ backgroundColor: '#AED6F1', color: '#1A5276' }}>
-                      {menu.kategori_nama || menu.kategori}
-                    </span>
-                    <p className="font-bold text-lg" style={{ color: '#634930' }}>Rp. {Number(menu.harga).toLocaleString('id-ID')}</p>
-                  </div>
-                  {canEdit && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => openEditModal(menu)}
-                        className="flex-1 px-4 py-2 rounded-lg font-semibold text-white transition-all hover:opacity-90"
-                        style={{ backgroundColor: '#F39C12' }}
-                      >
-                        ✏️ Edit
-                      </button>
-                      <button
-                        onClick={() => { setHapusTarget(menu); setShowHapus(true) }}
-                        className="flex-1 px-4 py-2 rounded-lg font-semibold text-white transition-all hover:opacity-90"
-                        style={{ backgroundColor: '#E74C3C' }}
-                      >
-                        🗑️ Hapus
-                      </button>
+                <div key={menu.id} className="group bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 border border-stone-100 overflow-hidden flex flex-col hover:-translate-y-1">
+                  {/* Image Area */}
+                  <div className="relative aspect-video w-full bg-stone-100 overflow-hidden">
+                    {menu.gambar ? (
+                      <img src={menu.gambar} alt={menu.nama} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-stone-300">
+                        <ImageIcon size={40} />
+                      </div>
+                    )}
+                    {/* Category Badge - Floating */}
+                    <div className="absolute top-4 left-4 z-10">
+                      <span className="px-3 py-1.5 rounded-full text-xs font-bold tracking-wide shadow-sm backdrop-blur-md bg-white/90 text-[#5C4033] border border-white/20">
+                        {menu.kategori_nama || menu.kategori}
+                      </span>
                     </div>
-                  )}
+                  </div>
+                  
+                  {/* Content Area */}
+                  <div className="p-4 flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-bold text-base text-stone-800 leading-tight mb-1 group-hover:text-[#5C4033] transition-colors line-clamp-2">{menu.nama}</h3>
+                      {menu.deskripsi && (
+                        <p className="text-xs text-stone-500 line-clamp-2 mb-2 leading-relaxed">{menu.deskripsi}</p>
+                      )}
+                    </div>
+                    
+                    <div className="mt-3 pt-3 border-t border-stone-100 flex items-end justify-between">
+                      <div>
+                        <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Harga</p>
+                        <p className="font-extrabold text-lg text-[#5C4033]">
+                          Rp {Number(menu.harga).toLocaleString('id-ID')}
+                        </p>
+                      </div>
+                      
+                      {canEdit && (
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 translate-y-1 group-hover:translate-y-0">
+                          <button
+                            onClick={() => openEditModal(menu)}
+                            className="p-2.5 rounded-xl bg-stone-50 text-stone-600 hover:bg-[#5C4033]/10 hover:text-[#5C4033] transition-colors"
+                            title="Edit Menu"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button
+                            onClick={() => { setHapusTarget(menu); setShowHapus(true) }}
+                            className="p-2.5 rounded-xl bg-stone-50 text-stone-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+                            title="Hapus Menu"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -335,95 +373,134 @@ export default function ManajemenMenu() {
 
       {/* Modal Tambah Menu */}
       {showTambah && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-auto">
-            <h2 className="text-xl font-bold mb-4" style={{ color: '#634930' }}>Tambah Menu Baru</h2>
-            <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Nama Menu"
-                value={formTambah.nama}
-                onChange={(e) => setFormTambah({ ...formTambah, nama: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
-                style={{ borderColor: '#634930' }}
-              />
-              <input
-                type="number"
-                placeholder="Harga Jual"
-                value={formTambah.harga}
-                onChange={(e) => setFormTambah({ ...formTambah, harga: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
-                style={{ borderColor: '#634930' }}
-              />
-              <input
-                type="number"
-                placeholder="HPP (Harga Pokok)"
-                value={formTambah.hpp}
-                onChange={(e) => setFormTambah({ ...formTambah, hpp: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
-                style={{ borderColor: '#634930' }}
-              />
-              <select
-                value={formTambah.kategori_id}
-                onChange={(e) => setFormTambah({ ...formTambah, kategori_id: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
-                style={{ borderColor: '#634930' }}
-              >
-                <option value="">Pilih Kategori</option>
-                {kategoriList.map((kat) => (
-                  <option key={kat.id} value={kat.id}>{kat.nama}</option>
-                ))}
-              </select>
-              <input
-                type="text"
-                placeholder="Deskripsi (opsional)"
-                value={formTambah.deskripsi}
-                onChange={(e) => setFormTambah({ ...formTambah, deskripsi: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
-                style={{ borderColor: '#634930' }}
-              />
-              <div>
-                <label style={{ color: '#634930' }} className="block font-semibold mb-2">📸 Gambar (opsional)</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      const reader = new FileReader()
-                      reader.onload = (event) => {
-                        setFormTambah({ 
-                          ...formTambah, 
-                          gambar: file,
-                          gambarPreview: event.target?.result
-                        })
-                      }
-                      reader.readAsDataURL(file)
-                    }
-                  }}
-                  className="w-full px-4 py-2 border rounded-lg"
-                  style={{ borderColor: '#634930' }}
-                />
-                {formTambah.gambarPreview && (
-                  <img src={formTambah.gambarPreview} alt="Preview" className="w-full h-32 object-cover rounded-lg mt-2" />
-                )}
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+          <div className="bg-white rounded-3xl p-8 max-w-lg w-full max-h-[90vh] overflow-auto shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-stone-800">Tambah Menu Baru</h2>
+              <div className="w-10 h-10 rounded-full bg-[#5C4033]/10 flex items-center justify-center text-[#5C4033]">
+                <Plus size={20} />
               </div>
             </div>
-            <div className="flex gap-2 mt-6">
+            
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-stone-600 mb-1.5">Nama Menu <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Kopi Susu Gula Aren"
+                  value={formTambah.nama}
+                  onChange={(e) => setFormTambah({ ...formTambah, nama: e.target.value })}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-stone-600 mb-1.5">Harga Jual <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-3 text-stone-400 text-sm font-medium">Rp</span>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={formTambah.harga}
+                      onChange={(e) => setFormTambah({ ...formTambah, harga: e.target.value })}
+                      className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-600 mb-1.5">HPP (Opsional)</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-3 text-stone-400 text-sm font-medium">Rp</span>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={formTambah.hpp}
+                      onChange={(e) => setFormTambah({ ...formTambah, hpp: e.target.value })}
+                      className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-stone-600 mb-1.5">Kategori <span className="text-red-500">*</span></label>
+                <select
+                  value={formTambah.kategori_id}
+                  onChange={(e) => setFormTambah({ ...formTambah, kategori_id: e.target.value })}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm appearance-none"
+                >
+                  <option value="" disabled>Pilih kategori yang sesuai</option>
+                  {kategoriList.map((kat) => (
+                    <option key={kat.id} value={kat.id}>{kat.nama}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-stone-600 mb-1.5">Deskripsi (Opsional)</label>
+                <textarea
+                  placeholder="Tambahkan detail tentang menu ini..."
+                  value={formTambah.deskripsi}
+                  onChange={(e) => setFormTambah({ ...formTambah, deskripsi: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm resize-none"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-stone-600 mb-1.5">Gambar Menu (Opsional)</label>
+                <div className="relative border-2 border-dashed border-stone-200 rounded-xl bg-stone-50 p-4 text-center hover:bg-stone-100 transition-colors group">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        const reader = new FileReader()
+                        reader.onload = (event) => {
+                          setFormTambah({ 
+                            ...formTambah, 
+                            gambar: file,
+                            gambarPreview: event.target?.result
+                          })
+                        }
+                        reader.readAsDataURL(file)
+                      }
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  {formTambah.gambarPreview ? (
+                    <div className="relative aspect-video w-full rounded-lg overflow-hidden shadow-sm">
+                      <img src={formTambah.gambarPreview} alt="Preview" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-stone-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-white text-sm font-medium bg-stone-900/60 px-3 py-1.5 rounded-lg backdrop-blur-sm">Ganti Gambar</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-6 flex flex-col items-center text-stone-500">
+                      <ImageIcon size={32} className="mb-2 text-stone-400 group-hover:text-[#5C4033] transition-colors" />
+                      <span className="text-sm font-medium text-[#5C4033]">Klik untuk upload</span>
+                      <span className="text-xs mt-1 text-stone-400">PNG, JPG up to 2MB</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-8 pt-6 border-t border-stone-100">
               <button
                 onClick={() => setShowTambah(false)}
-                className="flex-1 px-4 py-2 rounded-lg font-semibold border-2 transition-all"
-                style={{ borderColor: '#634930', color: '#634930' }}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-stone-600 bg-stone-100 hover:bg-stone-200 transition-all duration-200 active:scale-95"
               >
                 Batal
               </button>
               <button
                 onClick={handleTambahMenu}
                 disabled={loadingTambah}
-                className="flex-1 px-4 py-2 rounded-lg font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: '#634930' }}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-amber-50 bg-[#5C4033] hover:bg-[#4A3320] transition-all duration-200 disabled:opacity-50 shadow-md shadow-[#5C4033]/20 active:scale-95"
               >
-                {loadingTambah ? 'Loading...' : 'Tambah'}
+                {loadingTambah ? 'Memproses...' : 'Simpan Menu'}
               </button>
             </div>
           </div>
@@ -432,105 +509,145 @@ export default function ManajemenMenu() {
 
       {/* Modal Edit Menu */}
       {showEdit && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-auto">
-            <h2 className="text-xl font-bold mb-4" style={{ color: '#634930' }}>Edit Menu</h2>
-            <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Nama Menu"
-                value={formEdit.nama}
-                onChange={(e) => setFormEdit({ ...formEdit, nama: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
-                style={{ borderColor: '#634930' }}
-              />
-              <input
-                type="number"
-                placeholder="Harga Jual"
-                value={formEdit.harga}
-                onChange={(e) => setFormEdit({ ...formEdit, harga: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
-                style={{ borderColor: '#634930' }}
-              />
-              <input
-                type="number"
-                placeholder="HPP (Harga Pokok)"
-                value={formEdit.hpp}
-                onChange={(e) => setFormEdit({ ...formEdit, hpp: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
-                style={{ borderColor: '#634930' }}
-              />
-              <select
-                value={formEdit.kategori_id}
-                onChange={(e) => setFormEdit({ ...formEdit, kategori_id: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
-                style={{ borderColor: '#634930' }}
-              >
-                <option value="">Pilih Kategori</option>
-                {kategoriList.map((kat) => (
-                  <option key={kat.id} value={kat.id}>{kat.nama}</option>
-                ))}
-              </select>
-              <input
-                type="text"
-                placeholder="Deskripsi"
-                value={formEdit.deskripsi}
-                onChange={(e) => setFormEdit({ ...formEdit, deskripsi: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg focus:outline-none"
-                style={{ borderColor: '#634930' }}
-              />
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="tersedia"
-                  checked={formEdit.tersedia}
-                  onChange={(e) => setFormEdit({ ...formEdit, tersedia: e.target.checked })}
-                  className="w-5 h-5 accent-[#634930]"
-                />
-                <label htmlFor="tersedia" className="font-semibold" style={{ color: '#634930' }}>Menu Tersedia</label>
-              </div>
-              <div>
-                <label style={{ color: '#634930' }} className="block font-semibold mb-2">📸 Gambar (ubah opsional)</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      const reader = new FileReader()
-                      reader.onload = (event) => {
-                        setFormEdit({ 
-                          ...formEdit, 
-                          gambar: file,
-                          gambarPreview: event.target?.result
-                        })
-                      }
-                      reader.readAsDataURL(file)
-                    }
-                  }}
-                  className="w-full px-4 py-2 border rounded-lg"
-                  style={{ borderColor: '#634930' }}
-                />
-                {formEdit.gambarPreview && (
-                  <img src={formEdit.gambarPreview} alt="Preview" className="w-full h-32 object-cover rounded-lg mt-2" />
-                )}
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+          <div className="bg-white rounded-3xl p-8 max-w-lg w-full max-h-[90vh] overflow-auto shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-stone-800">Edit Menu</h2>
+              <div className="w-10 h-10 rounded-full bg-[#5C4033]/10 flex items-center justify-center text-[#5C4033]">
+                <Edit2 size={20} />
               </div>
             </div>
-            <div className="flex gap-2 mt-6">
+            
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-stone-600 mb-1.5">Nama Menu <span className="text-red-500">*</span></label>
+                <input
+                  type="text"
+                  value={formEdit.nama}
+                  onChange={(e) => setFormEdit({ ...formEdit, nama: e.target.value })}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-stone-600 mb-1.5">Harga Jual <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-3 text-stone-400 text-sm font-medium">Rp</span>
+                    <input
+                      type="number"
+                      value={formEdit.harga}
+                      onChange={(e) => setFormEdit({ ...formEdit, harga: e.target.value })}
+                      className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-stone-600 mb-1.5">HPP (Opsional)</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-3 text-stone-400 text-sm font-medium">Rp</span>
+                    <input
+                      type="number"
+                      value={formEdit.hpp}
+                      onChange={(e) => setFormEdit({ ...formEdit, hpp: e.target.value })}
+                      className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-stone-600 mb-1.5">Kategori <span className="text-red-500">*</span></label>
+                <select
+                  value={formEdit.kategori_id}
+                  onChange={(e) => setFormEdit({ ...formEdit, kategori_id: e.target.value })}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm appearance-none"
+                >
+                  <option value="" disabled>Pilih kategori</option>
+                  {kategoriList.map((kat) => (
+                    <option key={kat.id} value={kat.id}>{kat.nama}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-stone-600 mb-1.5">Deskripsi</label>
+                <textarea
+                  value={formEdit.deskripsi}
+                  onChange={(e) => setFormEdit({ ...formEdit, deskripsi: e.target.value })}
+                  rows={3}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm resize-none"
+                />
+              </div>
+              
+              <div className="flex items-center gap-3 p-4 bg-stone-50 border border-stone-200 rounded-xl">
+                <div className="relative flex items-center">
+                  <input
+                    type="checkbox"
+                    id="tersedia_edit"
+                    checked={formEdit.tersedia}
+                    onChange={(e) => setFormEdit({ ...formEdit, tersedia: e.target.checked })}
+                    className="peer w-5 h-5 rounded-md border-stone-300 text-[#5C4033] focus:ring-[#5C4033] accent-[#5C4033] cursor-pointer"
+                  />
+                </div>
+                <div className="flex flex-col">
+                  <label htmlFor="tersedia_edit" className="text-sm font-semibold text-stone-800 cursor-pointer">Menu Tersedia</label>
+                  <span className="text-xs text-stone-500">Centang jika menu ini sedang tersedia/bisa dipesan</span>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-stone-600 mb-1.5">Ubah Gambar</label>
+                <div className="relative border-2 border-dashed border-stone-200 rounded-xl bg-stone-50 p-4 text-center hover:bg-stone-100 transition-colors group">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        const reader = new FileReader()
+                        reader.onload = (event) => {
+                          setFormEdit({ 
+                            ...formEdit, 
+                            gambar: file,
+                            gambarPreview: event.target?.result
+                          })
+                        }
+                        reader.readAsDataURL(file)
+                      }
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  {formEdit.gambarPreview ? (
+                    <div className="relative aspect-video w-full rounded-lg overflow-hidden shadow-sm">
+                      <img src={formEdit.gambarPreview} alt="Preview" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-stone-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-white text-sm font-medium bg-stone-900/60 px-3 py-1.5 rounded-lg backdrop-blur-sm">Ganti Gambar</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-6 flex flex-col items-center text-stone-500">
+                      <ImageIcon size={32} className="mb-2 text-stone-400 group-hover:text-[#5C4033] transition-colors" />
+                      <span className="text-sm font-medium text-[#5C4033]">Upload gambar baru</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-3 mt-8 pt-6 border-t border-stone-100">
               <button
                 onClick={() => setShowEdit(false)}
-                className="flex-1 px-4 py-2 rounded-lg font-semibold border-2 transition-all"
-                style={{ borderColor: '#634930', color: '#634930' }}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-stone-600 bg-stone-100 hover:bg-stone-200 transition-all duration-200 active:scale-95"
               >
                 Batal
               </button>
               <button
                 onClick={handleEditMenu}
                 disabled={loadingEdit}
-                className="flex-1 px-4 py-2 rounded-lg font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: '#634930' }}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-amber-50 bg-[#5C4033] hover:bg-[#4A3320] transition-all duration-200 disabled:opacity-50 shadow-md shadow-[#5C4033]/20 active:scale-95"
               >
-                {loadingEdit ? 'Loading...' : 'Simpan'}
+                {loadingEdit ? 'Menyimpan...' : 'Simpan Perubahan'}
               </button>
             </div>
           </div>
@@ -539,27 +656,28 @@ export default function ManajemenMenu() {
 
       {/* Modal Hapus */}
       {showHapus && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4" style={{ color: '#634930' }}>Hapus Menu</h2>
-            <p style={{ color: '#8B6F47' }} className="mb-6">
-              Apakah Anda yakin ingin menghapus menu <strong>{hapusTarget?.nama}</strong>? Tindakan ini tidak dapat dibatalkan.
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-center">
+            <div className="w-20 h-20 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-5">
+              <Trash2 size={40} />
+            </div>
+            <h2 className="text-2xl font-bold text-stone-800 mb-2">Hapus Menu?</h2>
+            <p className="text-stone-500 mb-8 text-sm">
+              Anda yakin ingin menghapus <strong>{hapusTarget?.nama}</strong>? Tindakan ini bersifat permanen dan tidak bisa dibatalkan.
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={() => setShowHapus(false)}
-                className="flex-1 px-4 py-2 rounded-lg font-semibold border-2 transition-all"
-                style={{ borderColor: '#634930', color: '#634930' }}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-stone-600 bg-stone-100 hover:bg-stone-200 transition-all duration-200 active:scale-95"
               >
                 Batal
               </button>
               <button
                 onClick={handleHapusMenu}
                 disabled={loadingHapus}
-                className="flex-1 px-4 py-2 rounded-lg font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: '#E74C3C' }}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-white bg-red-500 hover:bg-red-600 transition-all duration-200 disabled:opacity-50 shadow-md shadow-red-500/20 active:scale-95"
               >
-                {loadingHapus ? 'Loading...' : 'Hapus'}
+                {loadingHapus ? 'Menghapus...' : 'Ya, Hapus'}
               </button>
             </div>
           </div>

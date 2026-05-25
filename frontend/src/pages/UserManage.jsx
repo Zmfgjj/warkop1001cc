@@ -142,282 +142,318 @@ export default function UserManage() {
   const totalAdmin = userList.filter(u => u.role === 'owner' || u.role === 'manager').length
 
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: '#F5F0E8' }}>
+    <div className="flex min-h-screen font-sans" style={{ backgroundColor: '#F9F5F0' }}>
 
       {/* Sidebar */}
-      <div className="w-64 flex flex-col items-center py-8 px-4 shadow-lg" style={{ backgroundColor: '#EDE0CC' }}>
-        <div className="mb-8">
-                    <div className="w-28 h-28 rounded-full border-4 flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
-            <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-cover" />
+      <div className="w-64 flex flex-col items-center py-8 px-4 shadow-xl z-10" style={{ backgroundColor: '#EDE0CC' }}>
+        <div className="mb-8 relative group cursor-pointer">
+          <div className="absolute inset-0 bg-amber-600 rounded-full blur-md opacity-20 group-hover:opacity-40 transition duration-300"></div>
+          <div className="w-28 h-28 rounded-full border-4 relative flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
+            <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-cover transform group-hover:scale-110 transition duration-500" />
           </div>
         </div>
-        <nav className="w-full space-y-1 flex-1">
+
+        <nav className="w-full space-y-2 flex-1 mt-4">
           {menuNav.map((item) => (
             <button
               key={item.label}
               onClick={() => item.path ? navigate(item.path) : setActiveMenu(item.label)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all font-medium text-sm"
+              className="w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-left transition-all font-semibold text-sm group"
               style={{
                 backgroundColor: activeMenu === item.label ? '#634930' : 'transparent',
                 color: activeMenu === item.label ? '#fff' : '#634930',
+                boxShadow: activeMenu === item.label ? '0 4px 14px 0 rgba(99, 73, 48, 0.39)' : 'none'
               }}
             >
-              <span>{item.icon}</span>
+              <span className={activeMenu !== item.label ? "group-hover:scale-110 transition-transform" : ""}>{item.icon}</span>
               <span>{item.label}</span>
             </button>
           ))}
         </nav>
+
         <button
           onClick={handleLogout}
-          className="w-full mt-4 py-3 rounded-xl font-medium text-sm"
+          className="w-full mt-4 py-3.5 rounded-xl font-bold text-sm transition-all hover:bg-red-50 hover:text-red-600 hover:border-red-600"
           style={{ color: '#634930', border: '2px solid #634930' }}
         >
           <LogOut size={20} className="inline mr-2"/> Logout
         </button>
       </div>
 
-      {/* Main */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
 
-        {/* Header */}
-        <div className="flex justify-end items-center px-8 py-4 shadow-sm" style={{ backgroundColor: '#EDE0CC' }}>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-bold" style={{ color: '#634930' }}>Kasir</p>
-              <p className="text-sm" style={{ color: '#8B6F47' }}>{user?.username}</p>
+        {/* Top Header */}
+        <div className="flex justify-between items-center px-10 py-5 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-amber-100/50 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-50 text-[#634930] flex items-center justify-center shadow-sm border border-amber-100">
+              <Users size={24} />
             </div>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: '#634930' }}>
+            <div>
+              <h1 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
+                User Manage
+              </h1>
+              <p className="text-sm text-gray-500 font-medium mt-0.5">Kelola akses, role, dan akun pengguna sistem</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-sm font-bold" style={{ color: '#634930' }}>Halo, {user?.username}</p>
+              <p className="text-xs uppercase" style={{ color: '#8B6F47' }}>{user?.role || 'Admin'}</p>
+            </div>
+            <div className="w-12 h-12 rounded-full shadow-md flex items-center justify-center text-white font-bold text-xl bg-gradient-to-br from-[#634930] to-[#8B6F47] border-2 border-white">
               {(user?.username || 'K')[0].toUpperCase()}
             </div>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 p-8">
+        {/* Content Body */}
+        <div className="flex-1 p-10 overflow-y-auto">
+          <div className="max-w-7xl mx-auto space-y-8">
 
-          {/* Page Title */}
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#EDE0CC' }}>
-              <span className="text-xl">👤</span>
-            </div>
-            <h1 className="text-2xl font-bold" style={{ color: '#634930' }}>User Manage</h1>
-          </div>
-
-          {/* PPN Settings Card */}
-          <div className="rounded-2xl px-6 py-4 shadow-sm mb-6" style={{ backgroundColor: '#F0F9FF', border: '2px solid #3498db' }}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold" style={{ color: '#3498db' }}>⚙️ Pengaturan PPN</p>
-                <p className="text-xs mt-1" style={{ color: '#666' }}>Pajak Pertambahan Nilai untuk setiap transaksi</p>
-              </div>
-              {!ppnEditing ? (
-                <div className="flex items-center gap-4">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold" style={{ color: '#3498db' }}>{ppn}%</p>
+            {/* Top Grid: PPN Settings & Stats */}
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              
+              {/* PPN Settings Card */}
+              <div className="lg:col-span-1 rounded-2xl p-4 shadow-sm border flex flex-col justify-center" style={{ backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }}>
+                <div className="flex items-start justify-between mb-1">
+                  <div>
+                    <h3 className="text-sm font-bold text-[#0284C7] flex items-center gap-1.5">
+                      <span className="text-lg">⚙️</span> Pajak (PPN)
+                    </h3>
                   </div>
-                  <button
-                    onClick={() => setPpnEditing(true)}
-                    className="px-6 py-2 rounded-lg font-semibold text-white transition-all"
-                    style={{ backgroundColor: '#3498db' }}
-                  >
-                    Ubah
-                  </button>
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-500 text-sm font-black shadow-inner">
+                    %
+                  </div>
+                </div>
+                <p className="text-[10px] text-[#0369A1] mb-2 leading-tight">Berlaku untuk semua transaksi POS</p>
+                
+                <div className="mt-auto">
+                  {!ppnEditing ? (
+                    <div className="flex items-center justify-between bg-white/60 p-2.5 rounded-xl">
+                      <p className="text-2xl font-black text-[#0284C7]">{ppn}<span className="text-lg text-blue-400">%</span></p>
+                      <button
+                        onClick={() => setPpnEditing(true)}
+                        className="px-4 py-1.5 rounded-lg font-bold text-white transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 text-xs"
+                        style={{ backgroundColor: '#0284C7' }}
+                      >
+                        Ubah
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2 bg-white/80 p-2.5 rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          value={newPpn}
+                          onChange={(e) => setNewPpn(e.target.value)}
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          className="px-2 py-1.5 rounded-lg border w-full text-base font-black focus:outline-none focus:border-[#0284C7] text-center"
+                          style={{ borderColor: '#BAE6FD', color: '#0284C7' }}
+                        />
+                      </div>
+                      <div className="flex gap-1.5">
+                         <button
+                          onClick={handleSavePPN}
+                          className="flex-1 py-1 rounded-md font-bold text-white transition-all shadow-sm text-xs"
+                          style={{ backgroundColor: '#10B981' }}
+                        >
+                          Simpan
+                        </button>
+                        <button
+                          onClick={() => {
+                            setPpnEditing(false)
+                            setNewPpn(ppn)
+                          }}
+                          className="flex-1 py-1 rounded-md font-bold transition-all shadow-sm bg-gray-100 text-gray-600 hover:bg-gray-200 text-xs"
+                        >
+                          Batal
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Stats & Add Button */}
+              <div className="lg:col-span-3 flex gap-4">
+                <div className="flex-1 rounded-2xl p-4 shadow-sm flex flex-col justify-center border relative overflow-hidden group" style={{ backgroundColor: '#fff', borderColor: '#EDE0CC' }}>
+                  <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-amber-50 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 relative z-10">Total Anggota</p>
+                  <p className="text-3xl font-black text-[#634930] relative z-10">{userList.length}</p>
+                </div>
+                <div className="flex-1 rounded-2xl p-4 shadow-sm flex flex-col justify-center border relative overflow-hidden group" style={{ backgroundColor: '#fff', borderColor: '#EDE0CC' }}>
+                  <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-emerald-50 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 relative z-10">Total Admin</p>
+                  <p className="text-3xl font-black text-emerald-700 relative z-10">{totalAdmin}</p>
+                </div>
+                <button
+                  onClick={() => setShowTambah(true)}
+                  className="flex-1 rounded-2xl p-4 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md flex flex-col items-center justify-center gap-1.5 relative overflow-hidden group"
+                  style={{ backgroundColor: '#634930' }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-xl font-light">
+                    +
+                  </div>
+                  <span className="font-bold text-white text-sm tracking-wide">Tambah User</span>
+                </button>
+              </div>
+
+            </div>
+
+            {/* Table */}
+            <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden">
+              {loading ? (
+                <div className="flex items-center justify-center py-24">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#634930]"></div>
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number"
-                    value={newPpn}
-                    onChange={(e) => setNewPpn(e.target.value)}
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    className="px-4 py-2 rounded-lg border-2 w-24 text-center focus:outline-none"
-                    style={{ borderColor: '#3498db' }}
-                  />
-                  <span style={{ color: '#3498db' }} className="font-bold">%</span>
-                  <button
-                    onClick={handleSavePPN}
-                    className="px-4 py-2 rounded-lg font-semibold text-white transition-all"
-                    style={{ backgroundColor: '#27ae60' }}
-                  >
-                    Simpan
-                  </button>
-                  <button
-                    onClick={() => {
-                      setPpnEditing(false)
-                      setNewPpn(ppn)
-                    }}
-                    className="px-4 py-2 rounded-lg font-semibold transition-all"
-                    style={{ backgroundColor: '#D5D5D5', color: '#666' }}
-                  >
-                    Batal
-                  </button>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100 text-gray-500 text-xs uppercase tracking-wider">
+                        <th className="px-8 py-5 font-bold">Anggota</th>
+                        <th className="px-8 py-5 font-bold">Username</th>
+                        <th className="px-8 py-5 font-bold">Role</th>
+                        <th className="px-8 py-5 font-bold">Bergabung</th>
+                        <th className="px-8 py-5 font-bold text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-sm">
+                      {userList.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="text-center py-16 text-gray-400 font-medium">
+                            <Users size={48} className="mx-auto mb-4 opacity-20" />
+                            Belum ada user yang terdaftar
+                          </td>
+                        </tr>
+                      ) : userList.map((u) => (
+                        <tr key={u.id} className="border-b border-gray-50 hover:bg-amber-50/30 transition-colors group">
+                          <td className="px-8 py-5">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-gray-100 text-[#634930] flex items-center justify-center font-bold text-lg shadow-sm">
+                                {(u.nama || '?')[0].toUpperCase()}
+                              </div>
+                              <span className="font-bold text-[#634930] text-base">{u.nama}</span>
+                            </div>
+                          </td>
+                          <td className="px-8 py-5 text-gray-500 font-medium">{u.username}</td>
+                          <td className="px-8 py-5">
+                            <span
+                              className="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border shadow-sm"
+                              style={{
+                                backgroundColor: roleColor[u.role]?.bg || '#EDE0CC',
+                                color: roleColor[u.role]?.color || '#634930',
+                                borderColor: 'rgba(0,0,0,0.05)'
+                              }}
+                            >
+                              {u.role}
+                            </span>
+                          </td>
+                          <td className="px-8 py-5 text-gray-400 font-medium">
+                            {u.created_at
+                              ? new Date(u.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+                              : '-'}
+                          </td>
+                          <td className="px-8 py-5">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => { setEditTarget(u); setEditRole(u.role); setShowEditRole(true) }}
+                                className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-80 shadow-sm border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                              >
+                                Edit Role
+                              </button>
+                              <button
+                                onClick={() => { setHapusTarget(u); setShowHapus(true) }}
+                                className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-80 shadow-sm bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                              >
+                                Hapus
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Stat Cards + Tambah User */}
-          <div className="flex gap-4 mb-6">
-            <div className="flex-1 rounded-2xl px-6 py-4 shadow-sm flex flex-col justify-center" style={{ backgroundColor: '#EDE0CC' }}>
-              <p className="text-xs mb-1" style={{ color: '#8B6F47' }}>Total Anggota</p>
-              <p className="text-3xl font-bold" style={{ color: '#634930' }}>{userList.length}</p>
-            </div>
-            <div className="flex-1 rounded-2xl px-6 py-4 shadow-sm flex flex-col justify-center" style={{ backgroundColor: '#EDE0CC' }}>
-              <p className="text-xs mb-1" style={{ color: '#8B6F47' }}>Admin</p>
-              <p className="text-3xl font-bold" style={{ color: '#634930' }}>{totalAdmin}</p>
-            </div>
-            <button
-              onClick={() => setShowTambah(true)}
-              className="flex items-center gap-3 px-8 py-4 rounded-2xl font-bold text-lg shadow-sm transition-all hover:opacity-90"
-              style={{ backgroundColor: '#EDE0CC', color: '#634930' }}
-            >
-              <span className="text-2xl">+</span>
-              <span>Tambah<br/>User</span>
-            </button>
-          </div>
-
-          {/* Table */}
-          <div className="rounded-2xl shadow-sm overflow-hidden" style={{ backgroundColor: '#fff' }}>
-            {loading ? (
-              <div className="flex items-center justify-center py-16">
-                <p style={{ color: '#8B6F47' }}>Memuat data...</p>
-              </div>
-            ) : (
-              <table className="w-full">
-                <thead>
-                  <tr style={{ backgroundColor: '#EDE0CC' }}>
-                    <th className="text-left px-6 py-4 text-sm font-semibold" style={{ color: '#634930' }}>Anggota</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold" style={{ color: '#634930' }}>Username</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold" style={{ color: '#634930' }}>Role</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold" style={{ color: '#634930' }}>Bergabung</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold" style={{ color: '#634930' }}>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {userList.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="text-center py-12 text-sm" style={{ color: '#8B6F47' }}>
-                        Tidak ada user
-                      </td>
-                    </tr>
-                  ) : userList.map((u, i) => (
-                    <tr
-                      key={u.id}
-                      style={{ borderTop: i > 0 ? '1px solid #EDE0CC' : 'none' }}
-                    >
-                      <td className="px-6 py-4 font-medium" style={{ color: '#634930' }}>{u.nama}</td>
-                      <td className="px-6 py-4 text-sm" style={{ color: '#8B6F47' }}>{u.username}</td>
-                      <td className="px-6 py-4">
-                        <span
-                          className="px-4 py-1 rounded-full text-sm font-semibold capitalize"
-                          style={{
-                            backgroundColor: roleColor[u.role]?.bg || '#EDE0CC',
-                            color: roleColor[u.role]?.color || '#634930',
-                          }}
-                        >
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm" style={{ color: '#8B6F47' }}>
-                        {u.created_at
-                          ? new Date(u.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-                          : '-'}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => { setEditTarget(u); setEditRole(u.role); setShowEditRole(true) }}
-                            className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all hover:opacity-80"
-                            style={{ backgroundColor: '#EDE0CC', color: '#634930', border: '1px solid #C4A882' }}
-                          >
-                            Edit Role
-                          </button>
-                          <button
-                            onClick={() => { setHapusTarget(u); setShowHapus(true) }}
-                            className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all hover:opacity-80"
-                            style={{ backgroundColor: '#e74c3c', color: '#fff' }}
-                          >
-                            Hapus
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
           </div>
         </div>
       </div>
 
       {/* Modal Tambah User */}
       {showTambah && (
-        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <div className="rounded-2xl p-8 w-full max-w-md shadow-2xl" style={{ backgroundColor: '#fff' }}>
-            <h2 className="text-xl font-bold mb-6" style={{ color: '#634930' }}>Tambah User</h2>
+        <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <div className="rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200" style={{ backgroundColor: '#fff', border: '1px solid #EDE0CC' }}>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-black" style={{ color: '#634930' }}>Tambah User Baru</h2>
+            </div>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium block mb-1" style={{ color: '#634930' }}>Nama Lengkap</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Nama Lengkap</label>
                 <input
                   type="text"
                   value={formTambah.nama}
                   onChange={e => setFormTambah(p => ({ ...p, nama: e.target.value }))}
-                  placeholder="Masukkan nama"
-                  className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none"
-                  style={{ backgroundColor: '#F5F0E8', color: '#634930', border: '1.5px solid #C4A882' }}
+                  placeholder="Masukkan nama lengkap"
+                  className="w-full px-4 py-3 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                  style={{ backgroundColor: '#F9F5F0', color: '#634930', border: '1px solid #EDE0CC' }}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium block mb-1" style={{ color: '#634930' }}>Username</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Username</label>
                 <input
                   type="text"
                   value={formTambah.username}
                   onChange={e => setFormTambah(p => ({ ...p, username: e.target.value }))}
-                  placeholder="Masukkan username"
-                  className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none"
-                  style={{ backgroundColor: '#F5F0E8', color: '#634930', border: '1.5px solid #C4A882' }}
+                  placeholder="Masukkan username login"
+                  className="w-full px-4 py-3 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                  style={{ backgroundColor: '#F9F5F0', color: '#634930', border: '1px solid #EDE0CC' }}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium block mb-1" style={{ color: '#634930' }}>Password</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Password</label>
                 <input
                   type="password"
                   value={formTambah.password}
                   onChange={e => setFormTambah(p => ({ ...p, password: e.target.value }))}
-                  placeholder="Masukkan password"
-                  className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none"
-                  style={{ backgroundColor: '#F5F0E8', color: '#634930', border: '1.5px solid #C4A882' }}
+                  placeholder="Minimal 6 karakter"
+                  className="w-full px-4 py-3 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                  style={{ backgroundColor: '#F9F5F0', color: '#634930', border: '1px solid #EDE0CC' }}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium block mb-1" style={{ color: '#634930' }}>Role</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Role Akses</label>
                 <select
                   value={formTambah.role}
                   onChange={e => setFormTambah(p => ({ ...p, role: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none"
-                  style={{ backgroundColor: '#F5F0E8', color: '#634930', border: '1.5px solid #C4A882' }}
+                  className="w-full px-4 py-3 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                  style={{ backgroundColor: '#F9F5F0', color: '#634930', border: '1px solid #EDE0CC' }}
                 >
-                  {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                  {ROLES.map(r => <option key={r} value={r} className="uppercase">{r}</option>)}
                 </select>
               </div>
             </div>
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3 mt-8">
               <button
                 onClick={() => setShowTambah(false)}
-                className="flex-1 py-3 rounded-xl font-medium text-sm"
-                style={{ backgroundColor: '#EDE0CC', color: '#634930' }}
+                className="flex-1 py-3.5 rounded-xl font-bold text-sm bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all"
               >
                 Batal
               </button>
               <button
                 onClick={handleTambahUser}
                 disabled={loadingTambah}
-                className="flex-1 py-3 rounded-xl font-bold text-sm text-white disabled:opacity-60"
-                style={{ backgroundColor: '#634930' }}
+                className="flex-1 py-3.5 rounded-xl font-bold text-sm text-white disabled:opacity-60 shadow-lg hover:shadow-xl transition-all active:scale-95"
+                style={{ backgroundColor: '#634930', boxShadow: '0 8px 20px rgba(99, 73, 48, 0.2)' }}
               >
-                {loadingTambah ? 'Menyimpan...' : 'Simpan'}
+                {loadingTambah ? 'Menyimpan...' : 'Simpan User'}
               </button>
             </div>
           </div>
@@ -426,36 +462,44 @@ export default function UserManage() {
 
       {/* Modal Edit Role */}
       {showEditRole && editTarget && (
-        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <div className="rounded-2xl p-8 w-full max-w-sm shadow-2xl" style={{ backgroundColor: '#fff' }}>
-            <h2 className="text-xl font-bold mb-2" style={{ color: '#634930' }}>Edit Role</h2>
-            <p className="text-sm mb-6" style={{ color: '#8B6F47' }}>User: <strong>{editTarget.nama}</strong></p>
+        <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <div className="rounded-3xl p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200" style={{ backgroundColor: '#fff', border: '1px solid #EDE0CC' }}>
+            <h2 className="text-2xl font-black mb-2" style={{ color: '#634930' }}>Edit Role</h2>
+            <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-100 flex items-center gap-3">
+               <div className="w-10 h-10 rounded-full bg-white text-[#634930] flex items-center justify-center font-bold text-lg shadow-sm">
+                 {(editTarget.nama || '?')[0].toUpperCase()}
+               </div>
+               <div>
+                  <p className="text-sm font-bold" style={{ color: '#634930' }}>{editTarget.nama}</p>
+                  <p className="text-xs font-medium text-amber-700">@{editTarget.username}</p>
+               </div>
+            </div>
+            
             <div>
-              <label className="text-sm font-medium block mb-2" style={{ color: '#634930' }}>Role</label>
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Pilih Role Baru</label>
               <select
                 value={editRole}
                 onChange={e => setEditRole(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl text-sm focus:outline-none"
-                style={{ backgroundColor: '#F5F0E8', color: '#634930', border: '1.5px solid #C4A882' }}
+                className="w-full px-4 py-3 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                style={{ backgroundColor: '#F9F5F0', color: '#634930', border: '1px solid #EDE0CC' }}
               >
-                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                {ROLES.map(r => <option key={r} value={r} className="uppercase">{r}</option>)}
               </select>
             </div>
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3 mt-8">
               <button
                 onClick={() => setShowEditRole(false)}
-                className="flex-1 py-3 rounded-xl font-medium text-sm"
-                style={{ backgroundColor: '#EDE0CC', color: '#634930' }}
+                className="flex-1 py-3.5 rounded-xl font-bold text-sm bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all"
               >
                 Batal
               </button>
               <button
                 onClick={handleEditRole}
                 disabled={loadingEdit}
-                className="flex-1 py-3 rounded-xl font-bold text-sm text-white disabled:opacity-60"
-                style={{ backgroundColor: '#634930' }}
+                className="flex-1 py-3.5 rounded-xl font-bold text-sm text-white disabled:opacity-60 shadow-lg hover:shadow-xl transition-all active:scale-95"
+                style={{ backgroundColor: '#634930', boxShadow: '0 8px 20px rgba(99, 73, 48, 0.2)' }}
               >
-                {loadingEdit ? 'Menyimpan...' : 'Simpan'}
+                {loadingEdit ? 'Menyimpan...' : 'Simpan Perubahan'}
               </button>
             </div>
           </div>
@@ -464,27 +508,29 @@ export default function UserManage() {
 
       {/* Modal Konfirmasi Hapus */}
       {showHapus && hapusTarget && (
-        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <div className="rounded-2xl p-8 w-full max-w-sm shadow-2xl" style={{ backgroundColor: '#fff' }}>
-            <h2 className="text-xl font-bold mb-2" style={{ color: '#634930' }}>Hapus User</h2>
-            <p className="text-sm mb-6" style={{ color: '#8B6F47' }}>
-              Yakin ingin menghapus user <strong>{hapusTarget.nama}</strong>? Aksi ini tidak bisa dibatalkan.
+        <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <div className="rounded-3xl p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200 text-center" style={{ backgroundColor: '#fff', border: '1px solid #ffeeba' }}>
+            <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 border-4 border-red-100">
+               <span className="text-4xl">🗑️</span>
+            </div>
+            <h2 className="text-2xl font-black mb-2 text-gray-800">Hapus Akses?</h2>
+            <p className="text-sm mb-8 text-gray-500">
+              Yakin ingin menghapus user <strong className="text-red-600">{hapusTarget.nama}</strong>? Aksi ini akan menghapus akun tersebut dari sistem.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowHapus(false)}
-                className="flex-1 py-3 rounded-xl font-medium text-sm"
-                style={{ backgroundColor: '#EDE0CC', color: '#634930' }}
+                className="flex-1 py-3.5 rounded-xl font-bold text-sm bg-gray-100 text-gray-600 hover:bg-gray-200 transition-all"
               >
-                Batal
+                Kembali
               </button>
               <button
                 onClick={handleHapus}
                 disabled={loadingHapus}
-                className="flex-1 py-3 rounded-xl font-bold text-sm text-white disabled:opacity-60"
-                style={{ backgroundColor: '#e74c3c' }}
+                className="flex-1 py-3.5 rounded-xl font-bold text-sm text-white disabled:opacity-60 shadow-lg hover:shadow-xl transition-all active:scale-95 bg-red-500 hover:bg-red-600"
+                style={{ boxShadow: '0 8px 20px rgba(239, 68, 68, 0.2)' }}
               >
-                {loadingHapus ? 'Menghapus...' : 'Hapus'}
+                {loadingHapus ? 'Menghapus...' : 'Ya, Hapus'}
               </button>
             </div>
           </div>
