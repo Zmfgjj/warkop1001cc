@@ -47,7 +47,7 @@ export default function KasirPOS() {
 
     socket.on('menuUpdated', (updatedMenu) => {
       console.log('✏️ Menu diupdate di POS:', updatedMenu)
-      setMenuList(prev => 
+      setMenuList(prev =>
         prev.map(m => m.id === updatedMenu.id ? updatedMenu : m)
       )
     })
@@ -161,13 +161,13 @@ export default function KasirPOS() {
   }
 
   const menuNav = [
-    { icon: <LayoutDashboard size={20}/>, label: 'Dashboard', path: '/kasir' },
-    { icon: <ReceiptText size={20}/>, label: 'Kasir (POS)', path: '/kasir/pos' },
-    { icon: <ShoppingCart size={20}/>, label: 'Manajemen Menu', path: '/kasir/menu' },
-    { icon: <Grid2X2 size={20}/>, label: 'Manajemen Meja', path: '/kasir/meja' },
-    { icon: <MonitorPlay size={20}/>, label: 'KDS', path: '/kasir/kds' },
-    { icon: <BarChart3 size={20}/>, label: 'Laporan', path: '/kasir/laporan' },
-    { icon: <Users size={20}/>, label: 'User Manage', path: '/kasir/user-manage' },
+    { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/kasir' },
+    { icon: <ReceiptText size={20} />, label: 'Kasir (POS)', path: '/kasir/pos' },
+    { icon: <ShoppingCart size={20} />, label: 'Manajemen Menu', path: '/kasir/menu' },
+    { icon: <Grid2X2 size={20} />, label: 'Manajemen Meja', path: '/kasir/meja' },
+    { icon: <MonitorPlay size={20} />, label: 'KDS', path: '/kasir/kds' },
+    { icon: <BarChart3 size={20} />, label: 'Laporan', path: '/kasir/laporan' },
+    { icon: <Users size={20} />, label: 'User Manage', path: '/kasir/user-manage' },
   ]
 
   const filteredMenu = menuList.filter(m => {
@@ -272,7 +272,7 @@ export default function KasirPOS() {
       {/* Sidebar */}
       <div className="w-64 flex flex-col items-center py-8 px-4 shadow-lg" style={{ backgroundColor: '#EDE0CC' }}>
         <div className="mb-8">
-                    <div className="w-28 h-28 rounded-full border-4 flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
+          <div className="w-28 h-28 rounded-full border-4 flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
             <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-cover" />
           </div>
         </div>
@@ -297,7 +297,7 @@ export default function KasirPOS() {
           className="w-full mt-4 py-3 rounded-xl font-medium text-sm"
           style={{ color: '#634930', border: '2px solid #634930' }}
         >
-          <LogOut size={20} className="inline mr-2"/> Logout
+          <LogOut size={20} className="inline mr-2" /> Logout
         </button>
       </div>
 
@@ -361,7 +361,7 @@ export default function KasirPOS() {
                     }}
                   >🛍️ Take Away</button>
                 </div>
-                
+
                 <button
                   onClick={() => setShowReservasiModal(true)}
                   className="flex items-center gap-2 px-4 py-3 rounded-full text-sm font-medium transition-all"
@@ -463,21 +463,21 @@ export default function KasirPOS() {
               </div>
 
               {/* Reservasi Info */}
-          {activeBill && (
-            <div className="p-4 mx-6 mb-4 rounded-xl flex justify-between items-center" style={{ backgroundColor: '#DFECDF', border: '1px solid #A4C5A4' }}>
-              <div>
-                <p className="text-xs font-bold text-green-800">OPEN BILL (RESERVASI)</p>
-                <p className="text-sm text-green-900 font-medium">{activeBill.nama_pelanggan}</p>
-                <p className="text-xs text-green-700">Sudah Order: Rp {Number(activeBill.total).toLocaleString('id-ID')}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-xs font-bold text-green-800">DP Dibayar</p>
-                <p className="text-lg font-bold text-green-900">Rp {Number(activeBill.dp_amount).toLocaleString('id-ID')}</p>
-              </div>
-            </div>
-          )}
+              {activeBill && (
+                <div className="p-4 mx-6 mb-4 rounded-xl flex justify-between items-center" style={{ backgroundColor: '#DFECDF', border: '1px solid #A4C5A4' }}>
+                  <div>
+                    <p className="text-xs font-bold text-green-800">OPEN BILL (RESERVASI)</p>
+                    <p className="text-sm text-green-900 font-medium">{activeBill.nama_pelanggan}</p>
+                    <p className="text-xs text-green-700">Sudah Order: Rp {Number(activeBill.total).toLocaleString('id-ID')}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-bold text-green-800">DP Dibayar</p>
+                    <p className="text-lg font-bold text-green-900">Rp {Number(activeBill.dp_amount).toLocaleString('id-ID')}</p>
+                  </div>
+                </div>
+              )}
 
-          {/* List Order */}
+              {/* List Order */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {order.length === 0 ? (
                   <p className="text-center text-sm py-8" style={{ color: '#8B6F47' }}>Belum ada item</p>

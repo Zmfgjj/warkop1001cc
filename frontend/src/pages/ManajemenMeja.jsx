@@ -1,7 +1,7 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut } from 'lucide-react';
+import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut, Plus, Trash2, QrCode } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 
@@ -139,28 +139,30 @@ export default function ManajemenMeja() {
   }
 
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: '#F5F0E8' }}>
+    <div className="flex min-h-screen font-sans" style={{ backgroundColor: '#F9F5F0' }}>
 
       {/* Sidebar */}
-      <div className="w-64 flex flex-col items-center py-8 px-4 shadow-lg" style={{ backgroundColor: '#EDE0CC' }}>
-        <div className="mb-8">
-                    <div className="w-28 h-28 rounded-full border-4 flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
-            <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-cover" />
+      <div className="w-64 flex flex-col items-center py-8 px-4 shadow-xl z-10" style={{ backgroundColor: '#EDE0CC' }}>
+        <div className="mb-8 relative group cursor-pointer">
+          <div className="absolute inset-0 bg-amber-600 rounded-full blur-md opacity-20 group-hover:opacity-40 transition duration-300"></div>
+          <div className="w-28 h-28 rounded-full border-4 relative flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
+            <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-cover transform group-hover:scale-110 transition duration-500" />
           </div>
         </div>
 
-        <nav className="w-full space-y-1 flex-1">
+        <nav className="w-full space-y-2 flex-1 mt-4">
           {menuNav.map((item) => (
             <button
               key={item.label}
               onClick={() => item.path ? navigate(item.path) : setActiveMenu(item.label)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all font-medium text-sm"
+              className="w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-left transition-all font-semibold text-sm group"
               style={{
                 backgroundColor: activeMenu === item.label ? '#634930' : 'transparent',
                 color: activeMenu === item.label ? '#fff' : '#634930',
+                boxShadow: activeMenu === item.label ? '0 4px 14px 0 rgba(99, 73, 48, 0.39)' : 'none'
               }}
             >
-              <span>{item.icon}</span>
+              <span className={activeMenu !== item.label ? "group-hover:scale-110 transition-transform" : ""}>{item.icon}</span>
               <span>{item.label}</span>
             </button>
           ))}
@@ -168,136 +170,147 @@ export default function ManajemenMeja() {
 
         <button
           onClick={handleLogout}
-          className="w-full mt-4 py-3 rounded-xl font-medium text-sm transition-all"
+          className="w-full mt-4 py-3.5 rounded-xl font-bold text-sm transition-all hover:bg-red-50 hover:text-red-600 hover:border-red-600"
           style={{ color: '#634930', border: '2px solid #634930' }}
         >
           <LogOut size={20} className="inline mr-2"/> Logout
         </button>
       </div>
 
-      {/* Main */}
-      <div className="flex-1 flex flex-col">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
 
-        {/* Header */}
-        <div className="flex justify-between items-center px-8 py-4 shadow-sm" style={{ backgroundColor: '#EDE0CC' }}>
-          <h2 className="text-lg font-bold" style={{ color: '#634930' }}>Manajemen Meja</h2>
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-bold" style={{ color: '#634930' }}>Kasir</p>
-              <p className="text-sm" style={{ color: '#8B6F47' }}>{user?.username}</p>
+        {/* Top Header */}
+        <div className="flex justify-between items-center px-10 py-5 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-amber-100/50 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-50 text-[#634930] flex items-center justify-center shadow-sm border border-amber-100">
+              <Grid2X2 size={24} />
             </div>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-lg" style={{ backgroundColor: '#634930' }}>
+            <div>
+              <h1 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
+                Manajemen Meja
+              </h1>
+              <p className="text-sm text-gray-500 font-medium mt-0.5">Kelola kapasitas dan status meja restoran</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-sm font-bold" style={{ color: '#634930' }}>Halo, {user?.username}</p>
+              <p className="text-xs uppercase" style={{ color: '#8B6F47' }}>{user?.role || 'Kasir'}</p>
+            </div>
+            <div className="w-12 h-12 rounded-full shadow-md flex items-center justify-center text-white font-bold text-xl bg-gradient-to-br from-[#634930] to-[#8B6F47] border-2 border-white">
               {(user?.username || 'K')[0].toUpperCase()}
             </div>
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 p-8 overflow-auto">
+        {/* Content Area */}
+        <div className="flex-1 p-10 overflow-auto scroll-smooth">
 
-          {/* Page Title & Button */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#EDE0CC' }}>
-                <span className="text-xl">📋</span>
-              </div>
-              <h1 className="text-2xl font-bold" style={{ color: '#634930' }}>Manajemen Meja</h1>
-            </div>
-            {canEdit && (
+          {/* Action Bar */}
+          {canEdit && (
+            <div className="flex justify-end mb-8">
               <button
                 onClick={() => setShowTambah(true)}
-                className="px-6 py-2 rounded-lg font-semibold text-white transition-all hover:opacity-90"
-                style={{ backgroundColor: '#634930' }}
+                className="flex items-center gap-2 px-6 py-3 rounded-2xl font-medium text-amber-50 bg-[#634930] hover:bg-[#4A3320] transition-all duration-300 shadow-lg shadow-[#634930]/20 hover:shadow-[#634930]/30 hover:-translate-y-0.5 active:scale-95"
               >
-                ➕ Tambah Meja
+                <Plus size={18} /> Tambah Meja Baru
               </button>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="rounded-2xl p-6 shadow-sm" style={{ backgroundColor: '#EDE0CC' }}>
-              <p className="text-xs mb-1" style={{ color: '#8B6F47' }}>Total Meja</p>
-              <p className="text-3xl font-bold" style={{ color: '#634930' }}>{mejaList.length}</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="rounded-3xl p-6 shadow-sm border border-amber-100 bg-white relative overflow-hidden group">
+              <div className="absolute -right-6 -top-6 w-32 h-32 bg-[#EDE0CC]/30 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+              <p className="text-sm font-semibold mb-1 relative z-10" style={{ color: '#8B6F47' }}>Total Meja</p>
+              <p className="text-4xl font-black relative z-10" style={{ color: '#634930' }}>{mejaList.length}</p>
             </div>
-            <div className="rounded-2xl p-6 shadow-sm" style={{ backgroundColor: '#EDE0CC' }}>
-              <p className="text-xs mb-1" style={{ color: '#8B6F47' }}>Meja Kosong</p>
-              <p className="text-3xl font-bold" style={{ color: '#27ae60' }}>{mejaList.filter(m => m.status === 'kosong').length}</p>
+            <div className="rounded-3xl p-6 shadow-sm border border-emerald-100 bg-white relative overflow-hidden group">
+              <div className="absolute -right-6 -top-6 w-32 h-32 bg-emerald-50 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+              <p className="text-sm font-semibold mb-1 relative z-10 text-emerald-600">Meja Kosong (Tersedia)</p>
+              <p className="text-4xl font-black relative z-10 text-emerald-700">{mejaList.filter(m => m.status === 'kosong').length}</p>
             </div>
-            <div className="rounded-2xl p-6 shadow-sm" style={{ backgroundColor: '#EDE0CC' }}>
-              <p className="text-xs mb-1" style={{ color: '#8B6F47' }}>Meja Terisi</p>
-              <p className="text-3xl font-bold" style={{ color: '#e74c3c' }}>{mejaList.filter(m => m.status === 'terisi').length}</p>
+            <div className="rounded-3xl p-6 shadow-sm border border-red-100 bg-white relative overflow-hidden group">
+              <div className="absolute -right-6 -top-6 w-32 h-32 bg-red-50 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+              <p className="text-sm font-semibold mb-1 relative z-10 text-red-600">Meja Terisi</p>
+              <p className="text-4xl font-black relative z-10 text-red-700">{mejaList.filter(m => m.status === 'terisi').length}</p>
             </div>
           </div>
 
           {/* Table */}
-          <div className="rounded-2xl shadow-sm overflow-hidden" style={{ backgroundColor: '#fff' }}>
+          <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden max-w-6xl mx-auto">
             {loading ? (
-              <div className="flex items-center justify-center py-16">
-                <p style={{ color: '#8B6F47' }}>Memuat data meja...</p>
+              <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#634930]"></div>
+                <p className="text-[#8B6F47] font-medium">Memuat data meja...</p>
               </div>
             ) : mejaList.length === 0 ? (
-              <div className="flex items-center justify-center py-16">
-                <p style={{ color: '#8B6F47' }}>Belum ada meja</p>
+              <div className="flex flex-col items-center justify-center py-20 bg-white">
+                <div className="w-16 h-16 bg-amber-50 text-amber-900/40 rounded-2xl flex items-center justify-center mb-4">
+                  <Grid2X2 size={32} />
+                </div>
+                <p className="text-[#8B6F47] font-medium text-lg">Belum ada meja yang ditambahkan</p>
               </div>
             ) : (
-              <table className="w-full">
-                <thead>
-                  <tr style={{ backgroundColor: '#EDE0CC' }}>
-                    <th className="text-left px-6 py-4 text-sm font-semibold" style={{ color: '#634930' }}>No. Meja</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold" style={{ color: '#634930' }}>Status</th>
-                    <th className="text-left px-6 py-4 text-sm font-semibold" style={{ color: '#634930' }}>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mejaList.map((meja, i) => (
-                    <tr
-                      key={meja.id}
-                      style={{ borderTop: i > 0 ? '1px solid #EDE0CC' : 'none' }}
-                    >
-                      <td className="px-6 py-4 font-medium" style={{ color: '#634930' }}>
-                        #{String(meja.nomor).padStart(3, '0')}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className="px-4 py-1 rounded-full text-sm font-semibold capitalize"
-                          style={{
-                            backgroundColor: meja.status === 'kosong' ? '#A9DFBF' : '#F5B7B1',
-                            color: meja.status === 'kosong' ? '#1E8449' : '#78281F',
-                          }}
-                        >
-                          {getMejaStatus(meja.status)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleGenerateQR(meja)}
-                            className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all hover:opacity-80"
-                            style={{ backgroundColor: '#3498db', color: '#fff' }}
-                          >
-                            🔗 QR Code
-                          </button>
-                          {canEdit && (
-                            <button
-                              onClick={() => {
-                                setHapusTarget(meja)
-                                setShowHapus(true)
-                              }}
-                              disabled={meja.status === 'terisi'}
-                              className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all hover:opacity-80 disabled:opacity-50"
-                              style={{ backgroundColor: '#e74c3c', color: '#fff' }}
-                              title={meja.status === 'terisi' ? 'Tidak bisa hapus meja yang terisi' : ''}
-                            >
-                              🗑️ Hapus
-                            </button>
-                          )}
-                        </div>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider">
+                      <th className="px-8 py-5 font-bold w-[25%]">No. Meja</th>
+                      <th className="px-8 py-5 font-bold w-[35%]">Status</th>
+                      <th className="px-8 py-5 font-bold w-[40%]">Aksi</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="text-sm">
+                    {mejaList.map((meja, i) => (
+                      <tr
+                        key={meja.id}
+                        className="border-b border-gray-50 hover:bg-amber-50/30 transition-colors group"
+                      >
+                        <td className="px-8 py-5 font-black text-lg" style={{ color: '#634930' }}>
+                          #{String(meja.nomor).padStart(2, '0')}
+                        </td>
+                        <td className="px-8 py-5">
+                          <span
+                            className={`px-4 py-2 rounded-xl text-sm font-bold border inline-block text-center min-w-[120px] shadow-sm ${
+                              meja.status === 'kosong' 
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+                                : 'bg-red-50 text-red-700 border-red-100'
+                            }`}
+                          >
+                            {meja.status === 'kosong' ? 'Tersedia' : 'Terisi'}
+                          </span>
+                        </td>
+                        <td className="px-8 py-5">
+                          <div className="flex gap-3 items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => handleGenerateQR(meja)}
+                              className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:-translate-y-0.5 shadow-sm bg-indigo-50 text-indigo-700 hover:bg-indigo-100 flex items-center gap-2"
+                            >
+                              <QrCode size={18} /> QR Code
+                            </button>
+                            {canEdit && (
+                              <button
+                                onClick={() => {
+                                  setHapusTarget(meja)
+                                  setShowHapus(true)
+                                }}
+                                disabled={meja.status === 'terisi'}
+                                className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:-translate-y-0.5 shadow-sm disabled:opacity-50 bg-red-50 text-red-600 hover:bg-red-100 flex items-center gap-2"
+                                title={meja.status === 'terisi' ? 'Tidak bisa hapus meja yang terisi' : ''}
+                              >
+                                <Trash2 size={18} /> Hapus
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
@@ -305,37 +318,39 @@ export default function ManajemenMeja() {
 
       {/* Modal Tambah Meja */}
       {showTambah && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4" style={{ color: '#634930' }}>Tambah Meja Baru</h2>
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-stone-800">Tambah Meja</h2>
+              <div className="w-10 h-10 rounded-full bg-[#634930]/10 flex items-center justify-center text-[#634930]">
+                <Plus size={20} />
+              </div>
+            </div>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium block mb-2" style={{ color: '#634930' }}>Nomor Meja</label>
+                <label className="block text-sm font-medium text-stone-600 mb-1.5">Nomor Meja <span className="text-red-500">*</span></label>
                 <input
                   type="number"
                   placeholder="Contoh: 1, 5, 10"
                   value={formTambah.nomor}
                   onChange={(e) => setFormTambah({ nomor: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:outline-none"
-                  style={{ borderColor: '#634930' }}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#634930]/20 focus:border-[#634930] transition-all text-sm"
                 />
               </div>
             </div>
-            <div className="flex gap-2 mt-6">
+            <div className="flex gap-3 mt-8 pt-6 border-t border-stone-100">
               <button
                 onClick={() => setShowTambah(false)}
-                className="flex-1 px-4 py-2 rounded-lg font-semibold border-2 transition-all"
-                style={{ borderColor: '#634930', color: '#634930' }}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-stone-600 bg-stone-100 hover:bg-stone-200 transition-all duration-200 active:scale-95"
               >
                 Batal
               </button>
               <button
                 onClick={handleTambahMeja}
                 disabled={loadingTambah}
-                className="flex-1 px-4 py-2 rounded-lg font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: '#634930' }}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-amber-50 bg-[#634930] hover:bg-[#4A3320] transition-all duration-200 disabled:opacity-50 shadow-md shadow-[#634930]/20 active:scale-95"
               >
-                {loadingTambah ? 'Loading...' : 'Tambah'}
+                {loadingTambah ? 'Loading...' : 'Simpan'}
               </button>
             </div>
           </div>
@@ -344,38 +359,31 @@ export default function ManajemenMeja() {
 
       {/* Modal QR Code */}
       {showQR && qrTarget && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-8 max-w-md w-full text-center">
-            <h2 className="text-xl font-bold mb-6" style={{ color: '#634930' }}>
-              QR Code - Meja #{String(qrTarget.nomor).padStart(3, '0')}
-            </h2>
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-center">
+            <h2 className="text-2xl font-bold text-stone-800 mb-2">QR Meja #{String(qrTarget.nomor).padStart(2, '0')}</h2>
+            <p className="text-sm text-stone-500 mb-6">Scan QR code untuk membuka menu e-Menu</p>
+            
             {qrUrl && (
-              <div className="mb-4">
+              <div className="mb-6 p-4 bg-stone-50 rounded-2xl border border-stone-100 flex items-center justify-center">
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrUrl)}`}
                   alt="QR Code"
-                  className="w-full rounded-lg"
+                  className="w-48 h-48 rounded-lg mix-blend-multiply"
                 />
               </div>
             )}
-            <p className="text-xs mb-2 break-all px-2 py-1 rounded bg-gray-100" style={{ color: '#634930' }}>
-              {qrUrl}
-            </p>
-            <p className="text-sm mb-4" style={{ color: '#8B6F47' }}>
-              Scan QR code ini untuk membuka menu di meja
-            </p>
-            <div className="flex gap-2">
+            
+            <div className="flex gap-3">
               <button
                 onClick={() => setShowQR(false)}
-                className="flex-1 px-4 py-2 rounded-lg font-semibold border-2 transition-all"
-                style={{ borderColor: '#634930', color: '#634930' }}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-stone-600 bg-stone-100 hover:bg-stone-200 transition-all duration-200 active:scale-95"
               >
                 Tutup
               </button>
               <button
                 onClick={handleDownloadQR}
-                className="flex-1 px-4 py-2 rounded-lg font-semibold text-white transition-all hover:opacity-90"
-                style={{ backgroundColor: '#3498db' }}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-white bg-indigo-500 hover:bg-indigo-600 transition-all duration-200 shadow-md shadow-indigo-500/20 active:scale-95 flex items-center justify-center gap-2"
               >
                 📥 Download
               </button>
@@ -386,27 +394,28 @@ export default function ManajemenMeja() {
 
       {/* Modal Hapus */}
       {showHapus && hapusTarget && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-2" style={{ color: '#634930' }}>Hapus Meja</h2>
-            <p className="text-sm mb-6" style={{ color: '#8B6F47' }}>
-              Yakin ingin menghapus Meja #{String(hapusTarget.nomor).padStart(3, '0')}?
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-center">
+            <div className="w-20 h-20 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-5">
+              <Trash2 size={40} />
+            </div>
+            <h2 className="text-2xl font-bold text-stone-800 mb-2">Hapus Meja?</h2>
+            <p className="text-stone-500 mb-8 text-sm">
+              Yakin ingin menghapus <strong>Meja #{String(hapusTarget.nomor).padStart(2, '0')}</strong>? Tindakan ini permanen.
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <button
                 onClick={() => setShowHapus(false)}
-                className="flex-1 px-4 py-2 rounded-lg font-semibold border-2 transition-all"
-                style={{ borderColor: '#634930', color: '#634930' }}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-stone-600 bg-stone-100 hover:bg-stone-200 transition-all duration-200 active:scale-95"
               >
                 Batal
               </button>
               <button
                 onClick={handleHapusMeja}
                 disabled={loadingHapus}
-                className="flex-1 px-4 py-2 rounded-lg font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-                style={{ backgroundColor: '#e74c3c' }}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-white bg-red-500 hover:bg-red-600 transition-all duration-200 disabled:opacity-50 shadow-md shadow-red-500/20 active:scale-95"
               >
-                {loadingHapus ? 'Loading...' : 'Hapus'}
+                {loadingHapus ? 'Loading...' : 'Ya, Hapus'}
               </button>
             </div>
           </div>
