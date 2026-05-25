@@ -1,15 +1,15 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut, Plus, Trash2, QrCode } from 'lucide-react';
+import { Grid2X2, Plus, Trash2, QrCode } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
+import MobileLayout from '../components/MobileLayout'
 
 export default function ManajemenMeja() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const { socket } = useSocket()
-  const [activeMenu, setActiveMenu] = useState('Manajemen Meja')
   const [mejaList, setMejaList] = useState([])
   const [loading, setLoading] = useState(true)
   const [showTambah, setShowTambah] = useState(false)
@@ -67,16 +67,6 @@ export default function ManajemenMeja() {
 
   const canEdit = ['owner', 'manager'].includes(user?.role)
 
-  const menuNav = [
-    { icon: <LayoutDashboard size={20}/>, label: 'Dashboard', path: '/kasir' },
-    { icon: <ReceiptText size={20}/>, label: 'Kasir (POS)', path: '/kasir/pos' },
-    { icon: <ShoppingCart size={20}/>, label: 'Manajemen Menu', path: '/kasir/menu' },
-    { icon: <Grid2X2 size={20}/>, label: 'Manajemen Meja', path: '/kasir/meja' },
-    { icon: <MonitorPlay size={20}/>, label: 'KDS', path: '/kasir/kds' },
-    { icon: <BarChart3 size={20}/>, label: 'Laporan', path: '/kasir/laporan' },
-    { icon: <Users size={20}/>, label: 'User Manage', path: '/kasir/user-manage' },
-  ]
-
   const handleTambahMeja = async () => {
     if (!formTambah.nomor) {
       return alert('Nomor meja wajib diisi!')
@@ -126,193 +116,134 @@ export default function ManajemenMeja() {
     }
   }
 
-  const handleDownloadQR = () => {
+  const handleDownloadQR = async () => {
     if (!qrUrl) return
-    const link = document.createElement('a')
-    link.href = qrUrl
-    link.download = `QR-Meja${String(qrTarget.nomor).padStart(3, '0')}.png`
-    link.click()
-  }
-
-  const getMejaStatus = (status) => {
-    return status === 'kosong' ? 'Kosong' : 'Terisi'
+    try {
+      const imageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrUrl)}`
+      const response = await fetch(imageUrl)
+      const blob = await response.blob()
+      const objectUrl = window.URL.createObjectURL(blob)
+      
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = `QR-Meja${String(qrTarget.nomor).padStart(3, '0')}.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(objectUrl)
+    } catch (err) {
+      console.error('Gagal download QR:', err)
+      alert('Gagal mengunduh QR Code')
+    }
   }
 
   return (
-    <div className="flex min-h-screen font-sans" style={{ backgroundColor: '#F9F5F0' }}>
-
-      {/* Sidebar */}
-      <div className="w-64 flex flex-col items-center py-8 px-4 shadow-xl z-10" style={{ backgroundColor: '#EDE0CC' }}>
-        <div className="mb-8 relative group cursor-pointer">
-          <div className="absolute inset-0 bg-amber-600 rounded-full blur-md opacity-20 group-hover:opacity-40 transition duration-300"></div>
-          <div className="w-28 h-28 rounded-full border-4 relative flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
-            <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-cover transform group-hover:scale-110 transition duration-500" />
-          </div>
-        </div>
-
-        <nav className="w-full space-y-2 flex-1 mt-4">
-          {menuNav.map((item) => (
+    <MobileLayout activeMenu="Manajemen Meja">
+      {/* Content Area */}
+      <div className="flex-1 p-4 md:p-6 xl:p-10 overflow-auto scroll-smooth">
+        {/* Action Bar */}
+        {canEdit && (
+          <div className="flex justify-end mb-8">
             <button
-              key={item.label}
-              onClick={() => item.path ? navigate(item.path) : setActiveMenu(item.label)}
-              className="w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-left transition-all font-semibold text-sm group"
-              style={{
-                backgroundColor: activeMenu === item.label ? '#634930' : 'transparent',
-                color: activeMenu === item.label ? '#fff' : '#634930',
-                boxShadow: activeMenu === item.label ? '0 4px 14px 0 rgba(99, 73, 48, 0.39)' : 'none'
-              }}
+              onClick={() => setShowTambah(true)}
+              className="flex items-center gap-2 px-6 py-3 rounded-2xl font-medium text-amber-50 bg-[#634930] hover:bg-[#4A3320] transition-all duration-300 shadow-lg shadow-[#634930]/20 hover:shadow-[#634930]/30 hover:-translate-y-0.5 active:scale-95"
             >
-              <span className={activeMenu !== item.label ? "group-hover:scale-110 transition-transform" : ""}>{item.icon}</span>
-              <span>{item.label}</span>
+              <Plus size={18} /> Tambah Meja Baru
             </button>
-          ))}
-        </nav>
-
-        <button
-          onClick={handleLogout}
-          className="w-full mt-4 py-3.5 rounded-xl font-bold text-sm transition-all hover:bg-red-50 hover:text-red-600 hover:border-red-600"
-          style={{ color: '#634930', border: '2px solid #634930' }}
-        >
-          <LogOut size={20} className="inline mr-2"/> Logout
-        </button>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-
-        {/* Top Header */}
-        <div className="flex justify-between items-center px-10 py-5 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-amber-100/50 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-50 text-[#634930] flex items-center justify-center shadow-sm border border-amber-100">
-              <Grid2X2 size={24} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
-                Manajemen Meja
-              </h1>
-              <p className="text-sm text-gray-500 font-medium mt-0.5">Kelola kapasitas dan status meja restoran</p>
-            </div>
           </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm font-bold" style={{ color: '#634930' }}>Halo, {user?.username}</p>
-              <p className="text-xs uppercase" style={{ color: '#8B6F47' }}>{user?.role || 'Kasir'}</p>
-            </div>
-            <div className="w-12 h-12 rounded-full shadow-md flex items-center justify-center text-white font-bold text-xl bg-gradient-to-br from-[#634930] to-[#8B6F47] border-2 border-white">
-              {(user?.username || 'K')[0].toUpperCase()}
-            </div>
+        )}
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="rounded-3xl p-6 shadow-sm border border-amber-100 bg-white relative overflow-hidden group">
+            <div className="absolute -right-6 -top-6 w-32 h-32 bg-[#EDE0CC]/30 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+            <p className="text-sm font-semibold mb-1 relative z-10" style={{ color: '#8B6F47' }}>Total Meja</p>
+            <p className="text-4xl font-black relative z-10" style={{ color: '#634930' }}>{mejaList.length}</p>
+          </div>
+          <div className="rounded-3xl p-6 shadow-sm border border-emerald-100 bg-white relative overflow-hidden group">
+            <div className="absolute -right-6 -top-6 w-32 h-32 bg-emerald-50 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+            <p className="text-sm font-semibold mb-1 relative z-10 text-emerald-600">Meja Kosong (Tersedia)</p>
+            <p className="text-4xl font-black relative z-10 text-emerald-700">{mejaList.filter(m => m.status === 'kosong').length}</p>
+          </div>
+          <div className="rounded-3xl p-6 shadow-sm border border-red-100 bg-white relative overflow-hidden group">
+            <div className="absolute -right-6 -top-6 w-32 h-32 bg-red-50 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
+            <p className="text-sm font-semibold mb-1 relative z-10 text-red-600">Meja Terisi</p>
+            <p className="text-4xl font-black relative z-10 text-red-700">{mejaList.filter(m => m.status === 'terisi').length}</p>
           </div>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 p-10 overflow-auto scroll-smooth">
-
-          {/* Action Bar */}
-          {canEdit && (
-            <div className="flex justify-end mb-8">
-              <button
-                onClick={() => setShowTambah(true)}
-                className="flex items-center gap-2 px-6 py-3 rounded-2xl font-medium text-amber-50 bg-[#634930] hover:bg-[#4A3320] transition-all duration-300 shadow-lg shadow-[#634930]/20 hover:shadow-[#634930]/30 hover:-translate-y-0.5 active:scale-95"
-              >
-                <Plus size={18} /> Tambah Meja Baru
-              </button>
+        {/* Table */}
+        <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden max-w-6xl mx-auto">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 space-y-4">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#634930]"></div>
+              <p className="text-[#8B6F47] font-medium">Memuat data meja...</p>
+            </div>
+          ) : mejaList.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 bg-white">
+              <div className="w-16 h-16 bg-amber-50 text-amber-900/40 rounded-2xl flex items-center justify-center mb-4">
+                <Grid2X2 size={32} />
+              </div>
+              <p className="text-[#8B6F47] font-medium text-lg">Belum ada meja yang ditambahkan</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider">
+                    <th className="px-8 py-5 font-bold w-[25%]">No. Meja</th>
+                    <th className="px-8 py-5 font-bold w-[35%]">Status</th>
+                    <th className="px-8 py-5 font-bold w-[40%]">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm">
+                  {mejaList.map((meja) => (
+                    <tr
+                      key={meja.id}
+                      className="border-b border-gray-50 hover:bg-amber-50/30 transition-colors group"
+                    >
+                      <td className="px-8 py-5 font-black text-lg" style={{ color: '#634930' }}>
+                        #{String(meja.nomor).padStart(2, '0')}
+                      </td>
+                      <td className="px-8 py-5">
+                        <span
+                          className={`px-4 py-2 rounded-xl text-sm font-bold border inline-block text-center min-w-[120px] shadow-sm ${
+                            meja.status === 'kosong' 
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+                              : 'bg-red-50 text-red-700 border-red-100'
+                          }`}
+                        >
+                          {meja.status === 'kosong' ? 'Tersedia' : 'Terisi'}
+                        </span>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex gap-3 items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => handleGenerateQR(meja)}
+                            className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:-translate-y-0.5 shadow-sm bg-indigo-50 text-indigo-700 hover:bg-indigo-100 flex items-center gap-2"
+                          >
+                            <QrCode size={18} /> QR Code
+                          </button>
+                          {canEdit && (
+                            <button
+                              onClick={() => {
+                                setHapusTarget(meja)
+                                setShowHapus(true)
+                              }}
+                              disabled={meja.status === 'terisi'}
+                              className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:-translate-y-0.5 shadow-sm disabled:opacity-50 bg-red-50 text-red-600 hover:bg-red-100 flex items-center gap-2"
+                            >
+                              <Trash2 size={18} /> Hapus
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
-
-          {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="rounded-3xl p-6 shadow-sm border border-amber-100 bg-white relative overflow-hidden group">
-              <div className="absolute -right-6 -top-6 w-32 h-32 bg-[#EDE0CC]/30 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
-              <p className="text-sm font-semibold mb-1 relative z-10" style={{ color: '#8B6F47' }}>Total Meja</p>
-              <p className="text-4xl font-black relative z-10" style={{ color: '#634930' }}>{mejaList.length}</p>
-            </div>
-            <div className="rounded-3xl p-6 shadow-sm border border-emerald-100 bg-white relative overflow-hidden group">
-              <div className="absolute -right-6 -top-6 w-32 h-32 bg-emerald-50 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
-              <p className="text-sm font-semibold mb-1 relative z-10 text-emerald-600">Meja Kosong (Tersedia)</p>
-              <p className="text-4xl font-black relative z-10 text-emerald-700">{mejaList.filter(m => m.status === 'kosong').length}</p>
-            </div>
-            <div className="rounded-3xl p-6 shadow-sm border border-red-100 bg-white relative overflow-hidden group">
-              <div className="absolute -right-6 -top-6 w-32 h-32 bg-red-50 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
-              <p className="text-sm font-semibold mb-1 relative z-10 text-red-600">Meja Terisi</p>
-              <p className="text-4xl font-black relative z-10 text-red-700">{mejaList.filter(m => m.status === 'terisi').length}</p>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 overflow-hidden max-w-6xl mx-auto">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#634930]"></div>
-                <p className="text-[#8B6F47] font-medium">Memuat data meja...</p>
-              </div>
-            ) : mejaList.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 bg-white">
-                <div className="w-16 h-16 bg-amber-50 text-amber-900/40 rounded-2xl flex items-center justify-center mb-4">
-                  <Grid2X2 size={32} />
-                </div>
-                <p className="text-[#8B6F47] font-medium text-lg">Belum ada meja yang ditambahkan</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50/50 text-gray-500 text-xs uppercase tracking-wider">
-                      <th className="px-8 py-5 font-bold w-[25%]">No. Meja</th>
-                      <th className="px-8 py-5 font-bold w-[35%]">Status</th>
-                      <th className="px-8 py-5 font-bold w-[40%]">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-sm">
-                    {mejaList.map((meja, i) => (
-                      <tr
-                        key={meja.id}
-                        className="border-b border-gray-50 hover:bg-amber-50/30 transition-colors group"
-                      >
-                        <td className="px-8 py-5 font-black text-lg" style={{ color: '#634930' }}>
-                          #{String(meja.nomor).padStart(2, '0')}
-                        </td>
-                        <td className="px-8 py-5">
-                          <span
-                            className={`px-4 py-2 rounded-xl text-sm font-bold border inline-block text-center min-w-[120px] shadow-sm ${
-                              meja.status === 'kosong' 
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
-                                : 'bg-red-50 text-red-700 border-red-100'
-                            }`}
-                          >
-                            {meja.status === 'kosong' ? 'Tersedia' : 'Terisi'}
-                          </span>
-                        </td>
-                        <td className="px-8 py-5">
-                          <div className="flex gap-3 items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => handleGenerateQR(meja)}
-                              className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:-translate-y-0.5 shadow-sm bg-indigo-50 text-indigo-700 hover:bg-indigo-100 flex items-center gap-2"
-                            >
-                              <QrCode size={18} /> QR Code
-                            </button>
-                            {canEdit && (
-                              <button
-                                onClick={() => {
-                                  setHapusTarget(meja)
-                                  setShowHapus(true)
-                                }}
-                                disabled={meja.status === 'terisi'}
-                                className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:-translate-y-0.5 shadow-sm disabled:opacity-50 bg-red-50 text-red-600 hover:bg-red-100 flex items-center gap-2"
-                                title={meja.status === 'terisi' ? 'Tidak bisa hapus meja yang terisi' : ''}
-                              >
-                                <Trash2 size={18} /> Hapus
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
@@ -421,6 +352,6 @@ export default function ManajemenMeja() {
           </div>
         </div>
       )}
-    </div>
+    </MobileLayout>
   )
 }

@@ -1,8 +1,9 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut } from 'lucide-react';
+import { Users } from 'lucide-react';
 import api from '../api/auth'
+import MobileLayout from '../components/MobileLayout'
 
 const ROLES = ['owner', 'manager', 'kasir', 'dapur']
 
@@ -14,9 +15,8 @@ const roleColor = {
 }
 
 export default function UserManage() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
-  const [activeMenu, setActiveMenu] = useState('User Manage')
   const [userList, setUserList] = useState([])
   const [loading, setLoading] = useState(true)
   const [ppn, setPpn] = useState(2)
@@ -142,78 +142,39 @@ export default function UserManage() {
   const totalAdmin = userList.filter(u => u.role === 'owner' || u.role === 'manager').length
 
   return (
-    <div className="flex min-h-screen font-sans" style={{ backgroundColor: '#F9F5F0' }}>
+    <MobileLayout activeMenu="User Manage">
 
-      {/* Sidebar */}
-      <div className="w-64 flex flex-col items-center py-8 px-4 shadow-xl z-10" style={{ backgroundColor: '#EDE0CC' }}>
-        <div className="mb-8 relative group cursor-pointer">
-          <div className="absolute inset-0 bg-amber-600 rounded-full blur-md opacity-20 group-hover:opacity-40 transition duration-300"></div>
-          <div className="w-28 h-28 rounded-full border-4 relative flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
-            <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-cover transform group-hover:scale-110 transition duration-500" />
+      {/* Top Header - desktop only */}
+      <div className="hidden lg:flex justify-between items-center px-6 xl:px-10 py-5 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-amber-100/50 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 text-[#634930] flex items-center justify-center shadow-sm border border-amber-100">
+            <Users size={24} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
+              User Manage
+            </h1>
+            <p className="text-sm text-gray-500 font-medium mt-0.5">Kelola akses, role, dan akun pengguna sistem</p>
           </div>
         </div>
-
-        <nav className="w-full space-y-2 flex-1 mt-4">
-          {menuNav.map((item) => (
-            <button
-              key={item.label}
-              onClick={() => item.path ? navigate(item.path) : setActiveMenu(item.label)}
-              className="w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-left transition-all font-semibold text-sm group"
-              style={{
-                backgroundColor: activeMenu === item.label ? '#634930' : 'transparent',
-                color: activeMenu === item.label ? '#fff' : '#634930',
-                boxShadow: activeMenu === item.label ? '0 4px 14px 0 rgba(99, 73, 48, 0.39)' : 'none'
-              }}
-            >
-              <span className={activeMenu !== item.label ? "group-hover:scale-110 transition-transform" : ""}>{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <button
-          onClick={handleLogout}
-          className="w-full mt-4 py-3.5 rounded-xl font-bold text-sm transition-all hover:bg-red-50 hover:text-red-600 hover:border-red-600"
-          style={{ color: '#634930', border: '2px solid #634930' }}
-        >
-          <LogOut size={20} className="inline mr-2"/> Logout
-        </button>
+        
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-sm font-bold" style={{ color: '#634930' }}>Halo, {user?.username}</p>
+            <p className="text-xs uppercase" style={{ color: '#8B6F47' }}>{user?.role || 'Admin'}</p>
+          </div>
+          <div className="w-12 h-12 rounded-full shadow-md flex items-center justify-center text-white font-bold text-xl bg-gradient-to-br from-[#634930] to-[#8B6F47] border-2 border-white">
+            {(user?.username || 'K')[0].toUpperCase()}
+          </div>
+        </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Content Body */}
+      <div className="flex-1 p-4 md:p-6 xl:p-10 overflow-y-auto">
+        <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
 
-        {/* Top Header */}
-        <div className="flex justify-between items-center px-10 py-5 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-amber-100/50 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-50 text-[#634930] flex items-center justify-center shadow-sm border border-amber-100">
-              <Users size={24} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
-                User Manage
-              </h1>
-              <p className="text-sm text-gray-500 font-medium mt-0.5">Kelola akses, role, dan akun pengguna sistem</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm font-bold" style={{ color: '#634930' }}>Halo, {user?.username}</p>
-              <p className="text-xs uppercase" style={{ color: '#8B6F47' }}>{user?.role || 'Admin'}</p>
-            </div>
-            <div className="w-12 h-12 rounded-full shadow-md flex items-center justify-center text-white font-bold text-xl bg-gradient-to-br from-[#634930] to-[#8B6F47] border-2 border-white">
-              {(user?.username || 'K')[0].toUpperCase()}
-            </div>
-          </div>
-        </div>
-
-        {/* Content Body */}
-        <div className="flex-1 p-10 overflow-y-auto">
-          <div className="max-w-7xl mx-auto space-y-8">
-
-            {/* Top Grid: PPN Settings & Stats */}
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          {/* Top Grid: PPN Settings & Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
               
               {/* PPN Settings Card */}
               <div className="lg:col-span-1 rounded-2xl p-4 shadow-sm border flex flex-col justify-center" style={{ backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }}>
@@ -385,7 +346,7 @@ export default function UserManage() {
 
           </div>
         </div>
-      </div>
+
 
       {/* Modal Tambah User */}
       {showTambah && (
@@ -537,6 +498,7 @@ export default function UserManage() {
         </div>
       )}
 
-    </div>
+
+    </MobileLayout>
   )
 }
