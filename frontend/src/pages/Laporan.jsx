@@ -1,14 +1,14 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut, Download } from 'lucide-react';
+import { Download, ReceiptText } from 'lucide-react';
 import api from '../api/auth'
 import * as XLSX from 'xlsx-js-style'
+import MobileLayout from '../components/MobileLayout'
 
 export default function Laporan() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
   const navigate = useNavigate()
-  const [activeMenu, setActiveMenu] = useState('Laporan')
   const [tab, setTab] = useState('harian')
   const [loading, setLoading] = useState(false)
   
@@ -34,20 +34,7 @@ export default function Laporan() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-  }
 
-  const menuNav = [
-    { icon: <LayoutDashboard size={20}/>, label: 'Dashboard', path: '/kasir' },
-    { icon: <ReceiptText size={20}/>, label: 'Kasir (POS)', path: '/kasir/pos' },
-    { icon: <ShoppingCart size={20}/>, label: 'Manajemen Menu', path: '/kasir/menu' },
-    { icon: <Grid2X2 size={20}/>, label: 'Manajemen Meja', path: '/kasir/meja' },
-    { icon: <MonitorPlay size={20}/>, label: 'KDS', path: '/kasir/kds' },
-    { icon: <BarChart3 size={20}/>, label: 'Laporan', path: '/kasir/laporan' },
-    { icon: <Users size={20}/>, label: 'User Manage', path: '/kasir/user-manage' },
-  ]
 
   const fetchLaporanHarian = async () => {
     setLoading(true)
@@ -356,81 +343,42 @@ export default function Laporan() {
   }
 
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: '#F9F5F0' }}>
+    <MobileLayout activeMenu="Laporan">
 
-      {/* Sidebar */}
-      <div className="w-64 flex flex-col items-center py-8 px-4 shadow-xl z-10" style={{ backgroundColor: '#EDE0CC' }}>
-        <div className="mb-8 relative group cursor-pointer">
-          <div className="absolute inset-0 bg-amber-600 rounded-full blur-md opacity-20 group-hover:opacity-40 transition duration-300"></div>
-          <div className="w-28 h-28 rounded-full border-4 relative flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
-            <img src="/logo.jpeg" alt="Logo" className="w-full h-full object-cover transform group-hover:scale-110 transition duration-500" />
+      {/* Top Header - desktop only */}
+      <div className="hidden lg:flex justify-between items-center px-6 xl:px-10 py-5 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-amber-100/50 shadow-sm">
+        <div>
+          <h1 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
+            Laporan Keuangan
+          </h1>
+          <p className="text-sm text-gray-500 font-medium mt-0.5">Analisis penjualan, performa, dan riwayat transaksi</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-sm font-bold" style={{ color: '#634930' }}>Halo, {user?.username}</p>
+            <p className="text-xs" style={{ color: '#8B6F47' }}>Kasir Aktif</p>
+          </div>
+          <div className="w-12 h-12 rounded-full shadow-md flex items-center justify-center text-white font-bold text-xl bg-gradient-to-br from-[#634930] to-[#8B6F47] border-2 border-white">
+            {(user?.username || 'K')[0].toUpperCase()}
           </div>
         </div>
-
-        <nav className="w-full space-y-2 flex-1 mt-4">
-          {menuNav.map((item) => (
-            <button
-              key={item.label}
-              onClick={() => item.path ? navigate(item.path) : setActiveMenu(item.label)}
-              className="w-full flex items-center gap-3 px-5 py-3.5 rounded-xl text-left transition-all font-semibold text-sm group"
-              style={{
-                backgroundColor: activeMenu === item.label ? '#634930' : 'transparent',
-                color: activeMenu === item.label ? '#fff' : '#634930',
-                boxShadow: activeMenu === item.label ? '0 4px 14px 0 rgba(99, 73, 48, 0.39)' : 'none'
-              }}
-            >
-              <span className={activeMenu !== item.label ? "group-hover:scale-110 transition-transform" : ""}>{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          ))}
-        </nav>
-
-        <button
-          onClick={handleLogout}
-          className="w-full mt-4 py-3.5 rounded-xl font-bold text-sm transition-all hover:bg-red-50 hover:text-red-600 hover:border-red-600"
-          style={{ color: '#634930', border: '2px solid #634930' }}
-        >
-          <LogOut size={20} className="inline mr-2"/> Logout
-        </button>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-
-        {/* Header */}
-        <div className="flex justify-between items-center px-10 py-5 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-amber-100/50 shadow-sm">
-          <div>
-            <h1 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
-              Laporan Keuangan
-            </h1>
-            <p className="text-sm text-gray-500 font-medium mt-0.5">Analisis penjualan, performa, dan riwayat transaksi</p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-sm font-bold" style={{ color: '#634930' }}>Halo, {user?.username}</p>
-              <p className="text-xs" style={{ color: '#8B6F47' }}>Kasir Aktif</p>
-            </div>
-            <div className="w-12 h-12 rounded-full shadow-md flex items-center justify-center text-white font-bold text-xl bg-gradient-to-br from-[#634930] to-[#8B6F47] border-2 border-white">
-              {(user?.username || 'K')[0].toUpperCase()}
-            </div>
-          </div>
-        </div>
-
-        {/* Content Body */}
-        <div className="flex-1 p-10 overflow-y-auto">
-          <div className="max-w-7xl mx-auto space-y-8">
+      {/* Content Area */}
+      <div className="flex-1 p-4 md:p-6 xl:p-10 overflow-y-auto">
+        <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
             
             {/* Tabs */}
-            <div className="flex p-1.5 bg-white rounded-2xl shadow-sm border border-gray-100 w-max">
+            <div className="flex p-1.5 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto custom-scrollbar whitespace-nowrap">
               {[
-                { id: 'harian', label: 'Laporan Harian', icon: '📅' },
-                { id: 'bulanan', label: 'Laporan Bulanan', icon: '📆' },
-                { id: 'histori', label: 'Histori Transaksi', icon: '🧾' }
+                { id: 'harian', label: 'Harian', icon: '📅' },
+                { id: 'bulanan', label: 'Bulanan', icon: '📆' },
+                { id: 'histori', label: 'Histori', icon: '🧾' }
               ].map(t => (
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-2 px-6 py-2.5 font-bold text-sm rounded-xl transition-all duration-300 ${tab === t.id ? 'bg-[#634930] text-white shadow-md' : 'text-gray-500 hover:bg-amber-50 hover:text-[#634930]'}`}
+                  className={`flex items-center gap-2 px-4 md:px-6 py-2.5 font-bold text-sm rounded-xl transition-all duration-300 flex-shrink-0 ${tab === t.id ? 'bg-[#634930] text-white shadow-md' : 'text-gray-500 hover:bg-amber-50 hover:text-[#634930]'}`}
                 >
                   <span>{t.icon}</span> {t.label}
                 </button>
@@ -440,19 +388,19 @@ export default function Laporan() {
             {/* Tab: Harian */}
             {tab === 'harian' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex justify-between items-end bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                <div className="flex flex-col md:flex-row md:justify-between md:items-end bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-gray-100 gap-4">
                   <div>
-                    <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Pilih Tanggal</label>
-                    <div className="flex gap-3">
+                    <label className="block text-xs md:text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Pilih Tanggal</label>
+                    <div className="flex flex-wrap gap-2 md:gap-3">
                       <input
                         type="date"
                         value={tanggalHarian}
                         onChange={(e) => setTanggalHarian(e.target.value)}
-                        className="px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-[#634930] focus:ring-1 focus:ring-[#634930] font-medium text-gray-700 bg-gray-50"
+                        className="flex-1 min-w-[140px] px-3 md:px-4 py-2 md:py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-[#634930] focus:ring-1 focus:ring-[#634930] font-medium text-gray-700 bg-gray-50 text-sm"
                       />
                       <button
                         onClick={fetchLaporanHarian}
-                        className="px-8 py-2.5 rounded-xl font-bold text-white transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg bg-gradient-to-r from-[#634930] to-[#8B6F47]"
+                        className="px-6 py-2 md:py-2.5 rounded-xl font-bold text-white transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg bg-gradient-to-r from-[#634930] to-[#8B6F47] text-sm"
                       >
                         Lihat Data
                       </button>
@@ -560,14 +508,14 @@ export default function Laporan() {
             {/* Tab: Bulanan */}
             {tab === 'bulanan' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex justify-between items-end bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                <div className="flex flex-col md:flex-row md:justify-between md:items-end bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-gray-100 gap-4">
                   <div>
-                    <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Pilih Bulan & Tahun</label>
-                    <div className="flex gap-3">
+                    <label className="block text-xs md:text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Pilih Bulan & Tahun</label>
+                    <div className="flex flex-wrap gap-2 md:gap-3">
                       <select
                         value={bulanBulanan}
                         onChange={(e) => setBulanBulanan(parseInt(e.target.value))}
-                        className="px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-[#634930] font-medium text-gray-700 bg-gray-50"
+                        className="flex-1 min-w-[120px] px-3 md:px-4 py-2 md:py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-[#634930] font-medium text-gray-700 bg-gray-50 text-sm"
                       >
                         {[...Array(12)].map((_, i) => (
                           <option key={i + 1} value={i + 1}>
@@ -578,7 +526,7 @@ export default function Laporan() {
                       <select
                         value={tahunBulanan}
                         onChange={(e) => setTahunBulanan(parseInt(e.target.value))}
-                        className="px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-[#634930] font-medium text-gray-700 bg-gray-50"
+                        className="flex-1 min-w-[90px] px-3 md:px-4 py-2 md:py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-[#634930] font-medium text-gray-700 bg-gray-50 text-sm"
                       >
                         {[...Array(5)].map((_, i) => {
                           const year = new Date().getFullYear() - 2 + i
@@ -587,7 +535,7 @@ export default function Laporan() {
                       </select>
                       <button
                         onClick={fetchLaporanBulanan}
-                        className="px-8 py-2.5 rounded-xl font-bold text-white transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg bg-gradient-to-r from-[#634930] to-[#8B6F47]"
+                        className="w-full sm:w-auto px-6 py-2 md:py-2.5 rounded-xl font-bold text-white transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg bg-gradient-to-r from-[#634930] to-[#8B6F47] text-sm"
                       >
                         Lihat Data
                       </button>
@@ -640,24 +588,24 @@ export default function Laporan() {
             {/* Tab: Histori */}
             {tab === 'histori' && (
               <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="flex justify-between items-end bg-white p-6 rounded-3xl shadow-sm border border-gray-100 flex-wrap gap-4">
-                  <div className="flex gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Dari Tanggal</label>
-                      <input type="date" value={dariHistori} onChange={e => setDariHistori(e.target.value)} className="px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-[#634930] font-medium text-gray-700 bg-gray-50" />
+                <div className="flex flex-col md:flex-row md:justify-between md:items-end bg-white p-4 md:p-6 rounded-3xl shadow-sm border border-gray-100 gap-4">
+                  <div className="flex flex-wrap gap-3 md:gap-4 w-full md:w-auto">
+                    <div className="flex-1 min-w-[140px]">
+                      <label className="block text-xs md:text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Dari Tanggal</label>
+                      <input type="date" value={dariHistori} onChange={e => setDariHistori(e.target.value)} className="w-full px-3 md:px-4 py-2 md:py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-[#634930] font-medium text-gray-700 bg-gray-50 text-sm" />
                     </div>
-                    <div>
-                      <label className="block text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Sampai Tanggal</label>
-                      <input type="date" value={sampaiHistori} onChange={e => setSampaiHistori(e.target.value)} className="px-4 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-[#634930] font-medium text-gray-700 bg-gray-50" />
+                    <div className="flex-1 min-w-[140px]">
+                      <label className="block text-xs md:text-sm font-bold text-gray-400 uppercase tracking-wider mb-2">Sampai Tanggal</label>
+                      <input type="date" value={sampaiHistori} onChange={e => setSampaiHistori(e.target.value)} className="w-full px-3 md:px-4 py-2 md:py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-[#634930] font-medium text-gray-700 bg-gray-50 text-sm" />
                     </div>
-                    <div className="flex items-end pb-0">
-                      <button onClick={() => { setHalamanHistori(1); fetchHistori() }} className="px-8 py-2.5 rounded-xl font-bold text-white transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg bg-gradient-to-r from-[#634930] to-[#8B6F47] h-[46px]">
+                    <div className="w-full sm:w-auto flex items-end">
+                      <button onClick={() => { setHalamanHistori(1); fetchHistori() }} className="w-full px-6 py-2 md:py-2.5 rounded-xl font-bold text-white transition-all hover:-translate-y-0.5 shadow-md hover:shadow-lg bg-gradient-to-r from-[#634930] to-[#8B6F47] md:h-[42px] text-sm">
                         Tampilkan
                       </button>
                     </div>
                   </div>
-                  <button onClick={handleExportHistori} className="px-6 py-2.5 rounded-xl font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 transition-all hover:bg-emerald-600 hover:text-white shadow-sm flex items-center gap-2 h-[46px]">
-                    <Download size={18} /> Export Excel
+                  <button onClick={handleExportHistori} className="w-full md:w-auto px-6 py-2 md:py-2.5 rounded-xl font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 transition-all hover:bg-emerald-600 hover:text-white shadow-sm flex items-center justify-center gap-2 md:h-[42px] text-sm">
+                    <Download size={18} /> Export
                   </button>
                 </div>
 
@@ -733,9 +681,8 @@ export default function Laporan() {
               </div>
             )}
             
-          </div>
         </div>
       </div>
-    </div>
+    </MobileLayout>
   )
 }
