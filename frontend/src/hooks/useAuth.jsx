@@ -1,40 +1,44 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import { getMe, logout as apiLogout } from '../api/auth'
 
 const AuthContext = createContext(null)
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
-  const [token, setToken] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Load user dari localStorage saat app start
+  // Load user dari backend via cookie
   useEffect(() => {
-    const stored = localStorage.getItem('user')
-    const storedToken = localStorage.getItem('token')
-    
-    if (stored && storedToken) {
-      setUser(JSON.parse(stored))
-      setToken(storedToken)
+    const fetchUser = async () => {
+      try {
+        const data = await getMe()
+        setUser(data.user)
+      } catch (err) {
+        setUser(null)
+      } finally {
+        setLoading(false)
+      }
     }
-    setLoading(false)
+    fetchUser()
   }, []) // Empty dependency array - hanya run sekali saat mount
 
   const loginSuccess = (data) => {
-    localStorage.setItem('token', data.token)
-    localStorage.setItem('user', JSON.stringify(data.user))
-    setToken(data.token)
+    // token dikelola otomatis via HttpOnly Cookie
     setUser(data.user)
   }
 
-  const logout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    setToken(null)
-    setUser(null)
+  const logout = async () => {
+    try {
+      await apiLogout()
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setUser(null)
+    }
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loginSuccess, logout, loading }}>
+    <AuthContext.Provider value={{ user, loginSuccess, logout, loading }}>
       {children}
     </AuthContext.Provider>
   )

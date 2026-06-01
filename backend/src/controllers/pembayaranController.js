@@ -9,7 +9,7 @@ exports.buatPembayaran = async (req, res) => {
 
     // Cek pesanan
     const [pesanan] = await conn.query(
-      'SELECT * FROM pesanan WHERE id = ? AND status != "batal"',
+      'SELECT * FROM pesanan WHERE id = ? AND status != "batal" FOR UPDATE',
       [pesanan_id]
     );
 

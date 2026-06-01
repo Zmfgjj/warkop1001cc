@@ -4,6 +4,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
+const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 const db = require('./config/database');
@@ -62,6 +63,7 @@ app.use(cors(corsOptions));
 app.use(limiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Serve static files for uploads
 app.use('/uploads', express.static(uploadsDir));
