@@ -3,17 +3,27 @@ import axios from 'axios'
 const api = axios.create({
   baseURL: '/api',
   timeout: 10000,
+  withCredentials: true,
 })
 
-// Attach token automatically
+// Attach token automatically (no longer needed for cookie, but kept for non-auth local variables if any. We can just remove token logic)
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
-  if (token) config.headers.Authorization = `Bearer ${token}`
+  // token is sent automatically via cookie
   return config
 })
 
 export const login = async (username, password) => {
   const res = await api.post('/auth/login', { username, password })
+  return res.data
+}
+
+export const logout = async () => {
+  const res = await api.post('/auth/logout')
+  return res.data
+}
+
+export const getMe = async () => {
+  const res = await api.get('/auth/me')
   return res.data
 }
 

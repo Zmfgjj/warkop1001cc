@@ -26,6 +26,11 @@ exports.buatPesanan = async (req, res) => {
     let pesanan_id;
     let total = 0;
 
+    // Lock meja row to prevent race condition
+    if (meja_id) {
+      await conn.query('SELECT id FROM meja WHERE id = ? FOR UPDATE', [meja_id]);
+    }
+
     // Cek Open Bill
     const [openBill] = await conn.query(
       "SELECT id, total FROM pesanan WHERE meja_id = ? AND is_open_bill = 1 AND status != 'selesai' AND status != 'batal' LIMIT 1",

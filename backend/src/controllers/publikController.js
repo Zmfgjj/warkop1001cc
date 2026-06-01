@@ -115,8 +115,8 @@ exports.buatPesananPublik = async (req, res) => {
       ? `[${sanitizedNama}] ${rawCatatan}`.trim()
       : rawCatatan;
 
-    // Validate meja exists
-    const [mejaRows] = await conn.query('SELECT id FROM meja WHERE id = ?', [Number(meja_id)]);
+    // Validate meja exists and lock the row to prevent race condition double-orders
+    const [mejaRows] = await conn.query('SELECT id FROM meja WHERE id = ? FOR UPDATE', [Number(meja_id)]);
     if (mejaRows.length === 0) {
       await conn.rollback();
       return res.status(404).json({ message: 'Meja tidak ditemukan' });
