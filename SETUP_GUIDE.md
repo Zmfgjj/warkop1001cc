@@ -98,7 +98,7 @@ INSERT INTO users (nama, username, password, role, aktif, created_at) VALUES
 
 ### Tidak bisa update/delete user
 - Pastikan Anda login sebagai `owner`
-- Jika Anda login sebagai owner tetapi masih ditolak, cekTokennya dengan membuka browser DevTools → Application → Local Storage dan pastikan `token` tersimpan dengan benar
+- Jika Anda login sebagai owner tetapi masih ditolak, cek tokennya dengan membuka browser DevTools → Application → Cookies dan pastikan `token` tersimpan (HttpOnly). Token tidak lagi disimpan di Local Storage demi keamanan.
 
 ### Backend error / database tidak terkoneksi
 - Jalankan backend dengan: `cd backend && npm run dev`
