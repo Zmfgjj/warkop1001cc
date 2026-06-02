@@ -301,15 +301,24 @@ exports.historiPembelian = async (req, res) => {
       LIMIT ? OFFSET ?
     `, [dari_filter, sampai_filter, parseInt(limit), offset]);
 
-    // Get detail items for each pesanan
-    for (const pesanan of rows) {
-      const [detail] = await db.query(`
-        SELECT dp.qty, dp.harga, dp.catatan, mn.nama as nama_menu
+    // Get detail items for all pesanan in one batch query
+    if (rows.length > 0) {
+      const ids = rows.map(r => r.id);
+      const [allDetails] = await db.query(`
+        SELECT dp.qty, dp.harga, dp.catatan, dp.pesanan_id, mn.nama as nama_menu
         FROM detail_pesanan dp
         LEFT JOIN menu mn ON dp.menu_id = mn.id
-        WHERE dp.pesanan_id = ?
-      `, [pesanan.id]);
-      pesanan.items = detail;
+        WHERE dp.pesanan_id IN (?)
+      `, [ids]);
+
+      const detailMap = {};
+      for (const d of allDetails) {
+        if (!detailMap[d.pesanan_id]) detailMap[d.pesanan_id] = [];
+        detailMap[d.pesanan_id].push(d);
+      }
+      for (const pesanan of rows) {
+        pesanan.items = detailMap[pesanan.id] || [];
+      }
     }
 
     res.json({

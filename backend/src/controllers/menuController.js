@@ -69,6 +69,14 @@ exports.updateMenu = async (req, res) => {
     const { id } = req.params;
     const { kategori_id, nama, deskripsi, harga, hpp, tersedia } = req.body;
     let gambar = req.body.gambar; // Keep existing if no new file
+
+    if (!nama || !harga || !kategori_id) {
+      return res.status(400).json({ message: 'Nama, harga, dan kategori wajib diisi' });
+    }
+
+    if (isNaN(harga) || Number(harga) < 0) {
+      return res.status(400).json({ message: 'Harga tidak valid' });
+    }
     
     if (req.file) {
       gambar = `/uploads/${req.file.filename}`;

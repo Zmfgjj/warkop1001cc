@@ -1,8 +1,54 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      devOptions: {
+        enabled: true
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpeg}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^http:\/\/localhost:3000\/uploads\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'upload-images-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 30 * 24 * 60 * 60 // 30 Days
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
+        ]
+      },
+      manifest: {
+        name: 'Warkop POS',
+        short_name: 'POS',
+        description: 'Warkop 1001 CC POS System',
+        theme_color: '#E8D5B7',
+        icons: [
+          {
+            src: 'logo.jpeg',
+            sizes: '192x192',
+            type: 'image/jpeg'
+          },
+          {
+            src: 'logo.jpeg',
+            sizes: '512x512',
+            type: 'image/jpeg'
+          }
+        ]
+      }
+    })
+  ],
   server: {
     port: 5173,
     proxy: {

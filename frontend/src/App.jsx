@@ -1,5 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth'
+import { initSyncManager } from './utils/syncManager'
+import OfflineBanner from './components/OfflineBanner'
 import Login from './pages/Login'
 import Kasir from './pages/Kasir'
 import KasirPOS from './pages/KasirPOS2'
@@ -11,21 +14,20 @@ import KDS from './pages/KDS.jsx'
 import MenuPublik from './pages/MenuPublik.jsx'
 
 const ProtectedRoute = ({ children, roles }) => {
-  const { user, token, loading } = useAuth()
-console.log('ProtectedRoute ',{ user, token, loading})   
+  const { user, loading } = useAuth()
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
       <p>Loading...</p>
     </div>
   )
 
-  if (!token || !user) return <Navigate to="/login" replace />
+  if (!user) return <Navigate to="/login" replace />
   if (roles && !roles.includes(user.role)) return <Navigate to="/login" replace />
   return children
 }
 
 const AuthRoute = ({ children }) => {
-  const { user, token, loading } = useAuth()
+  const { user, loading } = useAuth()
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
@@ -33,7 +35,7 @@ const AuthRoute = ({ children }) => {
     </div>
   )
 
-  if (token && user) {
+  if (user) {
     if (user.role === 'dapur') return <Navigate to="/kasir/kds" replace />
     return <Navigate to="/kasir" replace />
   }
@@ -60,8 +62,13 @@ function AppRoutes() {
 }
 
 export default function App() {
+  useEffect(() => {
+    initSyncManager();
+  }, []);
+
   return (
     <AuthProvider>
+      <OfflineBanner />
       <BrowserRouter>
         <AppRoutes />
       </BrowserRouter>

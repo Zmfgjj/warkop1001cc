@@ -6,11 +6,14 @@ import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import { cetakStruk, cetakStrukThermal } from '../utils/printStruk'
 import MobileLayout from '../components/MobileLayout'
+import { useNetwork } from '../hooks/useNetwork'
+import { saveMasterData, getMasterData, queueOfflineOrder } from '../utils/offlineStore'
 
 export default function KasirPOS() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const { socket } = useSocket()
+  const isOnline = useNetwork()
   const [kategoriList, setKategoriList] = useState([])
   const [kategori, setKategori] = useState('')
   const [search, setSearch] = useState('')
@@ -31,39 +34,68 @@ export default function KasirPOS() {
   const [resMejaId, setResMejaId] = useState('')
   const [showOrderPanel, setShowOrderPanel] = useState(false)
 
-  useEffect(() => { fetchKategori(); fetchData(); fetchPPN() }, [])
+  useEffect(() => { fetchKategori(); fetchData(); fetchPPN() }, [isOnline])
 
   useEffect(() => {
-    if (!socket) return
+    if (!socket || !isOnline) return
     socket.on('menuAdded', (m) => setMenuList(p => [...p, m]))
     socket.on('menuUpdated', (m) => setMenuList(p => p.map(x => x.id === m.id ? m : x)))
     socket.on('menuDeleted', (d) => { setMenuList(p => p.filter(x => x.id !== d.id)); setOrder(p => p.filter(o => o.menu_id !== d.id)) })
     return () => { socket.off('menuAdded'); socket.off('menuUpdated'); socket.off('menuDeleted') }
-  }, [socket])
+  }, [socket, isOnline])
 
   const debouncedMejaFetch = useDebouncedCallback(async () => {
-    try { const res = await api.get('/meja'); setMejaList(res.data) } catch {}
+    try { const res = await api.get('/meja'); setMejaList(res.data); saveMasterData('meja', res.data) } catch {}
   }, 400)
 
   useEffect(() => {
-    if (!socket) return
+    if (!socket || !isOnline) return
     socket.on('status_meja', () => debouncedMejaFetch())
     return () => { socket.off('status_meja') }
-  }, [socket, debouncedMejaFetch])
+  }, [socket, debouncedMejaFetch, isOnline])
 
   const fetchKategori = async () => {
-    try { const res = await api.get('/menu/kategori'); setKategoriList(res.data); if (res.data.length > 0) setKategori(res.data[0].nama) } catch {}
+    try { 
+      const res = await api.get('/menu/kategori')
+      setKategoriList(res.data)
+      saveMasterData('kategori', res.data)
+      if (res.data.length > 0) setKategori(res.data[0].nama) 
+    } catch {
+      const data = await getMasterData('kategori')
+      if (data) {
+        setKategoriList(data)
+        if (data.length > 0) setKategori(data[0].nama) 
+      }
+    }
   }
+
   const fetchData = async () => {
     setLoading(true)
     try {
       const [resMenu, resMeja] = await Promise.all([api.get('/menu'), api.get('/meja')])
       setMenuList(resMenu.data); setMejaList(resMeja.data)
+      saveMasterData('menu', resMenu.data); saveMasterData('meja', resMeja.data)
       const kosong = resMeja.data.find(m => m.status === 'kosong')
       if (kosong) setSelectedMeja(kosong)
-    } catch {} finally { setLoading(false) }
+    } catch {
+      const offlineMenu = await getMasterData('menu') || []
+      const offlineMeja = await getMasterData('meja') || []
+      setMenuList(offlineMenu); setMejaList(offlineMeja)
+      const kosong = offlineMeja.find(m => m.status === 'kosong')
+      if (kosong) setSelectedMeja(kosong)
+    } finally { setLoading(false) }
   }
-  const fetchPPN = async () => { try { const res = await api.get('/settings/ppn'); setPpnRate(res.data.ppn) } catch {} }
+  
+  const fetchPPN = async () => { 
+    try { 
+      const res = await api.get('/settings/ppn')
+      setPpnRate(res.data.ppn)
+      saveMasterData('ppnRate', res.data.ppn) 
+    } catch {
+      const offlinePpn = await getMasterData('ppnRate')
+      if (offlinePpn) setPpnRate(offlinePpn)
+    } 
+  }
 
   useEffect(() => {
     if (tipeOrder === 'dine-in' && selectedMeja && selectedMeja.status === 'reservasi') fetchActiveBill(selectedMeja.id)
@@ -76,6 +108,7 @@ export default function KasirPOS() {
 
   const handleBuatReservasi = async (e) => {
     e.preventDefault()
+    if (!isOnline) return alert('Reservasi tidak bisa dilakukan saat offline')
     if (!resMejaId || !resNama) return alert('Pilih meja dan isi nama pelanggan')
     try {
       await api.post('/pesanan/reservasi', { meja_id: parseInt(resMejaId), nama_pelanggan: resNama, dp_amount: parseInt(resDp.replace(/\D/g, '') || 0) })
@@ -115,16 +148,45 @@ export default function KasirPOS() {
     if (tipeOrder === 'dine-in' && !selectedMeja) return alert('Pilih meja dulu!')
     if (order.length === 0) return alert('Tambah menu dulu!')
     if (metodeBayar === 'Tunai' && parseInt(jumlahBayar.replace(/\D/g, '') || 0) < total) return alert('Jumlah bayar kurang!')
+    
     setLoadingBayar(true)
     try {
-      const resPesanan = await api.post('/pesanan', { meja_id: tipeOrder === 'dine-in' ? selectedMeja?.id : null, tipe: tipeOrder, items: order.map(o => ({ menu_id: o.menu_id, qty: o.qty, catatan: o.catatan })) })
-      await api.post('/pembayaran', { pesanan_id: resPesanan.data.pesanan_id, metode: metodeBayar.toLowerCase(), jumlah: total })
-      const strukData = { pesananId: resPesanan.data.pesanan_id, items: order, subtotal, ppn, ppnRate, total, metodeBayar, jumlahBayar: parseInt(jumlahBayar.replace(/\D/g, '') || 0), kembali, meja: selectedMeja?.nomor, tipe: tipeOrder, kasir: user?.username, tanggal: new Date() }
+      const pesananData = {
+        meja_id: tipeOrder === 'dine-in' ? selectedMeja?.id : null,
+        tipe: tipeOrder,
+        items: order.map(o => ({ menu_id: o.menu_id, qty: o.qty, catatan: o.catatan })),
+        pembayaran: { metode: metodeBayar.toLowerCase(), jumlah: total } // payload offline
+      }
+
+      const strukData = { 
+        pesananId: 'TMP-' + Date.now(), 
+        items: order, subtotal, ppn, ppnRate, total, metodeBayar, 
+        jumlahBayar: parseInt(jumlahBayar.replace(/\D/g, '') || 0), kembali, 
+        meja: selectedMeja?.nomor, tipe: tipeOrder, kasir: user?.username, tanggal: new Date() 
+      }
+
+      if (isOnline) {
+        // Online flow
+        const resPesanan = await api.post('/pesanan', pesananData)
+        await api.post('/pembayaran', { pesanan_id: resPesanan.data.pesanan_id, metode: metodeBayar.toLowerCase(), jumlah: total })
+        strukData.pesananId = resPesanan.data.pesanan_id
+      } else {
+        // Offline flow
+        await queueOfflineOrder(pesananData)
+        alert('Anda sedang offline. Pesanan disimpan secara lokal dan akan disinkronkan nanti.')
+      }
+
+      // Cetak struk baik online maupun offline
       const thermalOk = await cetakStrukThermal(strukData).catch(() => false)
       if (!thermalOk) cetakStruk(strukData)
-      alert('Pesanan berhasil dibuat & pembayaran tercatat!')
+      
+      if (isOnline) alert('Pesanan berhasil dibuat & pembayaran tercatat!')
       setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); fetchData()
-    } catch (err) { alert(err.response?.data?.message || 'Gagal memproses pembayaran') } finally { setLoadingBayar(false) }
+    } catch (err) { 
+      alert(err.response?.data?.message || 'Gagal memproses pembayaran') 
+    } finally { 
+      setLoadingBayar(false) 
+    }
   }
 
   const handleCancel = () => { setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in') }

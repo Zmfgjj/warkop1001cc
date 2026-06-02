@@ -5,6 +5,8 @@ const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
 const cookieParser = require('cookie-parser');
+const helmet = require('helmet');
+const compression = require('compression');
 require('dotenv').config();
 
 const db = require('./config/database');
@@ -59,10 +61,12 @@ const strictLimiter = rateLimit({
 });
 
 // Middleware
+app.use(helmet({ contentSecurityPolicy: false })); // Security headers
+app.use(compression()); // Gzip compression
 app.use(cors(corsOptions));
 app.use(limiter);
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
 // Serve static files for uploads
