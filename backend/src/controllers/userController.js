@@ -48,6 +48,19 @@ exports.updateUser = async (req, res) => {
     const { id } = req.params;
     const { nama, username, password, role, aktif } = req.body;
 
+    if (!nama || !username || !role) {
+      return res.status(400).json({ message: 'Nama, username, dan role wajib diisi' });
+    }
+
+    const allowedRoles = ['owner', 'manager', 'kasir', 'dapur'];
+    if (!allowedRoles.includes(role)) {
+      return res.status(400).json({ message: 'Role tidak valid' });
+    }
+
+    if (password && password.length < 6) {
+      return res.status(400).json({ message: 'Password minimal 6 karakter' });
+    }
+
     // Cek username sudah dipakai user lain
     const [existing] = await db.query(
       'SELECT id FROM users WHERE username = ? AND id != ?',
@@ -79,13 +92,18 @@ exports.updateUser = async (req, res) => {
 exports.hapusUser = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = parseInt(id);
+
+    if (!userId || isNaN(userId) || userId <= 0) {
+      return res.status(400).json({ message: 'ID user tidak valid' });
+    }
 
     // Jangan hapus diri sendiri
-    if (parseInt(id) === req.user.id) {
+    if (userId === req.user.id) {
       return res.status(400).json({ message: 'Tidak bisa hapus akun sendiri' });
     }
 
-    await db.query('DELETE FROM users WHERE id = ?', [id]);
+    await db.query('DELETE FROM users WHERE id = ?', [userId]);
     res.json({ message: 'User dihapus' });
   } catch (err) {
     console.error(err); res.status(500).json({ message: 'Server error' });
@@ -97,7 +115,18 @@ exports.gantiPassword = async (req, res) => {
     const { password_lama, password_baru } = req.body;
     const id = req.user.id;
 
-    const [rows] = await db.query('SELECT * FROM users WHERE id = ?', [id]);
+    if (!password_lama || !password_baru) {
+      return res.status(400).json({ message: 'Password lama dan baru wajib diisi' });
+    }
+
+    if (password_baru.length < 6) {
+      return res.status(400).json({ message: 'Password baru minimal 6 karakter' });
+    }
+
+    const [rows] = await db.query('SELECT password FROM users WHERE id = ?', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'User tidak ditemukan' });
+    }
     const valid = await bcrypt.compare(password_lama, rows[0].password);
 
     if (!valid) {

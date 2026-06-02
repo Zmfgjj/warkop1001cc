@@ -135,14 +135,23 @@ exports.getPesanan = async (req, res) => {
       ORDER BY p.created_at DESC
     `);
 
-    for (const pesanan of rows) {
-      const [detail] = await db.query(`
+    if (rows.length > 0) {
+      const ids = rows.map(r => r.id);
+      const [allDetails] = await db.query(`
         SELECT dp.*, mn.nama as nama_menu
         FROM detail_pesanan dp
         LEFT JOIN menu mn ON dp.menu_id = mn.id
-        WHERE dp.pesanan_id = ?
-      `, [pesanan.id]);
-      pesanan.items = detail;
+        WHERE dp.pesanan_id IN (?)
+      `, [ids]);
+
+      const detailMap = {};
+      for (const d of allDetails) {
+        if (!detailMap[d.pesanan_id]) detailMap[d.pesanan_id] = [];
+        detailMap[d.pesanan_id].push(d);
+      }
+      for (const pesanan of rows) {
+        pesanan.items = detailMap[pesanan.id] || [];
+      }
     }
 
     res.json(rows);

@@ -5,6 +5,14 @@ const rateLimitStore = new Map();
 const RATE_LIMIT = 10; // max requests per window
 const RATE_WINDOW = 60 * 1000; // 1 minute
 
+// Cleanup stale entries every 5 minutes to prevent memory leak
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitStore) {
+    if (now > entry.resetAt) rateLimitStore.delete(ip);
+  }
+}, 5 * 60 * 1000);
+
 function checkRateLimit(ip) {
   const now = Date.now();
   const entry = rateLimitStore.get(ip) || { count: 0, resetAt: now + RATE_WINDOW };
