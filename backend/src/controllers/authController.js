@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { getPermissionsForRole } = require('./roleController');
 
 exports.login = async (req, res) => {
   try {
@@ -24,6 +25,9 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: 'Username atau password salah' });
     }
 
+    // Fetch permissions from roles table
+    const permissions = await getPermissionsForRole(user.role);
+
     // Buat token
     const token = jwt.sign(
       { id: user.id, role: user.role },
@@ -45,7 +49,8 @@ exports.login = async (req, res) => {
         id: user.id,
         nama: user.nama,
         username: user.username,
-        role: user.role
+        role: user.role,
+        permissions: permissions || {}
       }
     });
 
@@ -68,7 +73,16 @@ exports.getMe = async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ message: 'User tidak ditemukan' });
     }
-    res.json({ user: rows[0] });
+
+    const user = rows[0];
+    const permissions = await getPermissionsForRole(user.role);
+
+    res.json({ 
+      user: {
+        ...user,
+        permissions: permissions || {}
+      }
+    });
   } catch (err) {
     console.error(err); res.status(500).json({ message: 'Server error' });
   }

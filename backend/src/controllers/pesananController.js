@@ -172,6 +172,10 @@ exports.updateStatus = async (req, res) => {
 
     await db.query('UPDATE pesanan SET status = ? WHERE id = ?', [status, id]);
 
+    if (status === 'selesai' || status === 'diproses') {
+      await db.query('UPDATE detail_pesanan SET status = ? WHERE pesanan_id = ? AND status != ?', [status, id, status]);
+    }
+
     const io = req.app.get('io');
 
     // Kalau selesai, kosongkan meja

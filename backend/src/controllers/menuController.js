@@ -1,4 +1,7 @@
 const db = require('../config/database');
+const sharp = require('sharp');
+const path = require('path');
+const fs = require('fs');
 
 exports.getKategori = async (req, res) => {
   try {
@@ -40,7 +43,20 @@ exports.tambahMenu = async (req, res) => {
     console.log('📂 File received:', req.file ? { name: req.file.filename, size: req.file.size } : 'No file');
     
     if (req.file) {
-      gambar = `/uploads/${req.file.filename}`;
+      const webpFilename = `${req.file.filename.split('.')[0]}.webp`;
+      const webpPath = path.join(req.file.destination, webpFilename);
+      
+      await sharp(req.file.path)
+        .resize(600, 600, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toFile(webpPath);
+        
+      // Delete original file
+      if (req.file.path !== webpPath) {
+        fs.unlinkSync(req.file.path);
+      }
+      
+      gambar = `/uploads/${webpFilename}`;
       console.log('✅ Gambar path:', gambar);
     }
     
@@ -79,7 +95,20 @@ exports.updateMenu = async (req, res) => {
     }
     
     if (req.file) {
-      gambar = `/uploads/${req.file.filename}`;
+      const webpFilename = `${req.file.filename.split('.')[0]}.webp`;
+      const webpPath = path.join(req.file.destination, webpFilename);
+      
+      await sharp(req.file.path)
+        .resize(600, 600, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 80 })
+        .toFile(webpPath);
+        
+      // Delete original file
+      if (req.file.path !== webpPath) {
+        fs.unlinkSync(req.file.path);
+      }
+      
+      gambar = `/uploads/${webpFilename}`;
     }
     
     await db.query(

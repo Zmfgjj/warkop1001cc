@@ -17,8 +17,8 @@ const app = express();
 const server = http.createServer(app);
 
 // CORS Config
-const allowedOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',') 
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',')
   : ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:4173', 'capacitor://localhost', 'http://localhost'];
 
 const corsOptions = {
@@ -70,7 +70,7 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
 // Serve static files for uploads
-app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads', express.static(uploadsDir, { maxAge: '1d' }));
 
 // Routes
 const pesananRoutes = require('./routes/pesanan');
@@ -89,12 +89,14 @@ const menuRoutes = require('./routes/menu');
 app.use('/api/menu', menuRoutes);
 const settingsRoutes = require('./routes/settings');
 app.use('/api/settings', settingsRoutes);
+const roleRoutes = require('./routes/role');
+app.use('/api/roles', roleRoutes);
 const publikRoutes = require('./routes/publik');
 app.use('/api/publik', strictLimiter, publikRoutes);
 
 // Test route
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: '🚀 Warkop 1001 CC API is running!',
     version: '1.0.0'
   });
@@ -104,7 +106,7 @@ app.get('/', (req, res) => {
 app.set('io', io);
 io.on('connection', (socket) => {
   console.log('🔌 Client connected:', socket.id);
-  
+
   socket.on('disconnect', () => {
     console.log('❌ Client disconnected:', socket.id);
   });

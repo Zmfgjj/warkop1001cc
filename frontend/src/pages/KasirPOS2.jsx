@@ -1,7 +1,7 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { CalendarPlus } from 'lucide-react';
+import { CalendarPlus, Search, Utensils, ShoppingBag, ShoppingCart, X } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import { cetakStruk, cetakStrukThermal } from '../utils/printStruk'
@@ -217,13 +217,13 @@ export default function KasirPOS() {
               <div className="flex-1 min-w-[150px] relative">
                 <input type="text" placeholder="Cari Menu..." value={search} onChange={e => setSearch(e.target.value)}
                   className="w-full px-4 py-2.5 md:py-3 rounded-full text-sm focus:outline-none" style={{ backgroundColor: '#EDE0CC', color: '#634930', border: '1.5px solid #C4A882' }} />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2" style={{ color: '#8B6F47' }}>🔍</span>
+                <span className="absolute right-4 top-1/2 -translate-y-1/2" style={{ color: '#8B6F47' }}><Search size={16} /></span>
               </div>
               <div className="flex rounded-full overflow-hidden" style={{ border: '1.5px solid #C4A882' }}>
                 <button onClick={() => setTipeOrder('dine-in')} className="px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm font-medium transition-all"
-                  style={{ backgroundColor: tipeOrder === 'dine-in' ? '#634930' : '#EDE0CC', color: tipeOrder === 'dine-in' ? '#fff' : '#634930' }}>🍽️ Dine In</button>
+                  style={{ backgroundColor: tipeOrder === 'dine-in' ? '#634930' : '#EDE0CC', color: tipeOrder === 'dine-in' ? '#fff' : '#634930' }}><span className="flex items-center gap-1.5"><Utensils size={14} /> Dine In</span></button>
                 <button onClick={() => { setTipeOrder('take-away'); setSelectedMeja(null) }} className="px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm font-medium transition-all"
-                  style={{ backgroundColor: tipeOrder === 'take-away' ? '#634930' : '#EDE0CC', color: tipeOrder === 'take-away' ? '#fff' : '#634930' }}>🛍️ TA</button>
+                  style={{ backgroundColor: tipeOrder === 'take-away' ? '#634930' : '#EDE0CC', color: tipeOrder === 'take-away' ? '#fff' : '#634930' }}><span className="flex items-center gap-1.5"><ShoppingBag size={14} /> TA</span></button>
               </div>
               <button onClick={() => setShowReservasiModal(true)} className="flex items-center gap-1 px-3 md:px-4 py-2.5 md:py-3 rounded-full text-xs md:text-sm font-medium transition-all"
                 style={{ backgroundColor: '#EDE0CC', color: '#634930', border: '1.5px solid #C4A882' }}>
@@ -278,7 +278,7 @@ export default function KasirPOS() {
           {totalItems > 0 && (
             <button onClick={() => setShowOrderPanel(true)}
               className="lg:hidden fixed bottom-6 right-6 z-30 w-14 h-14 rounded-full bg-[#634930] text-white shadow-xl flex items-center justify-center text-xl">
-              🛒
+              <ShoppingCart size={24} />
               <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{totalItems}</span>
             </button>
           )}
@@ -292,7 +292,7 @@ export default function KasirPOS() {
               <h2 className="text-base md:text-lg font-bold" style={{ color: '#634930' }}>
                 Order {tipeOrder === 'take-away' ? '(TA)' : selectedMeja ? `(M#${String(selectedMeja.nomor).padStart(3, '0')})` : ''}
               </h2>
-              <button onClick={() => setShowOrderPanel(false)} className="lg:hidden text-[#8B6F47] text-xl">✕</button>
+              <button onClick={() => setShowOrderPanel(false)} className="lg:hidden text-[#8B6F47] text-xl"><X size={20} /></button>
             </div>
 
             {activeBill && (

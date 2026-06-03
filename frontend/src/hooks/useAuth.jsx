@@ -12,7 +12,7 @@ export const AuthProvider = ({ children }) => {
     const fetchUser = async () => {
       try {
         const data = await getMe()
-        setUser(data.user)
+        setUser(data.user) // now includes permissions
       } catch (err) {
         setUser(null)
       } finally {
@@ -24,7 +24,7 @@ export const AuthProvider = ({ children }) => {
 
   const loginSuccess = (data) => {
     // token dikelola otomatis via HttpOnly Cookie
-    setUser(data.user)
+    setUser(data.user) // now includes permissions
   }
 
   const logout = async () => {
@@ -37,8 +37,20 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
+  // Helper: check if user has view access to a module
+  const canView = (module) => {
+    if (!user?.permissions) return false
+    return user.permissions[module]?.view === true
+  }
+
+  // Helper: check if user has edit access to a module
+  const canEdit = (module) => {
+    if (!user?.permissions) return false
+    return user.permissions[module]?.edit === true
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loginSuccess, logout, loading }}>
+    <AuthContext.Provider value={{ user, loginSuccess, logout, loading, canView, canEdit }}>
       {children}
     </AuthContext.Provider>
   )

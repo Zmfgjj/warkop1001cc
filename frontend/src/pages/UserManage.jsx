@@ -1,11 +1,9 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Users } from 'lucide-react';
+import { Users, Settings, Trash2 } from 'lucide-react';
 import api from '../api/auth'
 import MobileLayout from '../components/MobileLayout'
-
-const ROLES = ['owner', 'manager', 'kasir', 'dapur']
 
 const roleColor = {
   owner: { bg: '#F5CBA7', color: '#784212' },
@@ -15,13 +13,14 @@ const roleColor = {
 }
 
 export default function UserManage() {
-  const { user } = useAuth()
+  const { user, canEdit: userCanEdit } = useAuth()
   const navigate = useNavigate()
   const [userList, setUserList] = useState([])
   const [loading, setLoading] = useState(true)
   const [ppn, setPpn] = useState(2)
   const [ppnEditing, setPpnEditing] = useState(false)
   const [newPpn, setNewPpn] = useState(2)
+  const [roleList, setRoleList] = useState([])
 
   // Modal tambah user
   const [showTambah, setShowTambah] = useState(false)
@@ -42,6 +41,7 @@ export default function UserManage() {
   useEffect(() => { 
     fetchUser()
     fetchPPN()
+    fetchRoleList()
   }, [])
 
   const fetchUser = async () => {
@@ -77,17 +77,16 @@ export default function UserManage() {
     }
   }
 
-  const handleLogout = () => { logout(); navigate('/login') }
+  const fetchRoleList = async () => {
+    try {
+      const res = await api.get('/roles')
+      setRoleList(res.data.roles.map(r => r.name))
+    } catch (err) {
+      console.error('Gagal fetch roles:', err)
+      setRoleList(['owner', 'manager', 'kasir', 'dapur'])
+    }
+  }
 
-  const menuNav = [
-    { icon: <LayoutDashboard size={20}/>, label: 'Dashboard', path: '/kasir' },
-    { icon: <ReceiptText size={20}/>, label: 'Kasir (POS)', path: '/kasir/pos' },
-    { icon: <ShoppingCart size={20}/>, label: 'Manajemen Menu', path: '/kasir/menu' },
-    { icon: <Grid2X2 size={20}/>, label: 'Manajemen Meja', path: '/kasir/meja' },
-    { icon: <MonitorPlay size={20}/>, label: 'KDS', path: '/kasir/kds' },
-    { icon: <BarChart3 size={20}/>, label: 'Laporan', path: '/kasir/laporan' },
-    { icon: <Users size={20}/>, label: 'User Manage', path: '/kasir/user-manage' },
-  ]
 
   const handleTambahUser = async () => {
     if (!formTambah.nama || !formTambah.username || !formTambah.password) {
@@ -180,9 +179,7 @@ export default function UserManage() {
               <div className="lg:col-span-1 rounded-2xl p-4 shadow-sm border flex flex-col justify-center" style={{ backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }}>
                 <div className="flex items-start justify-between mb-1">
                   <div>
-                    <h3 className="text-sm font-bold text-[#0284C7] flex items-center gap-1.5">
-                      <span className="text-lg">⚙️</span> Pajak (PPN)
-                    </h3>
+                      <Settings size={18} className="text-[#0284C7]" /> Pajak (PPN)
                   </div>
                   <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-500 text-sm font-black shadow-inner">
                     %
@@ -344,9 +341,8 @@ export default function UserManage() {
               )}
             </div>
 
-          </div>
         </div>
-
+      </div>
 
       {/* Modal Tambah User */}
       {showTambah && (
@@ -397,7 +393,7 @@ export default function UserManage() {
                   className="w-full px-4 py-3 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
                   style={{ backgroundColor: '#F9F5F0', color: '#634930', border: '1px solid #EDE0CC' }}
                 >
-                  {ROLES.map(r => <option key={r} value={r} className="uppercase">{r}</option>)}
+                                    {roleList.map(r => <option key={r} value={r} className="uppercase">{r}</option>)}
                 </select>
               </div>
             </div>
@@ -444,7 +440,7 @@ export default function UserManage() {
                 className="w-full px-4 py-3 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
                 style={{ backgroundColor: '#F9F5F0', color: '#634930', border: '1px solid #EDE0CC' }}
               >
-                {ROLES.map(r => <option key={r} value={r} className="uppercase">{r}</option>)}
+                                  {roleList.map(r => <option key={r} value={r} className="uppercase">{r}</option>)}
               </select>
             </div>
             <div className="flex gap-3 mt-8">
@@ -472,7 +468,7 @@ export default function UserManage() {
         <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
           <div className="rounded-3xl p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200 text-center" style={{ backgroundColor: '#fff', border: '1px solid #ffeeba' }}>
             <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 border-4 border-red-100">
-               <span className="text-4xl">🗑️</span>
+               <Trash2 size={40} className="text-red-500" />
             </div>
             <h2 className="text-2xl font-black mb-2 text-gray-800">Hapus Akses?</h2>
             <p className="text-sm mb-8 text-gray-500">
