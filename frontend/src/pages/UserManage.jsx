@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Users, Settings, Trash2 } from 'lucide-react';
 import api from '../api/auth'
 import MobileLayout from '../components/MobileLayout'
+import { useAlert } from '../context/AlertContext'
 
 const roleColor = {
   owner: { bg: '#F5CBA7', color: '#784212' },
@@ -14,6 +15,7 @@ const roleColor = {
 
 export default function UserManage() {
   const { user, canEdit: userCanEdit } = useAuth()
+  const { showAlert } = useAlert()
   const navigate = useNavigate()
   const [userList, setUserList] = useState([])
   const [loading, setLoading] = useState(true)
@@ -71,9 +73,9 @@ export default function UserManage() {
       await api.put('/settings/ppn', { ppn: parseFloat(newPpn) })
       setPpn(parseFloat(newPpn))
       setPpnEditing(false)
-      alert('PPN berhasil diubah')
+      showAlert('PPN berhasil diubah', 'Sukses')
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal update PPN')
+      showAlert(err.response?.data?.message || 'Gagal update PPN', 'Gagal', 'error')
     }
   }
 
@@ -90,7 +92,7 @@ export default function UserManage() {
 
   const handleTambahUser = async () => {
     if (!formTambah.nama || !formTambah.username || !formTambah.password) {
-      return alert('Semua field wajib diisi!')
+      return showAlert('Semua field wajib diisi!', 'Perhatian', 'error')
     }
     setLoadingTambah(true)
     try {
@@ -99,7 +101,7 @@ export default function UserManage() {
       setFormTambah({ nama: '', username: '', password: '', role: 'kasir' })
       fetchUser()
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal tambah user')
+      showAlert(err.response?.data?.message || 'Gagal tambah user', 'Gagal', 'error')
     } finally {
       setLoadingTambah(false)
     }
@@ -118,7 +120,7 @@ export default function UserManage() {
       setEditTarget(null)
       fetchUser()
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal update role')
+      showAlert(err.response?.data?.message || 'Gagal update role', 'Gagal', 'error')
     } finally {
       setLoadingEdit(false)
     }
@@ -132,7 +134,7 @@ export default function UserManage() {
       setHapusTarget(null)
       fetchUser()
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal hapus user')
+      showAlert(err.response?.data?.message || 'Gagal hapus user', 'Gagal', 'error')
     } finally {
       setLoadingHapus(false)
     }

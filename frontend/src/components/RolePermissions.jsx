@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Shield, Plus, Trash2, Save, Lock, Eye, Edit3, X } from 'lucide-react'
 import api from '../api/auth'
+import { useAlert } from '../context/AlertContext'
 
 const MODULE_LABELS = {
   dashboard: 'Dashboard',
@@ -13,6 +14,7 @@ const MODULE_LABELS = {
 }
 
 export default function RolePermissions() {
+  const { showAlert } = useAlert()
   const [roles, setRoles] = useState([])
   const [modules, setModules] = useState([])
   const [loading, setLoading] = useState(true)
@@ -58,16 +60,16 @@ export default function RolePermissions() {
     setSaving(role.id)
     try {
       await api.put(`/roles/${role.id}`, { name: role.name, permissions: role.permissions })
-      alert('Hak akses berhasil disimpan!')
+      showAlert('Hak akses berhasil disimpan!', 'Sukses')
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal menyimpan')
+      showAlert(err.response?.data?.message || 'Gagal menyimpan', 'Gagal', 'error')
     } finally {
       setSaving(null)
     }
   }
 
   const addRole = async () => {
-    if (!newRoleName.trim()) return alert('Nama role wajib diisi')
+    if (!newRoleName.trim()) return showAlert('Nama role wajib diisi', 'Perhatian', 'error')
     setAddLoading(true)
     try {
       await api.post('/roles', { name: newRoleName.trim() })
@@ -75,7 +77,7 @@ export default function RolePermissions() {
       setShowAdd(false)
       fetchRoles()
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal menambah role')
+      showAlert(err.response?.data?.message || 'Gagal menambah role', 'Gagal', 'error')
     } finally {
       setAddLoading(false)
     }
@@ -88,7 +90,7 @@ export default function RolePermissions() {
       setShowDelete(null)
       fetchRoles()
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal menghapus role')
+      showAlert(err.response?.data?.message || 'Gagal menghapus role', 'Gagal', 'error')
     } finally {
       setDelLoading(false)
     }

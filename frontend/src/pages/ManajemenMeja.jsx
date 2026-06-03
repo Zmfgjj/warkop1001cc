@@ -5,9 +5,11 @@ import { Grid2X2, Plus, Trash2, QrCode, Download } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
+import { useAlert } from '../context/AlertContext'
 
 export default function ManajemenMeja() {
   const { user, canEdit: userCanEdit } = useAuth()
+  const { showAlert } = useAlert()
   const navigate = useNavigate()
   const { socket } = useSocket()
   const [mejaList, setMejaList] = useState([])
@@ -49,12 +51,12 @@ export default function ManajemenMeja() {
       } else {
         console.error('Invalid meja response:', res.data)
         setMejaList([])
-        alert('Format data meja tidak valid')
+        showAlert('Format data meja tidak valid', 'Error', 'error')
       }
     } catch (err) {
       console.error('Gagal fetch meja:', err.response?.data || err.message)
       setMejaList([])
-      alert(err.response?.data?.message || 'Gagal memuat data meja')
+      showAlert(err.response?.data?.message || 'Gagal memuat data meja', 'Gagal', 'error')
     } finally {
       setLoading(false)
     }
@@ -69,17 +71,17 @@ export default function ManajemenMeja() {
 
   const handleTambahMeja = async () => {
     if (!formTambah.nomor) {
-      return alert('Nomor meja wajib diisi!')
+      return showAlert('Nomor meja wajib diisi!', 'Perhatian', 'error')
     }
     setLoadingTambah(true)
     try {
       await api.post('/meja', { nomor: formTambah.nomor })
-      alert('Meja berhasil ditambahkan!')
+      showAlert('Meja berhasil ditambahkan!', 'Sukses')
       setShowTambah(false)
       setFormTambah({ nomor: '' })
       fetchMeja()
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal tambah meja')
+      showAlert(err.response?.data?.message || 'Gagal tambah meja', 'Gagal', 'error')
     } finally {
       setLoadingTambah(false)
     }
@@ -93,11 +95,11 @@ export default function ManajemenMeja() {
         setQrUrl(res.data.qr_url)
         setShowQR(true)
       } else {
-        alert('Response QR code tidak valid')
+        showAlert('Response QR code tidak valid', 'Gagal', 'error')
       }
     } catch (err) {
       console.error('Gagal generate QR:', err.response?.data || err.message)
-      alert(err.response?.data?.message || 'Gagal generate QR code')
+      showAlert(err.response?.data?.message || 'Gagal generate QR code', 'Gagal', 'error')
     }
   }
 
@@ -105,12 +107,12 @@ export default function ManajemenMeja() {
     setLoadingHapus(true)
     try {
       await api.delete(`/meja/${hapusTarget.id}`)
-      alert('Meja berhasil dihapus!')
+      showAlert('Meja berhasil dihapus!', 'Sukses')
       setShowHapus(false)
       setHapusTarget(null)
       fetchMeja()
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal hapus meja')
+      showAlert(err.response?.data?.message || 'Gagal hapus meja', 'Gagal', 'error')
     } finally {
       setLoadingHapus(false)
     }
@@ -133,7 +135,7 @@ export default function ManajemenMeja() {
       window.URL.revokeObjectURL(objectUrl)
     } catch (err) {
       console.error('Gagal download QR:', err)
-      alert('Gagal mengunduh QR Code')
+      showAlert('Gagal mengunduh QR Code', 'Gagal', 'error')
     }
   }
 
@@ -296,12 +298,15 @@ export default function ManajemenMeja() {
             <p className="text-sm text-stone-500 mb-6">Scan QR code untuk membuka menu e-Menu</p>
             
             {qrUrl && (
-              <div className="mb-6 p-4 bg-stone-50 rounded-2xl border border-stone-100 flex items-center justify-center">
+              <div className="mb-6 p-4 bg-stone-50 rounded-2xl border border-stone-100 flex flex-col items-center justify-center gap-3">
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrUrl)}`}
                   alt="QR Code"
                   className="w-48 h-48 rounded-lg mix-blend-multiply"
                 />
+                <a href={qrUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:text-indigo-800 break-all text-center hover:underline px-2">
+                  {qrUrl}
+                </a>
               </div>
             )}
             

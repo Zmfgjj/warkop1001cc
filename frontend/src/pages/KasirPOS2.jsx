@@ -8,9 +8,11 @@ import { cetakStruk, cetakStrukThermal } from '../utils/printStruk'
 import MobileLayout from '../components/MobileLayout'
 import { useNetwork } from '../hooks/useNetwork'
 import { saveMasterData, getMasterData, queueOfflineOrder } from '../utils/offlineStore'
+import { useAlert } from '../context/AlertContext'
 
 export default function KasirPOS() {
   const { user } = useAuth()
+  const { showAlert } = useAlert()
   const navigate = useNavigate()
   const { socket } = useSocket()
   const isOnline = useNetwork()
@@ -108,12 +110,13 @@ export default function KasirPOS() {
 
   const handleBuatReservasi = async (e) => {
     e.preventDefault()
-    if (!isOnline) return alert('Reservasi tidak bisa dilakukan saat offline')
-    if (!resMejaId || !resNama) return alert('Pilih meja dan isi nama pelanggan')
+    if (!isOnline) return showAlert('Reservasi tidak bisa dilakukan saat offline', 'Oops!')
+    if (!resMejaId || !resNama) return showAlert('Pilih meja dan isi nama pelanggan', 'Perhatian')
     try {
       await api.post('/pesanan/reservasi', { meja_id: parseInt(resMejaId), nama_pelanggan: resNama, dp_amount: parseInt(resDp.replace(/\D/g, '') || 0) })
-      alert('Reservasi berhasil dibuat'); setShowReservasiModal(false); setResNama(''); setResDp(''); setResMejaId(''); fetchData()
-    } catch (err) { alert(err?.response?.data?.message || 'Gagal membuat reservasi') }
+      showAlert('Reservasi berhasil dibuat', 'Sukses')
+      setShowReservasiModal(false); setResNama(''); setResDp(''); setResMejaId(''); fetchData()
+    } catch (err) { showAlert(err?.response?.data?.message || 'Gagal membuat reservasi', 'Gagal') }
   }
 
   const filteredMenu = menuList.filter(m => {
@@ -145,9 +148,9 @@ export default function KasirPOS() {
   const totalItems = order.reduce((s, o) => s + o.qty, 0)
 
   const handleProsesBayar = async () => {
-    if (tipeOrder === 'dine-in' && !selectedMeja) return alert('Pilih meja dulu!')
-    if (order.length === 0) return alert('Tambah menu dulu!')
-    if (metodeBayar === 'Tunai' && parseInt(jumlahBayar.replace(/\D/g, '') || 0) < total) return alert('Jumlah bayar kurang!')
+    if (tipeOrder === 'dine-in' && !selectedMeja) return showAlert('Pilih meja dulu!', 'Perhatian')
+    if (order.length === 0) return showAlert('Tambah menu dulu!', 'Perhatian')
+    if (metodeBayar === 'Tunai' && parseInt(jumlahBayar.replace(/\D/g, '') || 0) < total) return showAlert('Jumlah bayar kurang!', 'Perhatian')
     
     setLoadingBayar(true)
     try {
@@ -173,17 +176,17 @@ export default function KasirPOS() {
       } else {
         // Offline flow
         await queueOfflineOrder(pesananData)
-        alert('Anda sedang offline. Pesanan disimpan secara lokal dan akan disinkronkan nanti.')
+        showAlert('Anda sedang offline. Pesanan disimpan secara lokal dan akan disinkronkan nanti.', 'Mode Offline')
       }
 
       // Cetak struk baik online maupun offline
       const thermalOk = await cetakStrukThermal(strukData).catch(() => false)
       if (!thermalOk) cetakStruk(strukData)
       
-      if (isOnline) alert('Pesanan berhasil dibuat & pembayaran tercatat!')
+      if (isOnline) showAlert('Pesanan berhasil dibuat & pembayaran tercatat!', 'Sukses')
       setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); fetchData()
     } catch (err) { 
-      alert(err.response?.data?.message || 'Gagal memproses pembayaran') 
+      showAlert(err.response?.data?.message || 'Gagal memproses pembayaran', 'Gagal') 
     } finally { 
       setLoadingBayar(false) 
     }

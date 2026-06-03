@@ -6,9 +6,11 @@ import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
 import ImageLoader from '../components/ImageLoader'
+import { useAlert } from '../context/AlertContext'
 
 export default function ManajemenMenu() {
   const { user, canEdit: userCanEdit } = useAuth()
+  const { showAlert } = useAlert()
   const navigate = useNavigate()
   const { socket } = useSocket()
   const [menuList, setMenuList] = useState([])
@@ -93,7 +95,7 @@ export default function ManajemenMenu() {
 
   const handleTambahMenu = async () => {
     if (!formTambah.nama || !formTambah.harga || !formTambah.kategori_id) {
-      return alert('Nama, Harga, dan Kategori wajib diisi!')
+      return showAlert('Nama, Harga, dan Kategori wajib diisi!', 'Perhatian', 'error')
     }
     setLoadingTambah(true)
     try {
@@ -115,7 +117,7 @@ export default function ManajemenMenu() {
       fetchMenu()
     } catch (err) {
       console.error('❌ Error tambah menu:', err.response?.data)
-      alert(err.response?.data?.message || 'Gagal tambah menu')
+      showAlert(err.response?.data?.message || 'Gagal tambah menu', 'Gagal', 'error')
     } finally {
       setLoadingTambah(false)
     }
@@ -123,7 +125,7 @@ export default function ManajemenMenu() {
 
   const handleEditMenu = async () => {
     if (!formEdit.nama || !formEdit.harga || !formEdit.kategori_id) {
-      return alert('Nama, Harga, dan Kategori wajib diisi!')
+      return showAlert('Nama, Harga, dan Kategori wajib diisi!', 'Perhatian', 'error')
     }
     setLoadingEdit(true)
     try {
@@ -148,7 +150,7 @@ export default function ManajemenMenu() {
       setEditTarget(null)
       fetchMenu()
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal update menu')
+      showAlert(err.response?.data?.message || 'Gagal update menu', 'Gagal', 'error')
     } finally {
       setLoadingEdit(false)
     }
@@ -162,7 +164,7 @@ export default function ManajemenMenu() {
       setHapusTarget(null)
       fetchMenu()
     } catch (err) {
-      alert(err.response?.data?.message || 'Gagal hapus menu')
+      showAlert(err.response?.data?.message || 'Gagal hapus menu', 'Gagal', 'error')
     } finally {
       setLoadingHapus(false)
     }
