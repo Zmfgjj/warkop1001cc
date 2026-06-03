@@ -29,6 +29,7 @@ export default defineConfig({
           }
         ]
       },
+      injectRegister: 'auto',
       manifest: {
         name: 'Warkop POS',
         short_name: 'POS',
@@ -36,20 +37,23 @@ export default defineConfig({
         theme_color: '#E8D5B7',
         icons: [
           {
-            src: 'logo.jpeg',
+            src: 'logo-192.png',
             sizes: '192x192',
-            type: 'image/jpeg'
+            type: 'image/png',
+            purpose: 'any maskable'
           },
           {
-            src: 'logo.jpeg',
+            src: 'logo-512.png',
             sizes: '512x512',
-            type: 'image/jpeg'
+            type: 'image/png',
+            purpose: 'any maskable'
           }
         ]
       }
     })
   ],
   server: {
+    host: true,
     port: 5173,
     proxy: {
       '/api': {
