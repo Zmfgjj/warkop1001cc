@@ -5,9 +5,11 @@ import { Download, ReceiptText, Search, Filter, Calendar, CalendarDays, Receipt 
 import api from '../api/auth'
 import * as XLSX from 'xlsx-js-style'
 import MobileLayout from '../components/MobileLayout'
+import { useAlert } from '../context/AlertContext'
 
 export default function Laporan() {
   const { user } = useAuth()
+  const { showAlert } = useAlert()
   const navigate = useNavigate()
   const [tab, setTab] = useState('harian')
   const [loading, setLoading] = useState(false)
@@ -139,7 +141,7 @@ export default function Laporan() {
   }
 
   const handleExportHarian = () => {
-    if (!dataHarian) return alert('Tidak ada data untuk diexport')
+    if (!dataHarian) return showAlert('Tidak ada data untuk diexport', 'Gagal', 'error')
     const d = dataHarian
     const gross = Number(d.pendapatan)
     const ppnRate = d.ppn_rate || 11
@@ -192,7 +194,7 @@ export default function Laporan() {
   }
 
   const handleExportBulanan = () => {
-    if (!dataBulanan) return alert('Tidak ada data untuk diexport')
+    if (!dataBulanan) return showAlert('Tidak ada data untuk diexport', 'Gagal', 'error')
     const d = dataBulanan
     const bulanNama = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
     const gross = Number(d.total_pendapatan)
@@ -248,7 +250,7 @@ export default function Laporan() {
   }
 
   const handleExportHistori = () => {
-    if (!dataHistori || dataHistori.data.length === 0) return alert('Tidak ada data untuk diexport')
+    if (!dataHistori || dataHistori.data.length === 0) return showAlert('Tidak ada data untuk diexport', 'Gagal', 'error')
 
     const rows = [
       [createCell('HISTORI PEMBELIAN POS – WARKOP 1001 CC', styleTitle), '', '', '', '', '', '', ''],

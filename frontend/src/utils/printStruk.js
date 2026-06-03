@@ -1,6 +1,6 @@
 // Utility untuk cetak struk thermal printer
 // Mendukung: window.print() fallback + ESC/POS via Web Serial API
-
+import { globalAlert } from '../context/AlertContext'
 function formatRupiah(n) {
   return 'Rp ' + Number(n).toLocaleString('id-ID')
 }
@@ -73,7 +73,7 @@ export function cetakStruk(data) {
 
   const printWindow = window.open('', '_blank', 'width=320,height=600')
   if (!printWindow) {
-    alert('Popup diblokir! Izinkan popup untuk mencetak struk.')
+    globalAlert('Popup diblokir! Izinkan popup untuk mencetak struk.', 'Perhatian', 'error')
     return
   }
 
@@ -105,7 +105,7 @@ export function cetakStruk(data) {
 // Cetak struk via Web Serial API (thermal printer ESC/POS)
 export async function cetakStrukThermal(data) {
   if (!('serial' in navigator)) {
-    alert('Browser tidak mendukung Web Serial API. Gunakan Chrome/Edge.')
+    globalAlert('Browser tidak mendukung Web Serial API. Gunakan Chrome/Edge.', 'Perhatian', 'error')
     return false
   }
 

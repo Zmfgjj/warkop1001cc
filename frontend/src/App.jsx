@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth'
+import { AlertProvider } from './context/AlertContext'
 import { initSyncManager } from './utils/syncManager'
 import OfflineBanner from './components/OfflineBanner'
 import Login from './pages/Login'
@@ -102,10 +103,12 @@ export default function App() {
 
   return (
     <AuthProvider>
-      <OfflineBanner />
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <AlertProvider>
+        <OfflineBanner />
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </AlertProvider>
     </AuthProvider>
   )
 }

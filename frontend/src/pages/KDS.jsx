@@ -4,12 +4,16 @@ import { MonitorPlay, ShoppingBag, Utensils, Clock, CheckCircle, Check, Circle, 
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
+import { useAlert } from '../context/AlertContext'
 
 export default function KDS() {
   const { user } = useAuth()
+  const { showAlert } = useAlert()
   const { socket } = useSocket()
   const [pesananList, setPesananList] = useState([])
   const [loading, setLoading] = useState(true)
+  const [selectedNote, setSelectedNote] = useState(null)
+  const [confirmModal, setConfirmModal] = useState(null)
 
   const fetchPesanan = async () => {
     setLoading(true)
@@ -61,16 +65,21 @@ export default function KDS() {
       await api.put(`/pesanan/detail/${detailId}/status`, { status })
       // Server will emit socket, bringing final truth
     } catch (err) {
-      alert('Gagal update status item')
+      showAlert('Gagal update status item', 'Gagal', 'error')
       fetchPesanan() // rollback
     }
   }
 
   const updateStatusPesanan = async (pesananId, status) => {
     if (status === 'selesai') {
-      if (!window.confirm('Apakah orderan dan request pada bill pesanan ini sudah sesuai dan siap diselesaikan?')) {
-        return;
-      }
+      setConfirmModal({ pesananId, status })
+      return;
+    }
+    await processUpdateStatusPesanan(pesananId, status)
+  }
+
+  const processUpdateStatusPesanan = async (pesananId, status) => {
+    if (status === 'selesai') {
       // Optimistic remove for 'selesai'
       setPesananList(prev => prev.filter(p => p.id !== pesananId))
     }
@@ -78,9 +87,10 @@ export default function KDS() {
     try {
       await api.put(`/pesanan/${pesananId}/status`, { status })
     } catch (err) {
-      alert('Gagal update status pesanan')
+      showAlert('Gagal update status pesanan', 'Gagal', 'error')
       fetchPesanan()
     }
+    setConfirmModal(null)
   }
 
   return (
@@ -192,11 +202,18 @@ export default function KDS() {
                           {item.nama_menu}
                         </p>
                         {item.catatan && (
-                          <div className="mt-1 inline-block px-2 py-0.5 rounded-md border shadow-sm" style={{ backgroundColor: '#FFF9E6', borderColor: '#FFE4A0' }}>
-                            <p className="text-[10px] font-semibold text-amber-700 truncate max-w-[150px] md:max-w-none">
-                              <div className="flex items-center gap-1"><FileText size={12} /> <span>{item.catatan}</span></div>
-                            </p>
-                          </div>
+                          <button 
+                            onClick={() => setSelectedNote({ menu: item.nama_menu, catatan: item.catatan })}
+                            className="mt-1 inline-block px-2 py-0.5 rounded-md border shadow-sm hover:opacity-80 active:scale-95 transition-all text-left" 
+                            style={{ backgroundColor: '#FFF9E6', borderColor: '#FFE4A0' }}
+                          >
+                            <div className="flex items-center gap-1">
+                              <FileText size={12} className="text-amber-700 flex-shrink-0" /> 
+                              <span className="text-[10px] font-semibold text-amber-700 truncate max-w-[150px] md:max-w-none">
+                                {item.catatan}
+                              </span>
+                            </div>
+                          </button>
                         )}
                       </div>
 
@@ -252,6 +269,94 @@ export default function KDS() {
           </div>
         )}
       </div>
+
+      {/* Modal Catatan */}
+      {selectedNote && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity" 
+          onClick={() => setSelectedNote(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl transform transition-all scale-100 p-5 md:p-6" 
+            onClick={e => e.stopPropagation()}
+            style={{ border: '1px solid #EDE0CC' }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100 shadow-sm flex-shrink-0">
+                <FileText size={20} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-black text-lg bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b] truncate">
+                  Catatan Pesanan
+                </h3>
+                <p className="text-xs text-gray-500 font-medium truncate">{selectedNote.menu}</p>
+              </div>
+            </div>
+            
+            <div className="bg-[#FFFBEB] p-4 rounded-xl border border-[#FFE4A0] shadow-inner max-h-[40vh] overflow-y-auto">
+              <p className="text-[#634930] text-sm whitespace-pre-wrap leading-relaxed font-medium">
+                {selectedNote.catatan}
+              </p>
+            </div>
+            
+            <button 
+              onClick={() => setSelectedNote(null)}
+              className="mt-5 w-full py-2.5 rounded-xl text-white text-sm font-black transition-all hover:opacity-90 active:scale-95 shadow-lg"
+              style={{ backgroundColor: '#634930', boxShadow: '0 4px 14px rgba(99, 73, 48, 0.3)' }}
+            >
+              TUTUP
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Selesai */}
+      {confirmModal && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity" 
+          onClick={() => setConfirmModal(null)}
+        >
+          <div 
+            className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl transform transition-all scale-100 p-5 md:p-6" 
+            onClick={e => e.stopPropagation()}
+            style={{ border: '1px solid #EDE0CC' }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-green-50 text-green-600 flex items-center justify-center border border-green-100 shadow-sm flex-shrink-0">
+                <CheckCircle size={20} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-black text-lg text-[#27ae60] truncate">
+                  Selesaikan Pesanan?
+                </h3>
+              </div>
+            </div>
+            
+            <div className="p-2 mb-2">
+              <p className="text-[#634930] text-sm font-medium">
+                Apakah orderan dan request pada bill pesanan ini sudah sesuai dan siap diselesaikan?
+              </p>
+            </div>
+            
+            <div className="flex gap-3 mt-4">
+              <button 
+                onClick={() => setConfirmModal(null)}
+                className="flex-1 py-2.5 rounded-xl text-gray-600 text-sm font-bold transition-all hover:bg-gray-100 active:scale-95 border border-gray-200"
+              >
+                BATAL
+              </button>
+              <button 
+                onClick={() => processUpdateStatusPesanan(confirmModal.pesananId, confirmModal.status)}
+                className="flex-1 py-2.5 rounded-xl text-white text-sm font-black transition-all hover:bg-[#219653] active:scale-95 shadow-lg flex items-center justify-center gap-1.5"
+                style={{ backgroundColor: '#27ae60', boxShadow: '0 4px 14px rgba(39, 174, 96, 0.3)' }}
+              >
+                <Check size={16} /> YA, SELESAI
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </MobileLayout>
   )
 }
