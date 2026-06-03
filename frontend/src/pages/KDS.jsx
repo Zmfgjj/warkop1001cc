@@ -1,6 +1,6 @@
 import { useAuth } from '../hooks/useAuth'
 import { useState, useEffect } from 'react'
-import { MonitorPlay } from 'lucide-react';
+import { MonitorPlay, ShoppingBag, Utensils, Clock, CheckCircle, Check, Circle, FileText } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
@@ -45,21 +45,41 @@ export default function KDS() {
     }
   }, [socket, debouncedFetch])
 
-  const updateStatusItem = async (detailId, status) => {
+  const updateStatusItem = async (detailId, pesananId, status) => {
+    // Optimistic UI update
+    setPesananList(prev => prev.map(p => {
+      if (p.id === pesananId) {
+        return {
+          ...p,
+          items: p.items.map(i => i.id === detailId ? { ...i, status } : i)
+        }
+      }
+      return p
+    }))
+
     try {
       await api.put(`/pesanan/detail/${detailId}/status`, { status })
-      fetchPesanan()
+      // Server will emit socket, bringing final truth
     } catch (err) {
       alert('Gagal update status item')
+      fetchPesanan() // rollback
     }
   }
 
   const updateStatusPesanan = async (pesananId, status) => {
+    if (status === 'selesai') {
+      if (!window.confirm('Apakah orderan dan request pada bill pesanan ini sudah sesuai dan siap diselesaikan?')) {
+        return;
+      }
+      // Optimistic remove for 'selesai'
+      setPesananList(prev => prev.filter(p => p.id !== pesananId))
+    }
+
     try {
       await api.put(`/pesanan/${pesananId}/status`, { status })
-      fetchPesanan()
     } catch (err) {
       alert('Gagal update status pesanan')
+      fetchPesanan()
     }
   }
 
@@ -122,7 +142,7 @@ export default function KDS() {
                 <div className="px-4 md:px-5 py-3 md:py-4 flex justify-between items-center bg-gradient-to-r from-[#F9F5F0] to-white border-b" style={{ borderColor: '#EDE0CC' }}>
                   <div className="flex items-center gap-2 md:gap-3">
                     <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl md:rounded-2xl flex items-center justify-center bg-amber-100 text-amber-700 shadow-sm border border-amber-200 text-lg md:text-xl">
-                      {pesanan.tipe === 'take-away' ? '🛍️' : '🍽️'}
+                      {pesanan.tipe === 'take-away' ? <ShoppingBag size={20} /> : <Utensils size={20} />}
                     </div>
                     <h2 className="text-base md:text-lg font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
                       {pesanan.tipe === 'take-away'
@@ -136,7 +156,10 @@ export default function KDS() {
                     color: pesanan.status === 'pending' ? '#b8860b' : '#1E8E3E',
                     borderColor: pesanan.status === 'pending' ? '#FFE4A0' : '#A8DAB5'
                   }}>
-                    {pesanan.status === 'pending' ? '⏳ Menunggu' : '✅ Diproses'}
+                    <div className="flex items-center gap-1">
+                      {pesanan.status === 'pending' ? <Clock size={12} /> : <CheckCircle size={12} />}
+                      <span>{pesanan.status === 'pending' ? 'Menunggu' : 'Diproses'}</span>
+                    </div>
                   </span>
                 </div>
 
@@ -160,7 +183,7 @@ export default function KDS() {
                           color: item.status === 'pending' ? '#634930' : '#fff'
                         }}
                       >
-                        {item.status === 'selesai' ? '✓' : item.status === 'diproses' ? '⏳' : '○'}
+                        {item.status === 'selesai' ? <Check size={16} /> : item.status === 'diproses' ? <Clock size={16} /> : <Circle size={16} />}
                       </div>
 
                       {/* Info */}
@@ -171,7 +194,7 @@ export default function KDS() {
                         {item.catatan && (
                           <div className="mt-1 inline-block px-2 py-0.5 rounded-md border shadow-sm" style={{ backgroundColor: '#FFF9E6', borderColor: '#FFE4A0' }}>
                             <p className="text-[10px] font-semibold text-amber-700 truncate max-w-[150px] md:max-w-none">
-                              📝 {item.catatan}
+                              <div className="flex items-center gap-1"><FileText size={12} /> <span>{item.catatan}</span></div>
                             </p>
                           </div>
                         )}
@@ -187,7 +210,7 @@ export default function KDS() {
                       {/* Buttons */}
                       <div className="flex gap-1 md:gap-1.5 flex-shrink-0">
                         <button
-                          onClick={() => updateStatusItem(item.id, 'diproses')}
+                          onClick={() => updateStatusItem(item.id, pesanan.id, 'diproses')}
                           disabled={item.status !== 'pending'}
                           className="px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all disabled:opacity-40 active:scale-95 shadow-sm"
                           style={{
@@ -198,7 +221,7 @@ export default function KDS() {
                           Proses
                         </button>
                         <button
-                          onClick={() => updateStatusItem(item.id, 'selesai')}
+                          onClick={() => updateStatusItem(item.id, pesanan.id, 'selesai')}
                           disabled={item.status !== 'diproses'}
                           className="px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all disabled:opacity-40 active:scale-95 shadow-sm"
                           style={{
@@ -220,7 +243,7 @@ export default function KDS() {
                     className="w-full px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-xs font-black text-white transition-all hover:bg-[#219653] active:scale-95 shadow-lg flex items-center justify-center gap-2"
                     style={{ backgroundColor: '#27ae60', boxShadow: '0 8px 20px rgba(39, 174, 96, 0.3)' }}
                   >
-                    <span className="text-xs bg-white text-[#27ae60] rounded-full w-4 h-4 flex items-center justify-center">✓</span>
+                    <span className="text-xs bg-white text-[#27ae60] rounded-full w-4 h-4 flex items-center justify-center"><Check size={12} /></span>
                     <span>SELESAIKAN PESANAN</span>
                   </button>
                 </div>

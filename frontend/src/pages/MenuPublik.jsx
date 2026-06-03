@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
+import { Coffee, CheckCircle, CreditCard, Smile, ShoppingCart, Utensils, X } from 'lucide-react'
+import ImageLoader from '../components/ImageLoader'
 
 function formatRupiah(n) {
   return 'Rp ' + Number(n).toLocaleString('id-ID')
@@ -160,7 +162,7 @@ export default function MenuPublik() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FFFAF1]">
         <div className="text-center px-6">
-          <div className="text-6xl mb-4">☕</div>
+          <div className="flex justify-center mb-4 text-[#8B6F47]"><Coffee size={64} /></div>
           <h2 className="text-2xl font-bold text-[#442D1D] mb-2">Oops!</h2>
           <p className="text-[#8B6F47]">{mejaError}</p>
         </div>
@@ -172,14 +174,14 @@ export default function MenuPublik() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FFFAF1]">
         <div className="text-center px-8 max-w-sm">
-          <div className="text-7xl mb-4">✅</div>
+          <div className="flex justify-center mb-4 text-green-500"><CheckCircle size={72} /></div>
           <h2 className="text-2xl font-bold text-[#442D1D] mb-2">Pesanan Terkirim!</h2>
           <p className="text-[#8B6F47] mb-1">No. Pesanan: <strong className="text-[#634930]">#{String(pesananId).padStart(4,'0')}</strong></p>
           <div className="bg-[#ECD7B1] rounded-xl p-4 mb-4">
-            <p className="text-sm font-bold text-[#442D1D] mb-1">💳 Pembayaran via QRIS</p>
+            <p className="text-sm font-bold text-[#442D1D] mb-1 flex items-center justify-center gap-2"><CreditCard size={18} /> Pembayaran via QRIS</p>
             <p className="text-xs text-[#8B6F47]">Silakan lakukan pembayaran QRIS di kasir. Tunjukkan nomor pesanan kamu.</p>
           </div>
-          <p className="text-[#8B6F47] mb-6 text-sm">Pesanan kamu sudah masuk ke dapur. Mohon tunggu sebentar 😊</p>
+          <p className="text-[#8B6F47] mb-6 text-sm flex items-center justify-center gap-1">Pesanan kamu sudah masuk ke dapur. Mohon tunggu sebentar <Smile size={16} /></p>
           <button
             onClick={() => setSubmitted(false)}
             className="w-full py-3 rounded-full bg-[#634930] text-white font-semibold hover:bg-[#4a3622] transition"
@@ -213,7 +215,7 @@ export default function MenuPublik() {
           onClick={() => setShowCart(true)}
           className="lg:hidden relative bg-[#634930] text-white rounded-full p-2 ml-2"
         >
-          🛒
+          <ShoppingCart size={20} />
           {totalItems > 0 && (
             <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
               {totalItems}
@@ -261,7 +263,7 @@ export default function MenuPublik() {
             )}
             {filteredMenu.length === 0 ? (
               <div className="text-center text-[#8B6F47] py-16">
-                <div className="text-5xl mb-3">🍽️</div>
+                <div className="flex justify-center mb-3 text-[#8B6F47]"><Utensils size={48} /></div>
                 <p>Menu tidak tersedia</p>
               </div>
             ) : (
@@ -276,15 +278,14 @@ export default function MenuPublik() {
                     >
                       <div className="w-full aspect-square bg-[#F5F0E8] overflow-hidden">
                         {menu.gambar ? (
-                          <img
+                          <ImageLoader
                             src={menu.gambar}
                             alt={menu.nama}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
+                            className="w-full h-full"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-4xl">
-                            🍽️
+                            <Utensils size={40} className="text-[#8B6F47]" />
                           </div>
                         )}
                       </div>
@@ -351,12 +352,12 @@ export default function MenuPublik() {
           >
             {/* Cart header */}
             <div className="bg-[#ECD7B1] px-5 py-4 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-[#442D1D]">🛒 Pesanan Kamu</h2>
+              <h2 className="text-lg font-bold text-[#442D1D] flex items-center gap-2"><ShoppingCart size={20} /> Pesanan Kamu</h2>
               <button
                 onClick={() => setShowCart(false)}
                 className="lg:hidden text-[#8B6F47] text-xl"
               >
-                ✕
+                <X size={24} />
               </button>
             </div>
 
@@ -376,7 +377,7 @@ export default function MenuPublik() {
             <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
               {cart.length === 0 ? (
                 <div className="text-center text-[#8B6F47] py-10">
-                  <div className="text-4xl mb-2">🛒</div>
+                  <div className="flex justify-center mb-2 text-[#8B6F47]"><ShoppingCart size={40} /></div>
                   <p className="text-sm">Pilih menu dulu yuk!</p>
                 </div>
               ) : (
@@ -447,7 +448,7 @@ export default function MenuPublik() {
               </div>
 
               <div className="flex items-center gap-2 bg-[#EFF8FF] rounded-lg px-3 py-2">
-                <span className="text-lg">💳</span>
+                <CreditCard size={20} className="text-[#2563EB]" />
                 <span className="text-xs font-semibold text-[#2563EB]">Pembayaran QRIS Only — bayar di kasir</span>
               </div>
 

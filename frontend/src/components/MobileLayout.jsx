@@ -1,29 +1,32 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
-import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut, Menu, X } from 'lucide-react'
+import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut, Menu, X, Shield } from 'lucide-react'
 
+// Map of menu items with their permission module keys
 const allMenuItems = [
-  { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/kasir' },
-  { icon: <ReceiptText size={20} />, label: 'Kasir (POS)', path: '/kasir/pos' },
-  { icon: <ShoppingCart size={20} />, label: 'Manajemen Menu', path: '/kasir/menu' },
-  { icon: <Grid2X2 size={20} />, label: 'Manajemen Meja', path: '/kasir/meja' },
-  { icon: <MonitorPlay size={20} />, label: 'KDS', path: '/kasir/kds' },
-  { icon: <BarChart3 size={20} />, label: 'Laporan', path: '/kasir/laporan' },
-  { icon: <Users size={20} />, label: 'User Manage', path: '/kasir/user-manage' },
+  { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/kasir', module: 'dashboard' },
+  { icon: <ReceiptText size={20} />, label: 'Kasir (POS)', path: '/kasir/pos', module: 'pos' },
+  { icon: <ShoppingCart size={20} />, label: 'Manajemen Menu', path: '/kasir/menu', module: 'manajemen_menu' },
+  { icon: <Grid2X2 size={20} />, label: 'Manajemen Meja', path: '/kasir/meja', module: 'manajemen_meja' },
+  { icon: <MonitorPlay size={20} />, label: 'KDS', path: '/kasir/kds', module: 'kds' },
+  { icon: <BarChart3 size={20} />, label: 'Laporan', path: '/kasir/laporan', module: 'laporan' },
+  { icon: <Users size={20} />, label: 'User Manage', path: '/kasir/user-manage', module: 'user_manage' },
+  { icon: <Shield size={20} />, label: 'Hak dan Role Akses', path: '/kasir/role-manage', ownerOnly: true },
 ]
 
 export default function MobileLayout({ activeMenu, children }) {
-  const { user, logout } = useAuth()
+  const { user, logout, canView } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const handleLogout = () => { logout(); navigate('/login') }
 
-  // For dapur role, only show KDS
-  const menuItems = user?.role === 'dapur'
-    ? allMenuItems.filter(item => item.label === 'KDS')
-    : allMenuItems
+  // Filter menu items based on dynamic permissions
+  const menuItems = allMenuItems.filter(item => {
+    if (item.ownerOnly) return user?.role === 'owner';
+    return canView(item.module);
+  })
 
   return (
     <div className="flex min-h-screen font-sans" style={{ backgroundColor: '#F9F5F0' }}>

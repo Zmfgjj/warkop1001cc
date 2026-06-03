@@ -1,13 +1,13 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { ReceiptText, ShoppingCart, Grid2X2, TrendingUp, Coffee, Clock, ArrowRight } from 'lucide-react';
+import { ReceiptText, ShoppingCart, Grid2X2, TrendingUp, Coffee, Clock, ArrowRight, ShoppingBag, Utensils } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
 
 export default function Kasir() {
-  const { user } = useAuth()
+  const { user, canView } = useAuth()
   const navigate = useNavigate()
   const { socket } = useSocket()
   const [pesanan, setPesanan] = useState([])
@@ -173,38 +173,44 @@ export default function Kasir() {
             </div>
 
             {/* Shortcuts Row */}
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button 
-                onClick={() => navigate('/kasir/pos')}
-                className="flex-1 bg-white border border-[#EDE0CC] hover:border-[#634930] hover:shadow-md p-4 rounded-2xl flex items-center justify-between group transition-all"
-              >
-                <div className="flex items-center gap-3 md:gap-4">
-                  <div className="p-3 bg-amber-50 text-[#634930] rounded-xl group-hover:bg-[#634930] group-hover:text-white transition-colors">
-                    <ShoppingCart size={24} />
+            {(canView('pos') || canView('manajemen_meja')) && (
+              <div className="flex flex-col sm:flex-row gap-4">
+              {canView('pos') && (
+                <button 
+                  onClick={() => navigate('/kasir/pos')}
+                  className="flex-1 bg-white border border-[#EDE0CC] hover:border-[#634930] hover:shadow-md p-4 rounded-2xl flex items-center justify-between group transition-all"
+                >
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className="p-3 bg-amber-50 text-[#634930] rounded-xl group-hover:bg-[#634930] group-hover:text-white transition-colors">
+                      <ShoppingCart size={24} />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-bold text-[#634930] text-base md:text-lg">Buka Kasir POS</p>
+                      <p className="text-xs text-gray-500">Mulai terima pesanan baru</p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <p className="font-bold text-[#634930] text-base md:text-lg">Buka Kasir POS</p>
-                    <p className="text-xs text-gray-500">Mulai terima pesanan baru</p>
+                  <ArrowRight className="text-[#634930] opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                </button>
+              )}
+              {canView('manajemen_meja') && (
+                <button 
+                  onClick={() => navigate('/kasir/meja')}
+                  className="flex-1 bg-white border border-[#EDE0CC] hover:border-[#634930] hover:shadow-md p-4 rounded-2xl flex items-center justify-between group transition-all"
+                >
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className="p-3 bg-amber-50 text-[#634930] rounded-xl group-hover:bg-[#634930] group-hover:text-white transition-colors">
+                      <Grid2X2 size={24} />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-bold text-[#634930] text-base md:text-lg">Kelola Meja</p>
+                      <p className="text-xs text-gray-500">Pantau pelanggan dine-in</p>
+                    </div>
                   </div>
-                </div>
-                <ArrowRight className="text-[#634930] opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-              </button>
-              <button 
-                onClick={() => navigate('/kasir/meja')}
-                className="flex-1 bg-white border border-[#EDE0CC] hover:border-[#634930] hover:shadow-md p-4 rounded-2xl flex items-center justify-between group transition-all"
-              >
-                <div className="flex items-center gap-3 md:gap-4">
-                  <div className="p-3 bg-amber-50 text-[#634930] rounded-xl group-hover:bg-[#634930] group-hover:text-white transition-colors">
-                    <Grid2X2 size={24} />
-                  </div>
-                  <div className="text-left">
-                    <p className="font-bold text-[#634930] text-base md:text-lg">Kelola Meja</p>
-                    <p className="text-xs text-gray-500">Pantau pelanggan dine-in</p>
-                  </div>
-                </div>
-                <ArrowRight className="text-[#634930] opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-              </button>
-            </div>
+                  <ArrowRight className="text-[#634930] opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                </button>
+              )}
+              </div>
+            )}
 
             {/* Lists Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
@@ -336,7 +342,10 @@ export default function Kasir() {
             <div className="p-5 md:p-6">
               <div className="flex gap-2 mb-6 flex-wrap">
                 <span className="bg-amber-50 text-amber-800 px-3 py-1 rounded-lg text-xs font-bold border border-amber-100">
-                  {detailPesanan.tipe === 'take-away' ? '🥡 Take Away' : '🍽️ Dine-in'}
+                  <div className="flex items-center gap-1.5">
+                    {detailPesanan.tipe === 'take-away' ? <ShoppingBag size={14} /> : <Utensils size={14} />}
+                    <span>{detailPesanan.tipe === 'take-away' ? 'Take Away' : 'Dine-in'}</span>
+                  </div>
                 </span>
                 {detailPesanan.nomor_meja && (
                   <span className="bg-blue-50 text-blue-800 px-3 py-1 rounded-lg text-xs font-bold border border-blue-100">

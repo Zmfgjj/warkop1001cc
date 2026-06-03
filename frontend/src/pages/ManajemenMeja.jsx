@@ -1,13 +1,13 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Grid2X2, Plus, Trash2, QrCode } from 'lucide-react';
+import { Grid2X2, Plus, Trash2, QrCode, Download } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
 
 export default function ManajemenMeja() {
-  const { user } = useAuth()
+  const { user, canEdit: userCanEdit } = useAuth()
   const navigate = useNavigate()
   const { socket } = useSocket()
   const [mejaList, setMejaList] = useState([])
@@ -65,7 +65,7 @@ export default function ManajemenMeja() {
     navigate('/login')
   }
 
-  const canEdit = ['owner', 'manager'].includes(user?.role)
+  const canEdit = userCanEdit('manajemen_meja')
 
   const handleTambahMeja = async () => {
     if (!formTambah.nomor) {
@@ -316,7 +316,7 @@ export default function ManajemenMeja() {
                 onClick={handleDownloadQR}
                 className="flex-1 px-4 py-3 rounded-xl font-semibold text-white bg-indigo-500 hover:bg-indigo-600 transition-all duration-200 shadow-md shadow-indigo-500/20 active:scale-95 flex items-center justify-center gap-2"
               >
-                📥 Download
+                <Download size={18} /> Download
               </button>
             </div>
           </div>

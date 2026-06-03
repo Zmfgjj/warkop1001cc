@@ -12,9 +12,14 @@ import ManajemenMeja from './pages/ManajemenMeja'
 import Laporan from './pages/Laporan'
 import KDS from './pages/KDS.jsx'
 import MenuPublik from './pages/MenuPublik.jsx'
+import RoleManage from './pages/RoleManage'
 
-const ProtectedRoute = ({ children, roles }) => {
-  const { user, loading } = useAuth()
+/**
+ * ProtectedRoute now uses dynamic permissions from the roles table.
+ * @param {string} module - The permission module key (e.g. 'dashboard', 'pos', 'kds')
+ */
+const ProtectedRoute = ({ children, module }) => {
+  const { user, loading, canView } = useAuth()
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
       <p>Loading...</p>
@@ -22,12 +27,32 @@ const ProtectedRoute = ({ children, roles }) => {
   )
 
   if (!user) return <Navigate to="/login" replace />
-  if (roles && !roles.includes(user.role)) return <Navigate to="/login" replace />
+  
+  // If module is specified, check permissions
+  if (module && !canView(module)) {
+    // Redirect to a page they CAN access, or login
+    // Find first accessible module
+    const moduleRouteMap = {
+      dashboard: '/kasir',
+      pos: '/kasir/pos',
+      manajemen_menu: '/kasir/menu',
+      manajemen_meja: '/kasir/meja',
+      kds: '/kasir/kds',
+      laporan: '/kasir/laporan',
+      user_manage: '/kasir/user-manage'
+    }
+    
+    for (const [mod, path] of Object.entries(moduleRouteMap)) {
+      if (canView(mod)) return <Navigate to={path} replace />
+    }
+    return <Navigate to="/login" replace />
+  }
+  
   return children
 }
 
 const AuthRoute = ({ children }) => {
-  const { user, loading } = useAuth()
+  const { user, loading, canView } = useAuth()
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
@@ -36,7 +61,15 @@ const AuthRoute = ({ children }) => {
   )
 
   if (user) {
-    if (user.role === 'dapur') return <Navigate to="/kasir/kds" replace />
+    // Redirect to the first module the user has access to
+    if (canView('dashboard')) return <Navigate to="/kasir" replace />
+    if (canView('pos')) return <Navigate to="/kasir/pos" replace />
+    if (canView('kds')) return <Navigate to="/kasir/kds" replace />
+    if (canView('laporan')) return <Navigate to="/kasir/laporan" replace />
+    if (canView('manajemen_menu')) return <Navigate to="/kasir/menu" replace />
+    if (canView('manajemen_meja')) return <Navigate to="/kasir/meja" replace />
+    if (canView('user_manage')) return <Navigate to="/kasir/user-manage" replace />
+    // Fallback
     return <Navigate to="/kasir" replace />
   }
   return children
@@ -47,13 +80,14 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
-      <Route path="/kasir" element={<ProtectedRoute roles={['kasir', 'admin','owner', 'manager']}><Kasir /></ProtectedRoute>} />
-      <Route path="/kasir/pos" element={<ProtectedRoute roles={['kasir', 'admin','owner', 'manager']}><KasirPOS /></ProtectedRoute>} />
-      <Route path="/kasir/menu" element={<ProtectedRoute roles={['kasir', 'owner', 'manager']}><ManajemenMenu /></ProtectedRoute>} />
-      <Route path="/kasir/meja" element={<ProtectedRoute roles={['owner', 'manager']}><ManajemenMeja /></ProtectedRoute>} />
-      <Route path="/kasir/kds" element={<ProtectedRoute roles={['dapur', 'admin','owner', 'manager']}><KDS /></ProtectedRoute>} />
-      <Route path="/kasir/laporan" element={<ProtectedRoute roles={['owner', 'manager']}><Laporan /></ProtectedRoute>} />
-      <Route path="/kasir/user-manage" element={<ProtectedRoute roles={[ 'admin', 'owner', 'manager']}> <UserManage />  </ProtectedRoute>} />
+      <Route path="/kasir" element={<ProtectedRoute module="dashboard"><Kasir /></ProtectedRoute>} />
+      <Route path="/kasir/pos" element={<ProtectedRoute module="pos"><KasirPOS /></ProtectedRoute>} />
+      <Route path="/kasir/menu" element={<ProtectedRoute module="manajemen_menu"><ManajemenMenu /></ProtectedRoute>} />
+      <Route path="/kasir/meja" element={<ProtectedRoute module="manajemen_meja"><ManajemenMeja /></ProtectedRoute>} />
+      <Route path="/kasir/kds" element={<ProtectedRoute module="kds"><KDS /></ProtectedRoute>} />
+      <Route path="/kasir/laporan" element={<ProtectedRoute module="laporan"><Laporan /></ProtectedRoute>} />
+      <Route path="/kasir/user-manage" element={<ProtectedRoute module="user_manage"><UserManage /></ProtectedRoute>} />
+      <Route path="/kasir/role-manage" element={<RoleManage />} />
       {/* Public customer web order - no auth required */}
       <Route path="/menu/:meja_id" element={<MenuPublik />} />
       <Route path="*" element={<Navigate to="/login" replace />} />

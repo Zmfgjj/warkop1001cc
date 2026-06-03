@@ -5,9 +5,10 @@ import { ShoppingCart, Plus, Search, Edit2, Trash2, Image as ImageIcon } from 'l
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
+import ImageLoader from '../components/ImageLoader'
 
 export default function ManajemenMenu() {
-  const { user } = useAuth()
+  const { user, canEdit: userCanEdit } = useAuth()
   const navigate = useNavigate()
   const { socket } = useSocket()
   const [menuList, setMenuList] = useState([])
@@ -88,7 +89,7 @@ export default function ManajemenMenu() {
     }
   }
 
-  const canEdit = ['owner', 'manager'].includes(user?.role)
+  const canEdit = userCanEdit('manajemen_menu')
 
   const handleTambahMenu = async () => {
     if (!formTambah.nama || !formTambah.harga || !formTambah.kategori_id) {
@@ -261,7 +262,7 @@ export default function ManajemenMenu() {
                   {/* Image Area */}
                   <div className="relative aspect-video w-full bg-stone-100 overflow-hidden">
                     {menu.gambar ? (
-                      <img src={menu.gambar} alt={menu.nama} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <ImageLoader src={menu.gambar} alt={menu.nama} className="w-full h-full group-hover:scale-105 transition-transform duration-500" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-stone-300">
                         <ImageIcon size={40} />

@@ -20,8 +20,9 @@ exports.tambahUser = async (req, res) => {
       return res.status(400).json({ message: 'Semua field wajib diisi' });
     }
 
-    const allowedRoles = ['owner', 'manager', 'kasir', 'dapur'];
-    if (!allowedRoles.includes(role)) {
+    // Validate role exists in roles table
+    const [roleRows] = await db.query('SELECT id FROM roles WHERE name = ?', [role.toLowerCase().trim()]);
+    if (roleRows.length === 0) {
       return res.status(400).json({ message: 'Role tidak valid' });
     }
 
@@ -52,8 +53,9 @@ exports.updateUser = async (req, res) => {
       return res.status(400).json({ message: 'Nama, username, dan role wajib diisi' });
     }
 
-    const allowedRoles = ['owner', 'manager', 'kasir', 'dapur'];
-    if (!allowedRoles.includes(role)) {
+    // Validate role exists in roles table
+    const [roleRows] = await db.query('SELECT id FROM roles WHERE name = ?', [role.toLowerCase().trim()]);
+    if (roleRows.length === 0) {
       return res.status(400).json({ message: 'Role tidak valid' });
     }
 
