@@ -39,7 +39,7 @@ exports.buatPembayaran = async (req, res) => {
 
     // Close open bill if cash/tunai (or wait for QRIS)
     if (metode === 'cash' || metode === 'tunai') {
-      await conn.query('UPDATE pesanan SET is_open_bill = 0 WHERE id = ?', [pesanan_id]);
+      await conn.query('UPDATE pesanan SET is_open_bill = 0, payment_status = "paid" WHERE id = ?', [pesanan_id]);
     }
 
     // Pesanan tetap pending, biarkan KDS yang handle status pesanan
@@ -101,7 +101,7 @@ exports.konfirmasiQris = async (req, res) => {
     }
 
     await conn.query('UPDATE pembayaran SET status = "sukses" WHERE id = ?', [id]);
-    await conn.query('UPDATE pesanan SET is_open_bill = 0 WHERE id = ?', [pembayaran[0].pesanan_id]);
+    await conn.query('UPDATE pesanan SET is_open_bill = 0, payment_status = "paid" WHERE id = ?', [pembayaran[0].pesanan_id]);
     // Pesanan tetap pending/diproses, biarkan KDS yang handle
 
     await conn.commit();

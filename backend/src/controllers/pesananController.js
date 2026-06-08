@@ -178,15 +178,7 @@ exports.updateStatus = async (req, res) => {
 
     const io = req.app.get('io');
 
-    // Kalau selesai, kosongkan meja
-    if (status === 'selesai') {
-      const [pesanan] = await db.query('SELECT meja_id FROM pesanan WHERE id = ?', [id]);
-      if (pesanan[0].meja_id) {
-        await db.query('UPDATE meja SET status = "kosong" WHERE id = ?', [pesanan[0].meja_id]);
-        if (io) io.emit('status_meja', { meja_id: pesanan[0].meja_id, status: 'kosong' });
-      }
-    }
-
+    // (Fitur otomatis mengosongkan meja dihapus berdasarkan request agar tidak bertabrakan dengan realitas lapangan)
     // Emit socket
     if (io) {
       io.emit('status_pesanan', { pesanan_id: id, status });
@@ -218,7 +210,7 @@ exports.updateStatusDetail = async (req, res) => {
       await db.query("UPDATE pesanan SET status = 'diproses' WHERE id = ? AND status = 'pending'", [pesanan_id]);
     }
 
-    // Auto-complete: if ALL items selesai → pesanan selesai + kosongkan meja
+    // Auto-complete: if ALL items selesai → pesanan selesai
     if (status === 'selesai') {
       const [remaining] = await db.query(
         "SELECT COUNT(*) as cnt FROM detail_pesanan WHERE pesanan_id = ? AND status != 'selesai'",
@@ -226,12 +218,6 @@ exports.updateStatusDetail = async (req, res) => {
       );
       if (remaining[0].cnt === 0) {
         await db.query("UPDATE pesanan SET status = 'selesai' WHERE id = ?", [pesanan_id]);
-        const [pRow] = await db.query('SELECT meja_id FROM pesanan WHERE id = ?', [pesanan_id]);
-        if (pRow[0].meja_id) {
-          await db.query('UPDATE meja SET status = "kosong" WHERE id = ?', [pRow[0].meja_id]);
-          const io2 = req.app.get('io');
-          if (io2) io2.emit('status_meja', { meja_id: pRow[0].meja_id, status: 'kosong' });
-        }
       }
     }
 
@@ -272,5 +258,37 @@ exports.updateDetailCatatan = async (req, res) => {
     res.json({ message: 'Catatan item diupdate' });
   } catch (err) {
     console.error(err); res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.konfirmasiPembayaran = async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    const { id } = req.params;
+    const { status } = req.body; // 'paid' or 'unpaid'
+    
+    if (status === 'paid') {
+      await conn.query("UPDATE pesanan SET payment_status = 'paid' WHERE id = ?", [id]);
+      const [p] = await conn.query("SELECT total FROM pesanan WHERE id = ?", [id]);
+      
+      // Check if pembayaran already exists
+      const [ex] = await conn.query("SELECT id FROM pembayaran WHERE pesanan_id = ?", [id]);
+      if (ex.length === 0 && p.length > 0) {
+        await conn.query("INSERT INTO pembayaran (pesanan_id, metode, jumlah, status) VALUES (?, 'qris', ?, 'sukses')", [id, p[0].total]);
+      }
+    } else {
+      await conn.query("UPDATE pesanan SET payment_status = 'unpaid', bukti_pembayaran = NULL WHERE id = ?", [id]);
+    }
+    
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('pembayaran', { pesanan_id: id, status });
+    }
+
+    res.json({ message: 'Status pembayaran diupdate' });
+  } catch (err) {
+    console.error(err); res.status(500).json({ message: 'Server error' });
+  } finally {
+    conn.release();
   }
 };
