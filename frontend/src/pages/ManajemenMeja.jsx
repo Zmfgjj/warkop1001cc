@@ -1,7 +1,7 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Grid2X2, Plus, Trash2, QrCode, Download } from 'lucide-react';
+import { Grid2X2, Plus, Trash2, QrCode, Download, RefreshCcw } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
@@ -112,9 +112,19 @@ export default function ManajemenMeja() {
       setHapusTarget(null)
       fetchMeja()
     } catch (err) {
-      showAlert(err.response?.data?.message || 'Gagal hapus meja', 'Gagal', 'error')
+      showAlert(err.response?.data?.message || 'Gagal menghapus meja', 'Gagal', 'error')
     } finally {
       setLoadingHapus(false)
+    }
+  }
+
+  const handleToggleStatus = async (meja) => {
+    try {
+      const newStatus = meja.status === 'kosong' ? 'terisi' : 'kosong';
+      await api.put(`/meja/${meja.id}/status`, { status: newStatus });
+      fetchMeja();
+    } catch (err) {
+      showAlert(err.response?.data?.message || 'Gagal mengubah status meja', 'Gagal', 'error');
     }
   }
 
@@ -220,6 +230,18 @@ export default function ManajemenMeja() {
                       </td>
                       <td className="px-8 py-5">
                         <div className="flex gap-3 items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          {canEdit && (
+                            <button
+                              onClick={() => handleToggleStatus(meja)}
+                              className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:-translate-y-0.5 shadow-sm flex items-center gap-2 ${
+                                meja.status === 'kosong' 
+                                  ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                              }`}
+                            >
+                              <RefreshCcw size={18} /> {meja.status === 'kosong' ? 'Tandai Terisi' : 'Tandai Kosong'}
+                            </button>
+                          )}
                           <button
                             onClick={() => handleGenerateQR(meja)}
                             className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:-translate-y-0.5 shadow-sm bg-indigo-50 text-indigo-700 hover:bg-indigo-100 flex items-center gap-2"

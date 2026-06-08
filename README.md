@@ -57,7 +57,14 @@ Pastikan komputer Anda sudah terinstal:
    ```bash
    npm run dev
    ```
-   *Frontend akan berjalan di browser, biasanya di http://localhost:5174 atau port lain yang tertera di terminal.*
+   *Frontend akan berjalan di browser, biasanya di http://localhost:5173 atau port lain yang tertera di terminal.*
+4. Jika ingin mengekspose menu publik lewat tunnel, jalankan:
+   ```bash
+   npm run tunnel
+   ```
+   *Tunnel akan membuat URL publik yang meneruskan ke frontend dev server.*
+
+   > Contoh: `https://warkop1001cc-publik.loca.lt/menu/011`
 
 ---
 

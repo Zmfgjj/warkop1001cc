@@ -104,7 +104,11 @@ exports.buatPesananPublik = async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    const { meja_id, nama_pelanggan, catatan, items } = req.body;
+    const { meja_id, nama_pelanggan, no_telepon, email, payment_method, catatan } = req.body;
+    let items = req.body.items;
+    if (typeof items === 'string') {
+      try { items = JSON.parse(items); } catch(e) { items = []; }
+    }
 
     // Validate inputs
     if (!meja_id || !Number.isInteger(Number(meja_id)) || Number(meja_id) <= 0) {
@@ -118,10 +122,15 @@ exports.buatPesananPublik = async (req, res) => {
     }
 
     const sanitizedNama = sanitize(nama_pelanggan || 'Tamu');
+    const sanitizedNoTelp = sanitize(no_telepon || '');
+    const sanitizedEmail = sanitize(email || '');
     const rawCatatan = sanitize(catatan || '');
     const sanitizedCatatan = sanitizedNama !== 'Tamu'
       ? `[${sanitizedNama}] ${rawCatatan}`.trim()
       : rawCatatan;
+
+    const buktiPembayaran = null; // No longer used, handled via Kasir confirmation
+    const paymentStatus = 'unpaid'; // All orders start as unpaid until verified by cashier
 
     // Validate meja exists and lock the row to prevent race condition double-orders
     const [mejaRows] = await conn.query('SELECT id FROM meja WHERE id = ? FOR UPDATE', [Number(meja_id)]);
@@ -170,7 +179,10 @@ exports.buatPesananPublik = async (req, res) => {
       finalTotal = parseFloat(openBill[0].total) + total;
       
       // Update pesanan total
-      await conn.query('UPDATE pesanan SET total = ? WHERE id = ?', [finalTotal, pesanan_id]);
+      await conn.query(
+        'UPDATE pesanan SET total = ?, nama_pelanggan = IFNULL(nama_pelanggan, ?), no_telepon = IFNULL(no_telepon, ?), email = IFNULL(email, ?), bukti_pembayaran = IFNULL(bukti_pembayaran, ?), payment_status = ? WHERE id = ?', 
+        [finalTotal, sanitizedNama, sanitizedNoTelp, sanitizedEmail, buktiPembayaran, paymentStatus, pesanan_id]
+      );
       
       // Insert detail
       for (const item of validatedItems) {
@@ -183,8 +195,8 @@ exports.buatPesananPublik = async (req, res) => {
       finalTotal = total;
       // Insert pesanan (kasir_id = null for web orders, tipe = 'dine-in' for table orders)
       const [result] = await conn.query(
-        'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total) VALUES (?, NULL, ?, ?, ?)',
-        [Number(meja_id), 'dine-in', sanitizedCatatan, finalTotal]
+        'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total, nama_pelanggan, no_telepon, email, bukti_pembayaran, payment_status) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [Number(meja_id), 'dine-in', sanitizedCatatan, finalTotal, sanitizedNama, sanitizedNoTelp, sanitizedEmail, buktiPembayaran, paymentStatus]
       );
       pesanan_id = result.insertId;
 
@@ -222,5 +234,32 @@ exports.buatPesananPublik = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   } finally {
     conn.release();
+  }
+};
+
+exports.uploadBukti = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!req.file) {
+      return res.status(400).json({ message: 'Gambar bukti pembayaran belum diupload' });
+    }
+
+    const buktiPembayaran = `/uploads/${req.file.filename}`;
+
+    await db.query(
+      "UPDATE pesanan SET bukti_pembayaran = ?, payment_status = 'pending_verification' WHERE id = ?",
+      [buktiPembayaran, id]
+    );
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('pesanan_baru', { pesanan_id: id, total: 0 }); // trigger dashboard refresh
+    }
+
+    res.json({ message: 'Bukti pembayaran berhasil diupload' });
+  } catch (err) {
+    console.error(err); 
+    res.status(500).json({ message: 'Server error saat upload bukti' });
   }
 };

@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
-import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut, Menu, X, Shield } from 'lucide-react'
+import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut, Menu, X, Shield, CreditCard } from 'lucide-react'
 
 // Map of menu items with their permission module keys
 const allMenuItems = [
   { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/kasir', module: 'dashboard' },
   { icon: <ReceiptText size={20} />, label: 'Kasir (POS)', path: '/kasir/pos', module: 'pos' },
+  { icon: <CreditCard size={20} />, label: 'Konfirmasi Pembayaran', path: '/kasir/pembayaran', module: 'pos' },
   { icon: <ShoppingCart size={20} />, label: 'Manajemen Menu', path: '/kasir/menu', module: 'manajemen_menu' },
   { icon: <Grid2X2 size={20} />, label: 'Manajemen Meja', path: '/kasir/meja', module: 'manajemen_meja' },
   { icon: <MonitorPlay size={20} />, label: 'KDS', path: '/kasir/kds', module: 'kds' },

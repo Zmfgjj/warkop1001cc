@@ -14,6 +14,7 @@ import Laporan from './pages/Laporan'
 import KDS from './pages/KDS.jsx'
 import MenuPublik from './pages/MenuPublik.jsx'
 import RoleManage from './pages/RoleManage'
+import KonfirmasiPembayaran from './pages/KonfirmasiPembayaran.jsx'
 
 /**
  * ProtectedRoute now uses dynamic permissions from the roles table.
@@ -83,6 +84,7 @@ function AppRoutes() {
       <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
       <Route path="/kasir" element={<ProtectedRoute module="dashboard"><Kasir /></ProtectedRoute>} />
       <Route path="/kasir/pos" element={<ProtectedRoute module="pos"><KasirPOS /></ProtectedRoute>} />
+      <Route path="/kasir/pembayaran" element={<ProtectedRoute module="pos"><KonfirmasiPembayaran /></ProtectedRoute>} />
       <Route path="/kasir/menu" element={<ProtectedRoute module="manajemen_menu"><ManajemenMenu /></ProtectedRoute>} />
       <Route path="/kasir/meja" element={<ProtectedRoute module="manajemen_meja"><ManajemenMeja /></ProtectedRoute>} />
       <Route path="/kasir/kds" element={<ProtectedRoute module="kds"><KDS /></ProtectedRoute>} />

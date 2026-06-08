@@ -61,6 +61,17 @@ export default function Kasir() {
     setShowDetail(true)
   }
 
+  const handleConfirmPayment = async (status) => {
+    try {
+      await api.put(`/pesanan/${detailPesanan.id}/pembayaran`, { status });
+      setShowDetail(false);
+      fetchDashboard();
+    } catch (err) {
+      console.error(err);
+      alert('Gagal konfirmasi pembayaran');
+    }
+  }
+
   const mejaTersedia = meja.filter(m => m.status === 'kosong').length
   const pesananDiproses = pesanan.filter(p => p.status === 'diproses' || p.status === 'pending')
   const totalTransaksi = pesanan.reduce((sum, p) => sum + Number(p.total || 0), 0)
@@ -356,6 +367,27 @@ export default function Kasir() {
                   {detailPesanan.status.toUpperCase()}
                 </span>
               </div>
+
+              {/* Customer Info */}
+              {(detailPesanan.nama_pelanggan || detailPesanan.no_telepon || detailPesanan.email) && (
+                <div className="bg-blue-50 rounded-2xl p-4 mb-4 border border-blue-100">
+                  <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2">Info Pelanggan</h4>
+                  <p className="text-sm text-gray-800 font-semibold">{detailPesanan.nama_pelanggan || 'Tanpa Nama'}</p>
+                  {detailPesanan.no_telepon && <p className="text-xs text-gray-600">{detailPesanan.no_telepon}</p>}
+                  {detailPesanan.email && <p className="text-xs text-gray-600">{detailPesanan.email}</p>}
+                </div>
+              )}
+
+              {/* Payment Verification */}
+              {(detailPesanan.payment_status === 'unpaid' || detailPesanan.payment_status === 'pending_verification') && (
+                <div className="bg-pink-50 rounded-2xl p-4 mb-4 border border-pink-100">
+                  <h4 className="text-xs font-bold text-pink-800 uppercase tracking-wider mb-3">Konfirmasi Pembayaran (QRIS / Tunai)</h4>
+                  <p className="text-xs text-gray-600 mb-3">Pastikan uang sudah diterima/masuk sebelum konfirmasi lunas.</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleConfirmPayment('paid')} className="flex-1 py-2 rounded-lg font-bold text-sm bg-pink-600 text-white hover:bg-pink-700 transition">Tandai Lunas</button>
+                  </div>
+                </div>
+              )}
 
               {/* Items */}
               <div className="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-100">
