@@ -7,7 +7,7 @@ import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
 
 export default function Kasir() {
-  const { user, canView } = useAuth()
+  const { user, canView, isInvestor } = useAuth()
   const navigate = useNavigate()
   const { socket } = useSocket()
   const [pesanan, setPesanan] = useState([])
@@ -86,8 +86,13 @@ export default function Kasir() {
       {/* Header */}
       <div className="hidden lg:flex justify-between items-center px-6 xl:px-10 py-5 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-amber-100/50 shadow-sm">
         <div>
-          <h1 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
+          <h1 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b] flex items-center gap-3">
             Overview Dashboard
+            {isInvestor && (
+              <span className="bg-blue-100 text-blue-700 font-semibold rounded-full text-xs px-3 py-1 flex items-center gap-1">
+                👁️ Mode Investor — View Only
+              </span>
+            )}
           </h1>
           <p className="text-sm text-gray-500 font-medium mt-0.5">Selamat datang kembali, mari cek performa hari ini!</p>
         </div>
@@ -113,8 +118,13 @@ export default function Kasir() {
             
             {/* Mobile page title */}
             <div className="lg:hidden">
-              <h1 className="text-xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
+              <h1 className="text-xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b] flex items-center gap-2 flex-wrap">
                 Overview Dashboard
+                {isInvestor && (
+                  <span className="bg-blue-100 text-blue-700 font-semibold rounded-full text-xs px-2 py-0.5 flex items-center gap-1">
+                    👁️ Mode Investor — View Only
+                  </span>
+                )}
               </h1>
               <p className="text-xs text-gray-500 font-medium mt-0.5">Selamat datang, {user?.username}!</p>
             </div>

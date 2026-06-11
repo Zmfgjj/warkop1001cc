@@ -49,8 +49,10 @@ export const AuthProvider = ({ children }) => {
     return user.permissions[module]?.edit === true
   }
 
+  const isInvestor = user?.role === 'investor'
+
   return (
-    <AuthContext.Provider value={{ user, loginSuccess, logout, loading, canView, canEdit }}>
+    <AuthContext.Provider value={{ user, loginSuccess, logout, loading, canView, canEdit, isInvestor }}>
       {children}
     </AuthContext.Provider>
   )
