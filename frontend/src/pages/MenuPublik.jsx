@@ -25,7 +25,7 @@ export default function MenuPublik() {
 
   const [cart, setCart] = useState([]) // [{menu_id, nama, harga, qty, catatan}]
   const [catatanPesanan, setCatatanPesanan] = useState('')
-  
+
   // Checkout States
   const [checkoutMode, setCheckoutMode] = useState(false)
   const [namaPelanggan, setNamaPelanggan] = useState('')
@@ -92,7 +92,7 @@ export default function MenuPublik() {
     if (!socket) return
 
     const onMenuChange = () => debouncedFetch()
-    
+
     // Listen for payment confirmation from cashier
     const onPembayaran = (data) => {
       if (orderSummary && data.pesanan_id === orderSummary.pesananId && data.status === 'paid') {
@@ -166,8 +166,8 @@ export default function MenuPublik() {
     setCart(prev => prev.map(c => c.menu_id === menu_id ? { ...c, catatan: val } : c))
   }
 
-  const clearCart = () => { 
-    setCart([]); setCatatanPesanan(''); setNamaPelanggan(''); setNoTelepon(''); setEmail(''); setBuktiBayar(null); setBuktiPreview(null); setCheckoutMode(false); 
+  const clearCart = () => {
+    setCart([]); setCatatanPesanan(''); setNamaPelanggan(''); setNoTelepon(''); setEmail(''); setBuktiBayar(null); setBuktiPreview(null); setCheckoutMode(false);
   }
 
   const subtotal = cart.reduce((s, c) => s + c.harga * c.qty, 0)
@@ -189,7 +189,7 @@ export default function MenuPublik() {
   // Submit order
   const handleOrder = async () => {
     if (cart.length === 0) return
-    
+
     if (checkoutMode === false) {
       setCheckoutMode(true)
       return
@@ -256,12 +256,12 @@ export default function MenuPublik() {
     try {
       const formData = new FormData();
       formData.append('bukti_pembayaran', buktiBayar);
-      
+
       const res = await fetch(`/api/publik/pesanan/${pesananId}/bukti`, {
         method: 'POST',
         body: formData
       });
-      
+
       if (res.ok) {
         setOrderStatus('pending_verification');
       } else {
@@ -284,36 +284,36 @@ export default function MenuPublik() {
             <div className="text-4xl font-black text-[#E91E63] mb-6">
               {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
             </div>
-            
+
             <div className="bg-white rounded-3xl p-6 shadow-xl border border-gray-100 mb-6">
               <div className="flex justify-center items-center gap-2 mb-4">
                 <CreditCard className="text-blue-600" size={24} />
                 <span className="font-bold text-gray-800 text-lg">QRIS Warkop 1001 CC</span>
               </div>
-              
+
               <div className="flex justify-center mb-4">
                 {STATIC_QRIS_STRING.includes('PASTE') ? (
                   <img src="/qr.jpeg" alt="QRIS" className="w-full max-w-[250px] rounded-xl border-2 border-dashed border-gray-200" />
                 ) : (
                   <div className="p-2 border-2 border-gray-100 rounded-2xl bg-white">
-                    <QRCodeSVG 
-                      value={generateDynamicQRIS(STATIC_QRIS_STRING, orderSummary?.total || 0)} 
-                      size={240} 
-                      level="H" 
-                      includeMargin={true} 
+                    <QRCodeSVG
+                      value={generateDynamicQRIS(STATIC_QRIS_STRING, orderSummary?.total || 0)}
+                      size={240}
+                      level="H"
+                      includeMargin={true}
                     />
                   </div>
                 )}
               </div>
-              
+
               <p className="text-sm text-gray-500 mb-1">Total Pembayaran</p>
               <p className="text-3xl font-black text-[#442D1D] mb-2">{formatRupiah(orderSummary?.total || 0)}</p>
-              <p className="text-xs font-semibold text-[#8B6F47] bg-[#FFF5E5] inline-block px-3 py-1 rounded-full mb-4">Order #{String(pesananId).padStart(4,'0')}</p>
-              
+              <p className="text-xs font-semibold text-[#8B6F47] bg-[#FFF5E5] inline-block px-3 py-1 rounded-full mb-4">Order #{String(pesananId).padStart(4, '0')}</p>
+
               <div className="border-t border-gray-100 pt-4 mt-2">
                 <label className="block text-sm font-semibold text-[#555] mb-2 text-left">Upload Bukti Pembayaran<span className="text-red-500">*</span></label>
-                <input 
-                  type="file" 
+                <input
+                  type="file"
                   accept="image/*"
                   onChange={handleFileChange}
                   className="block w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-pink-50 file:text-[#E91E63] hover:file:bg-pink-100 mb-3"
@@ -377,7 +377,7 @@ export default function MenuPublik() {
         <div className="text-center px-8 max-w-sm">
           <div className="flex justify-center mb-4 text-green-500"><CheckCircle size={72} /></div>
           <h2 className="text-2xl font-bold text-[#442D1D] mb-2">Pesanan Berhasil!</h2>
-          <p className="text-[#8B6F47] mb-1">No. Pesanan: <strong className="text-[#634930]">#{String(pesananId).padStart(4,'0')}</strong></p>
+          <p className="text-[#8B6F47] mb-1">No. Pesanan: <strong className="text-[#634930]">#{String(pesananId).padStart(4, '0')}</strong></p>
           <div className="bg-[#ECD7B1] rounded-xl p-4 mb-4">
             {paymentMethod === 'qris' ? (
               <>
@@ -441,11 +441,10 @@ export default function MenuPublik() {
           <div className="bg-white border-b border-[#ECD7B1] px-4 py-3 flex gap-3 overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveKat(null)}
-              className={`px-5 py-2 rounded-full text-base font-semibold whitespace-nowrap transition ${
-                activeKat === null
+              className={`px-5 py-2 rounded-full text-base font-semibold whitespace-nowrap transition ${activeKat === null
                   ? 'bg-[#ECD7B1] text-[#442D1D]'
                   : 'bg-[#FFF5E5] text-[#8B6F47] hover:bg-[#ECD7B1]'
-              }`}
+                }`}
             >
               Semua
             </button>
@@ -453,11 +452,10 @@ export default function MenuPublik() {
               <button
                 key={k.id}
                 onClick={() => setActiveKat(k.nama)}
-                className={`px-5 py-2 rounded-full text-base font-semibold whitespace-nowrap transition ${
-                  activeKat === k.nama
+                className={`px-5 py-2 rounded-full text-base font-semibold whitespace-nowrap transition ${activeKat === k.nama
                     ? 'bg-[#ECD7B1] text-[#442D1D]'
                     : 'bg-[#FFF5E5] text-[#8B6F47] hover:bg-[#ECD7B1]'
-                }`}
+                  }`}
               >
                 {k.nama}
               </button>
@@ -583,7 +581,7 @@ export default function MenuPublik() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
-              
+
               {!checkoutMode ? (
                 <>
                   {/* Cart items */}
@@ -676,7 +674,7 @@ export default function MenuPublik() {
                           />
                         </div>
                       </div>
-                      
+
                       <div>
                         <label className="block text-sm text-[#555] mb-1">Phone Number (for upcoming promos)</label>
                         <div className="relative">
@@ -724,13 +722,13 @@ export default function MenuPublik() {
                   <div>
                     <h3 className="font-bold text-lg text-[#442D1D] mb-3">Payment Method</h3>
                     <div className="flex gap-3 mb-4">
-                      <button 
+                      <button
                         onClick={() => setPaymentMethod('qris')}
                         className={`flex-1 py-3 border rounded-xl flex items-center justify-center gap-2 font-semibold text-sm transition ${paymentMethod === 'qris' ? 'border-[#E91E63] text-[#E91E63] bg-[#FCE4EC]' : 'border-gray-300 text-gray-600 bg-white'}`}
                       >
                         Online Payment
                       </button>
-                      <button 
+                      <button
                         onClick={() => setPaymentMethod('cashier')}
                         className={`flex-1 py-3 border rounded-xl flex items-center justify-center gap-2 font-semibold text-sm transition ${paymentMethod === 'cashier' ? 'border-[#E91E63] text-[#E91E63] bg-[#FCE4EC]' : 'border-gray-300 text-gray-600 bg-white'}`}
                       >
@@ -740,7 +738,7 @@ export default function MenuPublik() {
 
                     {paymentMethod === 'qris' && (
                       <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm space-y-4">
-                    {/* Upload UI Removed: Dynamic QRIS logic handles this directly after checkout */}
+                        {/* Upload UI Removed: Dynamic QRIS logic handles this directly after checkout */}
                       </div>
                     )}
                   </div>

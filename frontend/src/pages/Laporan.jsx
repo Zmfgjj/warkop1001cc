@@ -8,7 +8,7 @@ import MobileLayout from '../components/MobileLayout'
 import { useAlert } from '../context/AlertContext'
 
 export default function Laporan() {
-  const { user } = useAuth()
+  const { user, isInvestor } = useAuth()
   const { showAlert } = useAlert()
   const navigate = useNavigate()
   const [tab, setTab] = useState('harian')
@@ -405,7 +405,7 @@ export default function Laporan() {
                       Analisa
                     </button>
                   </div>
-                  {dataHarian && (
+                  {dataHarian && !isInvestor && (
                     <button onClick={handleExportHarian} className="w-full md:w-auto px-6 py-2.5 rounded-xl font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 transition-all hover:bg-emerald-600 hover:text-white shadow-sm flex items-center justify-center gap-2 text-sm h-[42px]">
                       <Download size={18} /> Export Laporan Pro
                     </button>
@@ -500,7 +500,7 @@ export default function Laporan() {
                       Analisa
                     </button>
                   </div>
-                  {dataBulanan && (
+                  {dataBulanan && !isInvestor && (
                     <button onClick={handleExportBulanan} className="w-full md:w-auto px-6 py-2.5 rounded-xl font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 transition-all hover:bg-emerald-600 hover:text-white shadow-sm flex items-center justify-center gap-2 text-sm h-[42px]">
                       <Download size={18} /> Export Laporan Pro
                     </button>
@@ -578,9 +578,11 @@ export default function Laporan() {
                     <button onClick={() => { setHalamanHistori(1); fetchHistori(1) }} className="px-8 py-2.5 rounded-xl font-bold text-white transition-all shadow-md bg-gradient-to-r from-[#634930] to-[#8B6F47] text-sm">
                       Terapkan Filter
                     </button>
-                    <button onClick={handleExportHistori} className="px-6 py-2.5 rounded-xl font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 transition-all hover:bg-emerald-600 hover:text-white shadow-sm flex items-center justify-center gap-2 text-sm">
-                      <Download size={18} /> Export Data
-                    </button>
+                    {!isInvestor && (
+                      <button onClick={handleExportHistori} className="px-6 py-2.5 rounded-xl font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 transition-all hover:bg-emerald-600 hover:text-white shadow-sm flex items-center justify-center gap-2 text-sm">
+                        <Download size={18} /> Export Data
+                      </button>
+                    )}
                   </div>
                 </div>
 

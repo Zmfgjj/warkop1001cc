@@ -14,7 +14,7 @@ const roleColor = {
 }
 
 export default function UserManage() {
-  const { user, canEdit: userCanEdit } = useAuth()
+  const { user, canEdit: userCanEdit, isInvestor } = useAuth()
   const { showAlert } = useAlert()
   const navigate = useNavigate()
   const [userList, setUserList] = useState([])
@@ -250,17 +250,19 @@ export default function UserManage() {
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 relative z-10">Total Admin</p>
                   <p className="text-3xl font-black text-emerald-700 relative z-10">{totalAdmin}</p>
                 </div>
-                <button
-                  onClick={() => setShowTambah(true)}
-                  className="flex-1 rounded-2xl p-4 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md flex flex-col items-center justify-center gap-1.5 relative overflow-hidden group"
-                  style={{ backgroundColor: '#634930' }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-xl font-light">
-                    +
-                  </div>
-                  <span className="font-bold text-white text-sm tracking-wide">Tambah User</span>
-                </button>
+                {!isInvestor && (
+                  <button
+                    onClick={() => setShowTambah(true)}
+                    className="flex-1 rounded-2xl p-4 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md flex flex-col items-center justify-center gap-1.5 relative overflow-hidden group"
+                    style={{ backgroundColor: '#634930' }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-xl font-light">
+                      +
+                    </div>
+                    <span className="font-bold text-white text-sm tracking-wide">Tambah User</span>
+                  </button>
+                )}
               </div>
 
             </div>
@@ -321,18 +323,22 @@ export default function UserManage() {
                           </td>
                           <td className="px-8 py-5">
                             <div className="flex justify-end gap-2">
-                              <button
-                                onClick={() => { setEditTarget(u); setEditRole(u.role); setShowEditRole(true) }}
-                                className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-80 shadow-sm border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                              >
-                                Edit Role
-                              </button>
-                              <button
-                                onClick={() => { setHapusTarget(u); setShowHapus(true) }}
-                                className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-80 shadow-sm bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
-                              >
-                                Hapus
-                              </button>
+                              {!isInvestor && (
+                                <>
+                                  <button
+                                    onClick={() => { setEditTarget(u); setEditRole(u.role); setShowEditRole(true) }}
+                                    className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-80 shadow-sm border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                  >
+                                    Edit Role
+                                  </button>
+                                  <button
+                                    onClick={() => { setHapusTarget(u); setShowHapus(true) }}
+                                    className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-80 shadow-sm bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
+                                  >
+                                    Hapus
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </td>
                         </tr>
