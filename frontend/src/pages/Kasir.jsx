@@ -7,7 +7,7 @@ import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
 
 export default function Kasir() {
-  const { user, canView, isInvestor } = useAuth()
+  const { user, canView, canEdit: userCanEdit, isInvestor } = useAuth()
   const navigate = useNavigate()
   const { socket } = useSocket()
   const [pesanan, setPesanan] = useState([])
@@ -389,7 +389,7 @@ export default function Kasir() {
               )}
 
               {/* Payment Verification */}
-              {(detailPesanan.payment_status === 'unpaid' || detailPesanan.payment_status === 'pending_verification') && (
+              {userCanEdit('dashboard') && (detailPesanan.payment_status === 'unpaid' || detailPesanan.payment_status === 'pending_verification') && (
                 <div className="bg-pink-50 rounded-2xl p-4 mb-4 border border-pink-100">
                   <h4 className="text-xs font-bold text-pink-800 uppercase tracking-wider mb-3">Konfirmasi Pembayaran (QRIS / Tunai)</h4>
                   <p className="text-xs text-gray-600 mb-3">Pastikan uang sudah diterima/masuk sebelum konfirmasi lunas.</p>

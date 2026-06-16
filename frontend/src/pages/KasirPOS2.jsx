@@ -11,7 +11,7 @@ import { saveMasterData, getMasterData, queueOfflineOrder } from '../utils/offli
 import { useAlert } from '../context/AlertContext'
 
 export default function KasirPOS() {
-  const { user } = useAuth()
+  const { user, canEdit: userCanEdit } = useAuth()
   const { showAlert } = useAlert()
   const navigate = useNavigate()
   const { socket } = useSocket()
@@ -228,10 +228,12 @@ export default function KasirPOS() {
                 <button onClick={() => { setTipeOrder('take-away'); setSelectedMeja(null) }} className="px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm font-medium transition-all"
                   style={{ backgroundColor: tipeOrder === 'take-away' ? '#634930' : '#EDE0CC', color: tipeOrder === 'take-away' ? '#fff' : '#634930' }}><span className="flex items-center gap-1.5"><ShoppingBag size={14} /> TA</span></button>
               </div>
-              <button onClick={() => setShowReservasiModal(true)} className="flex items-center gap-1 px-3 md:px-4 py-2.5 md:py-3 rounded-full text-xs md:text-sm font-medium transition-all"
-                style={{ backgroundColor: '#EDE0CC', color: '#634930', border: '1.5px solid #C4A882' }}>
-                <CalendarPlus size={14} /> <span className="hidden sm:inline">Reservasi</span>
-              </button>
+              {userCanEdit('pos') && (
+                <button onClick={() => setShowReservasiModal(true)} className="flex items-center gap-1 px-3 md:px-4 py-2.5 md:py-3 rounded-full text-xs md:text-sm font-medium transition-all"
+                  style={{ backgroundColor: '#EDE0CC', color: '#634930', border: '1.5px solid #C4A882' }}>
+                  <CalendarPlus size={14} /> <span className="hidden sm:inline">Reservasi</span>
+                </button>
+              )}
               {tipeOrder === 'dine-in' && (
                 <select value={selectedMeja?.id || ''} onChange={e => setSelectedMeja(mejaList.find(m => m.id === parseInt(e.target.value)))}
                   className="px-3 md:px-4 py-2.5 md:py-3 rounded-full text-xs md:text-sm focus:outline-none" style={{ backgroundColor: '#EDE0CC', color: '#634930', border: '1.5px solid #C4A882' }}>
@@ -261,14 +263,16 @@ export default function KasirPOS() {
                       style={{ backgroundColor: '#EDE0CC', border: qty > 0 ? '2px solid #634930' : '2px solid transparent' }}>
                       <p className="text-xs font-medium text-center mb-1 line-clamp-2" style={{ color: '#634930' }}>{menu.nama}</p>
                       <p className="text-xs mb-2 md:mb-3" style={{ color: '#8B6F47' }}>Rp {Number(menu.harga).toLocaleString('id-ID')}</p>
-                      {qty === 0 ? (
-                        <button onClick={() => tambahItem(menu)} className="w-full py-1.5 rounded-full text-xs font-bold transition-all" style={{ backgroundColor: '#634930', color: '#fff' }}>+ Tambah</button>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => kurangItem(menu.id)} className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-white" style={{ backgroundColor: '#c0392b' }}>−</button>
-                          <span className="font-bold text-sm" style={{ color: '#634930' }}>{qty}</span>
-                          <button onClick={() => tambahItem(menu)} className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-white" style={{ backgroundColor: '#27ae60' }}>+</button>
-                        </div>
+                      {userCanEdit('pos') && (
+                        qty === 0 ? (
+                          <button onClick={() => tambahItem(menu)} className="w-full py-1.5 rounded-full text-xs font-bold transition-all" style={{ backgroundColor: '#634930', color: '#fff' }}>+ Tambah</button>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => kurangItem(menu.id)} className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-white" style={{ backgroundColor: '#c0392b' }}>−</button>
+                            <span className="font-bold text-sm" style={{ color: '#634930' }}>{qty}</span>
+                            <button onClick={() => tambahItem(menu)} className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-white" style={{ backgroundColor: '#27ae60' }}>+</button>
+                          </div>
+                        )
                       )}
                     </div>
                   )
@@ -348,12 +352,16 @@ export default function KasirPOS() {
               </div>
               {metodeBayar === 'Tunai' && <p className="text-sm mb-3 text-right" style={{ color: '#634930' }}>Kembali: Rp {kembali.toLocaleString('id-ID')}</p>}
 
-              <div className="flex gap-2">
-                <button onClick={handleCancel} className="flex-1 py-2.5 md:py-3 rounded-full font-bold text-sm text-white" style={{ backgroundColor: '#e74c3c' }}>Cancel</button>
-                <button onClick={() => handleProsesBayar(false)} disabled={loadingBayar} className="flex-1 py-2.5 md:py-3 rounded-full font-bold text-sm text-white disabled:opacity-60" style={{ backgroundColor: '#27ae60' }}>
-                  {loadingBayar ? '...' : 'Bayar'}
-                </button>
-              </div>
+              {userCanEdit('pos') ? (
+                <div className="flex gap-2">
+                  <button onClick={handleCancel} className="flex-1 py-2.5 md:py-3 rounded-full font-bold text-sm text-white" style={{ backgroundColor: '#e74c3c' }}>Cancel</button>
+                  <button onClick={() => handleProsesBayar(false)} disabled={loadingBayar} className="flex-1 py-2.5 md:py-3 rounded-full font-bold text-sm text-white disabled:opacity-60" style={{ backgroundColor: '#27ae60' }}>
+                    {loadingBayar ? '...' : 'Bayar'}
+                  </button>
+                </div>
+              ) : (
+                <div className="text-center text-xs text-red-500 font-bold mt-2">Hanya View (Tidak bisa proses)</div>
+              )}
             </div>
           </div>
         </div>

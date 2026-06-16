@@ -193,13 +193,15 @@ export default function UserManage() {
                   {!ppnEditing ? (
                     <div className="flex items-center justify-between bg-white/60 p-2.5 rounded-xl">
                       <p className="text-2xl font-black text-[#0284C7]">{ppn}<span className="text-lg text-blue-400">%</span></p>
-                      <button
-                        onClick={() => setPpnEditing(true)}
-                        className="px-4 py-1.5 rounded-lg font-bold text-white transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 text-xs"
-                        style={{ backgroundColor: '#0284C7' }}
-                      >
-                        Ubah
-                      </button>
+                      {userCanEdit('user_manage') && (
+                        <button
+                          onClick={() => setPpnEditing(true)}
+                          className="px-4 py-1.5 rounded-lg font-bold text-white transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 text-xs"
+                          style={{ backgroundColor: '#0284C7' }}
+                        >
+                          Ubah
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2 bg-white/80 p-2.5 rounded-xl">
@@ -250,7 +252,7 @@ export default function UserManage() {
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 relative z-10">Total Admin</p>
                   <p className="text-3xl font-black text-emerald-700 relative z-10">{totalAdmin}</p>
                 </div>
-                {!isInvestor && (
+                {userCanEdit('user_manage') && (
                   <button
                     onClick={() => setShowTambah(true)}
                     className="flex-1 rounded-2xl p-4 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md flex flex-col items-center justify-center gap-1.5 relative overflow-hidden group"
@@ -323,7 +325,7 @@ export default function UserManage() {
                           </td>
                           <td className="px-8 py-5">
                             <div className="flex justify-end gap-2">
-                              {!isInvestor && (
+                              {userCanEdit('user_manage') && (
                                 <>
                                   <button
                                     onClick={() => { setEditTarget(u); setEditRole(u.role); setShowEditRole(true) }}

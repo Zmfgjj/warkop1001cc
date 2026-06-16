@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export default function ImageLoader({ src, alt, className }) {
+export default function ImageLoader({ src, alt, className, priority = false }) {
   const [isLoaded, setIsLoaded] = useState(false);
 
   return (
@@ -14,7 +14,8 @@ export default function ImageLoader({ src, alt, className }) {
         className={`w-full h-full object-cover transition-opacity duration-300 ${
           isLoaded ? 'opacity-100' : 'opacity-0'
         }`}
-        loading="lazy"
+        loading={priority ? "eager" : "lazy"}
+        fetchpriority={priority ? "high" : "auto"}
         onLoad={() => setIsLoaded(true)}
       />
     </div>

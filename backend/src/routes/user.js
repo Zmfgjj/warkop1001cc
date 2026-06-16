@@ -3,10 +3,10 @@ const router = express.Router();
 const userController = require('../controllers/userController');
 const auth = require('../middleware/auth');
 
-router.get('/', auth(['owner', 'manager', 'admin']), userController.getUsers);
-router.post('/', auth(['owner', 'manager', 'admin']), userController.tambahUser);
-router.put('/ganti-password', auth(['owner', 'manager', 'admin', 'kasir', 'dapur']), userController.gantiPassword);
-router.put('/:id', auth(['owner', 'manager', 'admin']), userController.updateUser);
-router.delete('/:id', auth(['owner', 'manager', 'admin']), userController.hapusUser);
+router.get('/', auth({ module: 'user_manage', action: 'view' }), userController.getUsers);
+router.post('/', auth({ module: 'user_manage', action: 'edit' }), userController.tambahUser);
+router.put('/ganti-password', auth([]), userController.gantiPassword);
+router.put('/:id', auth({ module: 'user_manage', action: 'edit' }), userController.updateUser);
+router.delete('/:id', auth({ module: 'user_manage', action: 'edit' }), userController.hapusUser);
 
 module.exports = router;
