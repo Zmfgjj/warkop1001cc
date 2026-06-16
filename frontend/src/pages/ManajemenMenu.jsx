@@ -20,13 +20,13 @@ export default function ManajemenMenu() {
 
   // Modal tambah menu
   const [showTambah, setShowTambah] = useState(false)
-  const [formTambah, setFormTambah] = useState({ nama: '', harga: '', hpp: '', kategori_id: '', gambar: null, gambarPreview: '', deskripsi: '' })
+  const [formTambah, setFormTambah] = useState({ nama: '', harga: '', hpp: '', kategori_id: '', gambar: null, gambarPreview: '', deskripsi: '', pilihan_rasa: '' })
   const [loadingTambah, setLoadingTambah] = useState(false)
 
   // Modal edit menu
   const [showEdit, setShowEdit] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
-  const [formEdit, setFormEdit] = useState({ nama: '', harga: '', hpp: '', kategori_id: '', gambar: null, gambarPreview: '', deskripsi: '', tersedia: true })
+  const [formEdit, setFormEdit] = useState({ nama: '', harga: '', hpp: '', kategori_id: '', gambar: null, gambarPreview: '', deskripsi: '', pilihan_rasa: '', tersedia: true })
   const [loadingEdit, setLoadingEdit] = useState(false)
 
   // Modal hapus
@@ -105,6 +105,7 @@ export default function ManajemenMenu() {
       formData.append('hpp', formTambah.hpp || 0)
       formData.append('kategori_id', formTambah.kategori_id)
       formData.append('deskripsi', formTambah.deskripsi)
+      formData.append('pilihan_rasa', formTambah.pilihan_rasa)
       if (formTambah.gambar) {
         formData.append('gambar', formTambah.gambar)
       }
@@ -113,7 +114,7 @@ export default function ManajemenMenu() {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       setShowTambah(false)
-      setFormTambah({ nama: '', harga: '', hpp: '', kategori_id: kategoriList[0]?.id || '', gambar: null, gambarPreview: '', deskripsi: '' })
+      setFormTambah({ nama: '', harga: '', hpp: '', kategori_id: kategoriList[0]?.id || '', gambar: null, gambarPreview: '', deskripsi: '', pilihan_rasa: '' })
       fetchMenu()
     } catch (err) {
       console.error('❌ Error tambah menu:', err.response?.data)
@@ -135,6 +136,7 @@ export default function ManajemenMenu() {
       formData.append('hpp', formEdit.hpp || 0)
       formData.append('kategori_id', formEdit.kategori_id)
       formData.append('deskripsi', formEdit.deskripsi)
+      formData.append('pilihan_rasa', formEdit.pilihan_rasa)
       formData.append('tersedia', formEdit.tersedia ? 1 : 0)
       
       if (formEdit.gambar instanceof File) {
@@ -180,6 +182,7 @@ export default function ManajemenMenu() {
       gambar: null,
       gambarPreview: menu.gambar,
       deskripsi: menu.deskripsi || '',
+      pilihan_rasa: menu.pilihan_rasa || '',
       tersedia: menu.tersedia !== 0
     })
     setShowEdit(true)
@@ -400,6 +403,18 @@ export default function ManajemenMenu() {
               </div>
               
               <div>
+                <label className="block text-sm font-medium text-stone-600 mb-1.5">Pilihan Rasa (Opsional)</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Original, Vanilla, Matcha (pisahkan dengan koma)"
+                  value={formTambah.pilihan_rasa}
+                  onChange={(e) => setFormTambah({ ...formTambah, pilihan_rasa: e.target.value })}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
+                />
+                <p className="text-xs text-stone-500 mt-1">Pisahkan tiap pilihan rasa dengan koma (contoh: Manis, Sedang, Tawar)</p>
+              </div>
+              
+              <div>
                 <label className="block text-sm font-medium text-stone-600 mb-1.5">Gambar Menu (Opsional)</label>
                 <div className="relative border-2 border-dashed border-stone-200 rounded-xl bg-stone-50 p-4 text-center hover:bg-stone-100 transition-colors group">
                   <input
@@ -529,6 +544,18 @@ export default function ManajemenMenu() {
                   rows={3}
                   className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm resize-none"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-stone-600 mb-1.5">Pilihan Rasa (Opsional)</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Original, Vanilla, Matcha (pisahkan dengan koma)"
+                  value={formEdit.pilihan_rasa}
+                  onChange={(e) => setFormEdit({ ...formEdit, pilihan_rasa: e.target.value })}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
+                />
+                <p className="text-xs text-stone-500 mt-1">Pisahkan tiap pilihan rasa dengan koma</p>
               </div>
               
               <div className="flex items-center gap-3 p-4 bg-stone-50 border border-stone-200 rounded-xl">

@@ -23,7 +23,8 @@ export default function MenuPublik() {
   const [menuList, setMenuList] = useState([])
   const [activeKat, setActiveKat] = useState(null)
 
-  const [cart, setCart] = useState([]) // [{menu_id, nama, harga, qty, catatan}]
+  const [cart, setCart] = useState([]) // [{menu_id, nama, harga, qty, catatan, rasa_selected}]
+  const [selectedFlavors, setSelectedFlavors] = useState({}) // { menu_id: 'rasa' }
   const [catatanPesanan, setCatatanPesanan] = useState('')
 
   // Checkout States
@@ -37,6 +38,7 @@ export default function MenuPublik() {
 
   const [ppn, setPpn] = useState(2)
   const [loading, setLoading] = useState(false)
+  const [loadingData, setLoadingData] = useState(true)
   const [submitted, setSubmitted] = useState(false)
   const [pesananId, setPesananId] = useState(null)
   const [error, setError] = useState('')
@@ -79,6 +81,8 @@ export default function MenuPublik() {
       setPpn(ppnData.ppn || 2)
     } catch {
       setError('Gagal memuat menu. Coba refresh.')
+    } finally {
+      setLoadingData(false)
     }
   }, [])
 
@@ -137,33 +141,48 @@ export default function MenuPublik() {
     : menuList
 
   // Cart helpers
-  const getQty = (menu_id) => cart.find(c => c.menu_id === menu_id)?.qty || 0
+  const getQty = (menu_id, rasa = '') => cart.find(c => c.menu_id === menu_id && c.rasa_selected === rasa)?.qty || 0
 
-  const addToCart = (menu) => {
+  const addToCart = (menu, rasa = '') => {
     setCart(prev => {
-      const existing = prev.find(c => c.menu_id === menu.id)
+      const existing = prev.find(c => c.menu_id === menu.id && c.rasa_selected === rasa)
       if (existing) {
-        return prev.map(c => c.menu_id === menu.id ? { ...c, qty: c.qty + 1 } : c)
+        return prev.map(c => (c.menu_id === menu.id && c.rasa_selected === rasa) ? { ...c, qty: c.qty + 1 } : c)
       }
-      return [...prev, { menu_id: menu.id, nama: menu.nama, harga: menu.harga, qty: 1, catatan: '' }]
+      return [...prev, { menu_id: menu.id, nama: menu.nama, harga: menu.harga, qty: 1, catatan: '', rasa_selected: rasa }]
     })
   }
 
-  const removeFromCart = (menu_id) => {
+  const removeFromCart = (menu_id, rasa = '') => {
     setCart(prev => {
-      const existing = prev.find(c => c.menu_id === menu_id)
+      const existing = prev.find(c => c.menu_id === menu_id && c.rasa_selected === rasa)
       if (!existing) return prev
       if (existing.qty === 1) {
-        const newCart = prev.filter(c => c.menu_id !== menu_id)
+        const newCart = prev.filter(c => !(c.menu_id === menu_id && c.rasa_selected === rasa))
         if (newCart.length === 0) setCheckoutMode(false)
         return newCart
       }
-      return prev.map(c => c.menu_id === menu_id ? { ...c, qty: c.qty - 1 } : c)
+      return prev.map(c => (c.menu_id === menu_id && c.rasa_selected === rasa) ? { ...c, qty: c.qty - 1 } : c)
     })
   }
 
-  const updateCatatanCart = (menu_id, val) => {
-    setCart(prev => prev.map(c => c.menu_id === menu_id ? { ...c, catatan: val } : c))
+  const updateCatatanCart = (menu_id, rasa, val) => {
+    setCart(prev => prev.map(c => (c.menu_id === menu_id && c.rasa_selected === rasa) ? { ...c, catatan: val } : c))
+  }
+
+  const updateRasaCart = (menu_id, oldRasa, newRasa) => {
+    setCart(prev => {
+      // Check if newRasa already exists for this menu_id
+      const exists = prev.find(c => c.menu_id === menu_id && c.rasa_selected === newRasa);
+      if (exists) {
+        // Merge them
+        const itemToMove = prev.find(c => c.menu_id === menu_id && c.rasa_selected === oldRasa);
+        return prev
+          .map(c => c.menu_id === menu_id && c.rasa_selected === newRasa ? { ...c, qty: c.qty + itemToMove.qty } : c)
+          .filter(c => !(c.menu_id === menu_id && c.rasa_selected === oldRasa));
+      }
+      return prev.map(c => (c.menu_id === menu_id && c.rasa_selected === oldRasa) ? { ...c, rasa_selected: newRasa } : c);
+    })
   }
 
   const clearCart = () => {
@@ -210,7 +229,11 @@ export default function MenuPublik() {
       formData.append('email', email.trim())
       formData.append('payment_method', paymentMethod)
       formData.append('catatan', catatanPesanan)
-      formData.append('items', JSON.stringify(cart.map(c => ({ menu_id: c.menu_id, qty: c.qty, catatan: c.catatan }))))
+      formData.append('items', JSON.stringify(cart.map(c => ({ 
+        menu_id: c.menu_id, 
+        qty: c.qty, 
+        catatan: (c.rasa_selected ? `[Rasa: ${c.rasa_selected}] ` : '') + c.catatan 
+      }))))
 
       const res = await fetch('/api/publik/pesanan', {
         method: 'POST',
@@ -469,19 +492,35 @@ export default function MenuPublik() {
                 {error}
               </div>
             )}
-            {filteredMenu.length === 0 ? (
+            {loadingData ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-3">
+                {[...Array(12)].map((_, idx) => (
+                  <div key={idx} className="bg-white rounded-2xl overflow-hidden flex flex-col animate-pulse" style={{ boxShadow: '6px 6px 4px 0 rgba(0,0,0,0.05)' }}>
+                    <div className="w-full aspect-square bg-gray-200"></div>
+                    <div className="px-3 pt-4 pb-4 flex flex-col flex-1 gap-2 items-center">
+                      <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                      <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                      <div className="w-full h-8 bg-gray-200 rounded-full mt-auto"></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredMenu.length === 0 ? (
               <div className="text-center text-[#8B6F47] py-16">
                 <div className="flex justify-center mb-3 text-[#8B6F47]"><Utensils size={48} /></div>
                 <p>Menu tidak tersedia</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-3">
-                {filteredMenu.map(menu => {
-                  const qty = getQty(menu.id)
+                {filteredMenu.map((menu, index) => {
+                  const flavors = menu.pilihan_rasa ? menu.pilihan_rasa.split(',').map(f => f.trim()).filter(Boolean) : []
+                  const selectedRasa = selectedFlavors[menu.id] || (flavors.length > 0 ? flavors[0] : '')
+                  const qty = getQty(menu.id, selectedRasa)
+
                   return (
                     <div
                       key={menu.id}
-                      className="bg-white rounded-2xl overflow-hidden"
+                      className="bg-white rounded-2xl overflow-hidden flex flex-col"
                       style={{ boxShadow: '6px 6px 4px 0 rgba(0,0,0,0.15)' }}
                     >
                       <div className="w-full aspect-square bg-[#F5F0E8] overflow-hidden">
@@ -490,6 +529,7 @@ export default function MenuPublik() {
                             src={menu.gambar}
                             alt={menu.nama}
                             className="w-full h-full"
+                            priority={index < 6}
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-4xl">
@@ -497,38 +537,51 @@ export default function MenuPublik() {
                           </div>
                         )}
                       </div>
-                      <div className="px-3 pt-3 pb-4">
-                        <p className="text-sm text-center text-[#442D1D] font-bold leading-tight line-clamp-2 min-h-[2.5rem]">
-                          {menu.nama}
-                        </p>
-                        <p className="text-sm font-bold text-center text-[#0B8500] mt-1">
-                          {formatRupiah(menu.harga)}
-                        </p>
-                        <div className="mt-2">
-                          {qty === 0 ? (
-                            <button
-                              onClick={() => addToCart(menu)}
-                              className="w-full py-2 rounded-full bg-[#D9FFA5]/60 text-sm font-bold text-[#442D1D] hover:bg-[#D9FFA5] transition"
+                      <div className="px-3 pt-3 pb-4 flex flex-col flex-1 justify-between">
+                        <div>
+                          <p className="text-sm text-center text-[#442D1D] font-bold leading-tight line-clamp-2 min-h-[2.5rem]">
+                            {menu.nama}
+                          </p>
+                          <p className="text-sm font-bold text-center text-[#0B8500] mt-1 mb-2">
+                            {formatRupiah(menu.harga)}
+                          </p>
+                        </div>
+                        <div>
+                          {flavors.length > 0 && (
+                            <select
+                              value={selectedRasa}
+                              onChange={(e) => setSelectedFlavors(prev => ({ ...prev, [menu.id]: e.target.value }))}
+                              className="w-full border border-gray-200 rounded-lg px-2 py-1 mb-2 text-xs text-[#442D1D] bg-gray-50 focus:outline-none focus:border-[#634930]"
                             >
-                              + Tambah
-                            </button>
-                          ) : (
-                            <div className="flex items-center justify-between bg-white border-2 border-[#22B214] rounded-full px-2 py-1">
-                              <button
-                                onClick={() => removeFromCart(menu.id)}
-                                className="w-8 h-8 rounded-full bg-[#21B214] text-white text-base font-bold flex items-center justify-center"
-                              >
-                                −
-                              </button>
-                              <span className="text-base font-bold text-[#442D1D]">{qty}</span>
-                              <button
-                                onClick={() => addToCart(menu)}
-                                className="w-8 h-8 rounded-full bg-[#21B214] text-white text-base font-bold flex items-center justify-center"
-                              >
-                                +
-                              </button>
-                            </div>
+                              {flavors.map((f, i) => <option key={i} value={f}>{f}</option>)}
+                            </select>
                           )}
+                          <div className="mt-1">
+                            {qty === 0 ? (
+                              <button
+                                onClick={() => addToCart(menu, selectedRasa)}
+                                className="w-full py-2 rounded-full bg-[#D9FFA5]/60 text-sm font-bold text-[#442D1D] hover:bg-[#D9FFA5] transition"
+                              >
+                                + Tambah
+                              </button>
+                            ) : (
+                              <div className="flex items-center justify-between bg-white border-2 border-[#22B214] rounded-full px-2 py-1">
+                                <button
+                                  onClick={() => removeFromCart(menu.id, selectedRasa)}
+                                  className="w-8 h-8 rounded-full bg-[#21B214] text-white text-base font-bold flex items-center justify-center"
+                                >
+                                  −
+                                </button>
+                                <span className="text-base font-bold text-[#442D1D]">{qty}</span>
+                                <button
+                                  onClick={() => addToCart(menu, selectedRasa)}
+                                  className="w-8 h-8 rounded-full bg-[#21B214] text-white text-base font-bold flex items-center justify-center"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -593,22 +646,22 @@ export default function MenuPublik() {
                       </div>
                     ) : (
                       cart.map(item => (
-                        <div key={item.menu_id} className="bg-white border border-[#ECD7B1] rounded-xl p-3 shadow-sm">
+                        <div key={`${item.menu_id}-${item.rasa_selected}`} className="bg-white border border-[#ECD7B1] rounded-xl p-3 shadow-sm">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                              <p className="text-base font-bold text-[#442D1D] leading-tight">{item.nama}</p>
+                              <p className="text-base font-bold text-[#442D1D] leading-tight">{item.nama} {item.rasa_selected && <span className="text-sm font-normal text-[#8B6F47]">({item.rasa_selected})</span>}</p>
                               <p className="text-sm text-[#8B6F47]">{formatRupiah(item.harga)} / porsi</p>
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                               <button
-                                onClick={() => removeFromCart(item.menu_id)}
+                                onClick={() => removeFromCart(item.menu_id, item.rasa_selected)}
                                 className="w-8 h-8 rounded-full bg-[#21B214] text-white text-base font-bold flex items-center justify-center"
                               >
                                 −
                               </button>
                               <span className="text-base font-bold text-[#442D1D] w-6 text-center">{item.qty}</span>
                               <button
-                                onClick={() => addToCart({ id: item.menu_id, nama: item.nama, harga: item.harga })}
+                                onClick={() => addToCart({ id: item.menu_id, nama: item.nama, harga: item.harga }, item.rasa_selected)}
                                 className="w-8 h-8 rounded-full bg-[#21B214] text-white text-base font-bold flex items-center justify-center"
                               >
                                 +
@@ -618,12 +671,31 @@ export default function MenuPublik() {
                           <p className="text-sm font-bold text-[#0B8500] mt-1 text-right">
                             {formatRupiah(item.harga * item.qty)}
                           </p>
+                          {(() => {
+                            const originalMenu = menuList.find(m => m.id === item.menu_id);
+                            if (originalMenu && originalMenu.pilihan_rasa) {
+                              const flavors = originalMenu.pilihan_rasa.split(',').map(f => f.trim()).filter(Boolean);
+                              if (flavors.length > 0) {
+                                return (
+                                  <select
+                                    value={item.rasa_selected || ''}
+                                    onChange={e => updateRasaCart(item.menu_id, item.rasa_selected, e.target.value)}
+                                    className="mt-2 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#442D1D] bg-gray-50 focus:outline-none focus:border-[#634930]"
+                                  >
+                                    <option value="" disabled>-- Pilih Rasa --</option>
+                                    {flavors.map((f, i) => <option key={i} value={f}>{f}</option>)}
+                                  </select>
+                                );
+                              }
+                            }
+                            return null;
+                          })()}
                           <input
                             type="text"
                             placeholder="Catatan (tanpa gula, dll...)"
                             value={item.catatan}
                             maxLength={100}
-                            onChange={e => updateCatatanCart(item.menu_id, e.target.value)}
+                            onChange={e => updateCatatanCart(item.menu_id, item.rasa_selected, e.target.value)}
                             className="mt-2 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#442D1D] bg-gray-50 focus:outline-none focus:border-[#634930]"
                           />
                         </div>

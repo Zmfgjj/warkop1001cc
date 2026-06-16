@@ -28,7 +28,7 @@ exports.getMenu = async (req, res) => {
 
 exports.tambahMenu = async (req, res) => {
   try {
-    const { kategori_id, nama, deskripsi, harga, hpp } = req.body;
+    const { kategori_id, nama, deskripsi, harga, hpp, pilihan_rasa } = req.body;
     let gambar = '';
 
     if (!nama || !harga || !kategori_id) {
@@ -61,8 +61,8 @@ exports.tambahMenu = async (req, res) => {
     }
     
     const [result] = await db.query(
-      'INSERT INTO menu (kategori_id, nama, deskripsi, harga, hpp, gambar) VALUES (?, ?, ?, ?, ?, ?)',
-      [kategori_id, nama, deskripsi, harga, hpp || 0, gambar]
+      'INSERT INTO menu (kategori_id, nama, deskripsi, harga, hpp, gambar, pilihan_rasa) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [kategori_id, nama, deskripsi, harga, hpp || 0, gambar, pilihan_rasa || null]
     );
     
     // Emit real-time event
@@ -83,7 +83,7 @@ exports.tambahMenu = async (req, res) => {
 exports.updateMenu = async (req, res) => {
   try {
     const { id } = req.params;
-    const { kategori_id, nama, deskripsi, harga, hpp, tersedia } = req.body;
+    const { kategori_id, nama, deskripsi, harga, hpp, tersedia, pilihan_rasa } = req.body;
     let gambar = req.body.gambar; // Keep existing if no new file
 
     if (!nama || !harga || !kategori_id) {
@@ -112,8 +112,8 @@ exports.updateMenu = async (req, res) => {
     }
     
     await db.query(
-      'UPDATE menu SET kategori_id=?, nama=?, deskripsi=?, harga=?, hpp=?, gambar=?, tersedia=? WHERE id=?',
-      [kategori_id, nama, deskripsi, harga, hpp || 0, gambar, tersedia, id]
+      'UPDATE menu SET kategori_id=?, nama=?, deskripsi=?, harga=?, hpp=?, gambar=?, tersedia=?, pilihan_rasa=? WHERE id=?',
+      [kategori_id, nama, deskripsi, harga, hpp || 0, gambar, tersedia, pilihan_rasa || null, id]
     );
     
     // Emit real-time event

@@ -35,7 +35,7 @@ function sanitize(str) {
 exports.getMenuPublik = async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT m.id, m.nama, m.deskripsi, m.harga, m.gambar, k.id as kategori_id, k.nama as kategori_nama, COALESCE(k.urutan, 999) as kategori_urutan
+      SELECT m.id, m.nama, m.deskripsi, m.harga, m.gambar, m.pilihan_rasa, k.id as kategori_id, k.nama as kategori_nama, COALESCE(k.urutan, 999) as kategori_urutan
       FROM menu m
       LEFT JOIN kategori k ON m.kategori_id = k.id
       WHERE m.tersedia = 1

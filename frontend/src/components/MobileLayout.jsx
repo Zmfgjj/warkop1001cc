@@ -25,9 +25,6 @@ export default function MobileLayout({ activeMenu, children }) {
 
   // Filter menu items based on dynamic permissions
   const menuItems = allMenuItems.filter(item => {
-    if (isInvestor) {
-      return item.module === 'dashboard' || item.module === 'laporan';
-    }
     if (item.ownerOnly) return user?.role === 'owner';
     return canView(item.module);
   })

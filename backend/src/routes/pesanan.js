@@ -3,7 +3,7 @@ const router = express.Router();
 const pesananController = require('../controllers/pesananController');
 const auth = require('../middleware/auth');
 
-router.get('/', auth(['owner', 'manager', 'kasir', 'dapur']), pesananController.getPesanan);
+router.get('/', auth(), pesananController.getPesanan);
 router.post('/', auth(['kasir', 'owner']), pesananController.buatPesanan);
 router.post('/reservasi', auth(['kasir', 'owner']), pesananController.buatReservasi);
 router.put('/:id/status', auth(['kasir', 'owner', 'dapur']), pesananController.updateStatus);

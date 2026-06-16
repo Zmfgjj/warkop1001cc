@@ -7,7 +7,7 @@ import MobileLayout from '../components/MobileLayout'
 import { useAlert } from '../context/AlertContext'
 
 export default function KDS() {
-  const { user } = useAuth()
+  const { user, canEdit: userCanEdit } = useAuth()
   const { showAlert } = useAlert()
   const { socket } = useSocket()
   const [pesananList, setPesananList] = useState([])
@@ -228,45 +228,49 @@ export default function KDS() {
                       </div>
 
                       {/* Buttons */}
-                      <div className="flex gap-1 md:gap-1.5 flex-shrink-0">
-                        <button
-                          onClick={() => updateStatusItem(item.id, pesanan.id, 'diproses')}
-                          disabled={item.status !== 'pending'}
-                          className="px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all disabled:opacity-40 active:scale-95 shadow-sm"
-                          style={{
-                            backgroundColor: item.status === 'pending' ? '#e74c3c' : '#F5F0E8',
-                            color: item.status === 'pending' ? '#fff' : '#A9927D',
-                          }}
-                        >
-                          Proses
-                        </button>
-                        <button
-                          onClick={() => updateStatusItem(item.id, pesanan.id, 'selesai')}
-                          disabled={item.status !== 'diproses'}
-                          className="px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all disabled:opacity-40 active:scale-95 shadow-sm"
-                          style={{
-                            backgroundColor: item.status === 'diproses' ? '#27ae60' : '#F5F0E8',
-                            color: item.status === 'diproses' ? '#fff' : '#A9927D',
-                          }}
-                        >
-                          Selesai
-                        </button>
-                      </div>
+                      {userCanEdit('kds') && (
+                        <div className="flex gap-1 md:gap-1.5 flex-shrink-0">
+                          <button
+                            onClick={() => updateStatusItem(item.id, pesanan.id, 'diproses')}
+                            disabled={item.status !== 'pending'}
+                            className="px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all disabled:opacity-40 active:scale-95 shadow-sm"
+                            style={{
+                              backgroundColor: item.status === 'pending' ? '#e74c3c' : '#F5F0E8',
+                              color: item.status === 'pending' ? '#fff' : '#A9927D',
+                            }}
+                          >
+                            Proses
+                          </button>
+                          <button
+                            onClick={() => updateStatusItem(item.id, pesanan.id, 'selesai')}
+                            disabled={item.status !== 'diproses'}
+                            className="px-2 md:px-3 py-1 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all disabled:opacity-40 active:scale-95 shadow-sm"
+                            style={{
+                              backgroundColor: item.status === 'diproses' ? '#27ae60' : '#F5F0E8',
+                              color: item.status === 'diproses' ? '#fff' : '#A9927D',
+                            }}
+                          >
+                            Selesai
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
 
                 {/* Card Footer */}
-                <div className="px-4 md:px-5 py-3 md:py-4 flex justify-end bg-gray-50 border-t" style={{ borderColor: '#EDE0CC' }}>
-                  <button
-                    onClick={() => updateStatusPesanan(pesanan.id, 'selesai')}
-                    className="w-full px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-xs font-black text-white transition-all hover:bg-[#219653] active:scale-95 shadow-lg flex items-center justify-center gap-2"
-                    style={{ backgroundColor: '#27ae60', boxShadow: '0 8px 20px rgba(39, 174, 96, 0.3)' }}
-                  >
-                    <span className="text-xs bg-white text-[#27ae60] rounded-full w-4 h-4 flex items-center justify-center"><Check size={12} /></span>
-                    <span>SELESAIKAN PESANAN</span>
-                  </button>
-                </div>
+                {userCanEdit('kds') && (
+                  <div className="px-4 md:px-5 py-3 md:py-4 flex justify-end bg-gray-50 border-t" style={{ borderColor: '#EDE0CC' }}>
+                    <button
+                      onClick={() => updateStatusPesanan(pesanan.id, 'selesai')}
+                      className="w-full px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-xs font-black text-white transition-all hover:bg-[#219653] active:scale-95 shadow-lg flex items-center justify-center gap-2"
+                      style={{ backgroundColor: '#27ae60', boxShadow: '0 8px 20px rgba(39, 174, 96, 0.3)' }}
+                    >
+                      <span className="text-xs bg-white text-[#27ae60] rounded-full w-4 h-4 flex items-center justify-center"><Check size={12} /></span>
+                      <span>SELESAIKAN PESANAN</span>
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

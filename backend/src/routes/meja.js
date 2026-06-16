@@ -3,10 +3,10 @@ const router = express.Router();
 const mejaController = require('../controllers/mejaController');
 const auth = require('../middleware/auth');
 
-router.get('/', auth(['owner', 'manager', 'kasir', 'admin']), mejaController.getMeja);
-router.post('/', auth(['owner', 'manager']), mejaController.tambahMeja);
-router.put('/:id/qr', auth(['owner', 'manager']), mejaController.generateQR);
-router.put('/:id/status', auth(['owner', 'manager', 'kasir']), mejaController.updateStatusMeja);
-router.delete('/:id', auth(['owner', 'manager']), mejaController.hapusMeja);
+router.get('/', auth([]), mejaController.getMeja);
+router.post('/', auth({ module: 'manajemen_meja', action: 'edit' }), mejaController.tambahMeja);
+router.put('/:id/qr', auth({ module: 'manajemen_meja', action: 'edit' }), mejaController.generateQR);
+router.put('/:id/status', auth(['owner', 'manager', 'kasir', 'admin']), mejaController.updateStatusMeja);
+router.delete('/:id', auth({ module: 'manajemen_meja', action: 'edit' }), mejaController.hapusMeja);
 
 module.exports = router;
