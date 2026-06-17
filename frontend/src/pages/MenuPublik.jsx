@@ -164,13 +164,13 @@ export default function MenuPublik() {
   // Cart helpers
   const getQty = (menu_id, rasa = '') => cart.find(c => c.menu_id === menu_id && c.rasa_selected === rasa)?.qty || 0
 
-  const addToCart = (menu, rasa = '') => {
+  const addToCart = (menu, rasa = '', hargaTambahan = 0) => {
     setCart(prev => {
       const existing = prev.find(c => c.menu_id === menu.id && c.rasa_selected === rasa)
       if (existing) {
         return prev.map(c => (c.menu_id === menu.id && c.rasa_selected === rasa) ? { ...c, qty: c.qty + 1 } : c)
       }
-      return [...prev, { menu_id: menu.id, nama: menu.nama, harga: menu.harga, qty: 1, catatan: '', rasa_selected: rasa }]
+      return [...prev, { menu_id: menu.id, nama: menu.nama, harga: menu.harga + hargaTambahan, qty: 1, catatan: '', rasa_selected: rasa }]
     })
   }
 
@@ -193,16 +193,22 @@ export default function MenuPublik() {
 
   const updateRasaCart = (menu_id, oldRasa, newRasa) => {
     setCart(prev => {
+      const menu = menuList.find(m => m.id === menu_id)
+      const newVariant = menu?.variants?.find(v => v.nama === newRasa)
+      const newHargaTambahan = newVariant ? Number(newVariant.harga_tambahan) : 0
+      const baseHarga = menu ? menu.harga : 0
+      const newHarga = baseHarga + newHargaTambahan
+
       // Check if newRasa already exists for this menu_id
       const exists = prev.find(c => c.menu_id === menu_id && c.rasa_selected === newRasa);
       if (exists) {
         // Merge them
         const itemToMove = prev.find(c => c.menu_id === menu_id && c.rasa_selected === oldRasa);
         return prev
-          .map(c => c.menu_id === menu_id && c.rasa_selected === newRasa ? { ...c, qty: c.qty + itemToMove.qty } : c)
+          .map(c => c.menu_id === menu_id && c.rasa_selected === newRasa ? { ...c, qty: c.qty + itemToMove.qty, harga: newHarga } : c)
           .filter(c => !(c.menu_id === menu_id && c.rasa_selected === oldRasa));
       }
-      return prev.map(c => (c.menu_id === menu_id && c.rasa_selected === oldRasa) ? { ...c, rasa_selected: newRasa } : c);
+      return prev.map(c => (c.menu_id === menu_id && c.rasa_selected === oldRasa) ? { ...c, rasa_selected: newRasa, harga: newHarga } : c);
     })
   }
 
@@ -253,7 +259,8 @@ export default function MenuPublik() {
       formData.append('items', JSON.stringify(cart.map(c => ({ 
         menu_id: c.menu_id, 
         qty: c.qty, 
-        catatan: (c.rasa_selected ? `[Rasa: ${c.rasa_selected}] ` : '') + c.catatan 
+        varian_nama: c.rasa_selected,
+        catatan: (c.rasa_selected ? `[Varian: ${c.rasa_selected}] ` : '') + c.catatan 
       }))))
 
       const res = await fetch('/api/publik/pesanan', {
@@ -534,9 +541,12 @@ export default function MenuPublik() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-3">
                 {filteredMenu.map((menu, index) => {
-                  const flavors = menu.pilihan_rasa ? menu.pilihan_rasa.split(',').map(f => f.trim()).filter(Boolean) : []
-                  const selectedRasa = selectedFlavors[menu.id] || (flavors.length > 0 ? flavors[0] : '')
-                  const qty = getQty(menu.id, selectedRasa)
+                  const variants = menu.variants || []
+                  const selectedVariantNama = selectedFlavors[menu.id] || (variants.length > 0 ? variants[0].nama : '')
+                  const selectedVariant = variants.find(v => v.nama === selectedVariantNama)
+                  const hargaTambahan = selectedVariant ? Number(selectedVariant.harga_tambahan) : 0
+                  const displayHarga = menu.harga + hargaTambahan
+                  const qty = getQty(menu.id, selectedVariantNama)
 
                   return (
                     <div
@@ -563,24 +573,28 @@ export default function MenuPublik() {
                           <p className="text-sm text-center text-[#442D1D] font-bold leading-tight line-clamp-2 min-h-[2.5rem]">
                             {menu.nama}
                           </p>
-                          <p className="text-sm font-bold text-center text-[#0B8500] mt-1 mb-2">
-                            {formatRupiah(menu.harga)}
+                          <p className="text-sm font-bold text-center text-[#0B8500] mt-1 mb-2 transition-all">
+                            {formatRupiah(displayHarga)}
                           </p>
                         </div>
                         <div>
-                          {flavors.length > 0 && (
+                          {variants.length > 0 && (
                             <select
-                              value={selectedRasa}
+                              value={selectedVariantNama}
                               onChange={(e) => setSelectedFlavors(prev => ({ ...prev, [menu.id]: e.target.value }))}
-                              className="w-full border border-gray-200 rounded-lg px-2 py-1 mb-2 text-xs text-[#442D1D] bg-gray-50 focus:outline-none focus:border-[#634930]"
+                              className="w-full border border-gray-200 rounded-lg px-2 py-1.5 mb-2 text-xs font-semibold text-[#442D1D] bg-gray-50 focus:outline-none focus:border-[#634930]"
                             >
-                              {flavors.map((f, i) => <option key={i} value={f}>{f}</option>)}
+                              {variants.map(v => (
+                                <option key={v.id} value={v.nama}>
+                                  {v.nama} {v.harga_tambahan > 0 ? `(+${formatRupiah(v.harga_tambahan)})` : ''}
+                                </option>
+                              ))}
                             </select>
                           )}
                           <div className="mt-1">
                             {qty === 0 ? (
                               <button
-                                onClick={() => addToCart(menu, selectedRasa)}
+                                onClick={() => addToCart(menu, selectedVariantNama, hargaTambahan)}
                                 className="w-full py-2 rounded-full bg-[#D9FFA5]/60 text-sm font-bold text-[#442D1D] hover:bg-[#D9FFA5] transition"
                               >
                                 + Tambah
@@ -588,14 +602,14 @@ export default function MenuPublik() {
                             ) : (
                               <div className="flex items-center justify-between bg-white border-2 border-[#22B214] rounded-full px-2 py-1">
                                 <button
-                                  onClick={() => removeFromCart(menu.id, selectedRasa)}
+                                  onClick={() => removeFromCart(menu.id, selectedVariantNama)}
                                   className="w-8 h-8 rounded-full bg-[#21B214] text-white text-base font-bold flex items-center justify-center"
                                 >
                                   −
                                 </button>
                                 <span className="text-base font-bold text-[#442D1D]">{qty}</span>
                                 <button
-                                  onClick={() => addToCart(menu, selectedRasa)}
+                                  onClick={() => addToCart(menu, selectedVariantNama, hargaTambahan)}
                                   className="w-8 h-8 rounded-full bg-[#21B214] text-white text-base font-bold flex items-center justify-center"
                                 >
                                   +
@@ -694,17 +708,21 @@ export default function MenuPublik() {
                           </p>
                           {(() => {
                             const originalMenu = menuList.find(m => m.id === item.menu_id);
-                            if (originalMenu && originalMenu.pilihan_rasa) {
-                              const flavors = originalMenu.pilihan_rasa.split(',').map(f => f.trim()).filter(Boolean);
-                              if (flavors.length > 0) {
+                            if (originalMenu && originalMenu.variants) {
+                              const variants = originalMenu.variants;
+                              if (variants.length > 0) {
                                 return (
                                   <select
                                     value={item.rasa_selected || ''}
                                     onChange={e => updateRasaCart(item.menu_id, item.rasa_selected, e.target.value)}
                                     className="mt-2 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-[#442D1D] bg-gray-50 focus:outline-none focus:border-[#634930]"
                                   >
-                                    <option value="" disabled>-- Pilih Rasa --</option>
-                                    {flavors.map((f, i) => <option key={i} value={f}>{f}</option>)}
+                                    <option value="" disabled>-- Pilih Varian --</option>
+                                    {variants.map((v) => (
+                                      <option key={v.id} value={v.nama}>
+                                        {v.nama} {v.harga_tambahan > 0 ? `(+${formatRupiah(v.harga_tambahan)})` : ''}
+                                      </option>
+                                    ))}
                                   </select>
                                 );
                               }

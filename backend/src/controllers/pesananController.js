@@ -331,3 +331,37 @@ exports.konfirmasiPembayaran = async (req, res) => {
     conn.release();
   }
 };
+
+exports.hapusPesanan = async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    const { id } = req.params;
+    await conn.beginTransaction();
+
+    const [pesanan] = await conn.query('SELECT meja_id FROM pesanan WHERE id = ?', [id]);
+    if (pesanan.length > 0 && pesanan[0].meja_id) {
+      await conn.query("UPDATE meja SET status = 'tersedia' WHERE id = ?", [pesanan[0].meja_id]);
+    }
+
+    await conn.query('DELETE FROM detail_pesanan WHERE pesanan_id = ?', [id]);
+    await conn.query('DELETE FROM pembayaran WHERE pesanan_id = ?', [id]);
+    await conn.query('DELETE FROM pesanan WHERE id = ?', [id]);
+
+    await conn.commit();
+    
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('status_pesanan', { pesanan_id: id, status: 'batal' });
+      io.emit('mejaUpdated');
+      io.emit('pesanan_baru', { pesanan_id: id });
+    }
+
+    res.json({ message: 'Pesanan berhasil dihapus' });
+  } catch (err) {
+    await conn.rollback();
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  } finally {
+    conn.release();
+  }
+};

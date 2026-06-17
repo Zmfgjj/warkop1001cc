@@ -15,6 +15,7 @@ import KDS from './pages/KDS.jsx'
 import MenuPublik from './pages/MenuPublik.jsx'
 import RoleManage from './pages/RoleManage'
 import KonfirmasiPembayaran from './pages/KonfirmasiPembayaran.jsx'
+import BonusKaryawan from './pages/BonusKaryawan'
 
 /**
  * ProtectedRoute now uses dynamic permissions from the roles table.
@@ -41,7 +42,8 @@ const ProtectedRoute = ({ children, module }) => {
       manajemen_meja: '/kasir/meja',
       kds: '/kasir/kds',
       laporan: '/kasir/laporan',
-      user_manage: '/kasir/user-manage'
+      user_manage: '/kasir/user-manage',
+      bonus_karyawan: '/kasir/bonus'
     }
     
     for (const [mod, path] of Object.entries(moduleRouteMap)) {
@@ -71,6 +73,7 @@ const AuthRoute = ({ children }) => {
     if (canView('manajemen_menu')) return <Navigate to="/kasir/menu" replace />
     if (canView('manajemen_meja')) return <Navigate to="/kasir/meja" replace />
     if (canView('user_manage')) return <Navigate to="/kasir/user-manage" replace />
+    if (canView('bonus_karyawan')) return <Navigate to="/kasir/bonus" replace />
     // Fallback
     return <Navigate to="/kasir" replace />
   }
@@ -90,6 +93,7 @@ function AppRoutes() {
       <Route path="/kasir/kds" element={<ProtectedRoute module="kds"><KDS /></ProtectedRoute>} />
       <Route path="/kasir/laporan" element={<ProtectedRoute module="laporan"><Laporan /></ProtectedRoute>} />
       <Route path="/kasir/user-manage" element={<ProtectedRoute module="user_manage"><UserManage /></ProtectedRoute>} />
+      <Route path="/kasir/bonus" element={<ProtectedRoute module="bonus_karyawan"><BonusKaryawan /></ProtectedRoute>} />
       <Route path="/kasir/role-manage" element={<RoleManage />} />
       {/* Public customer web order - no auth required */}
       <Route path="/menu/:meja_id" element={<MenuPublik />} />

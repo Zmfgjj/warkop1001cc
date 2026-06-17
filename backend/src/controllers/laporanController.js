@@ -66,7 +66,7 @@ exports.ringkasan = async (req, res) => {
     const ppnRate = ppnRows.length > 0 ? parseFloat(ppnRows[0].nilai) : 11;
 
     const grossRevenue = Number(pendapatan[0].total);
-    const ppnAmount = Math.round(grossRevenue * ppnRate / (100 + ppnRate));
+    const ppnAmount = Math.round(grossRevenue * (ppnRate / 100));
     const netRevenue = grossRevenue - ppnAmount;
     const aov = pesanan[0].total > 0 ? Math.round(grossRevenue / pesanan[0].total) : 0;
 
@@ -196,7 +196,8 @@ exports.laporanBulanan = async (req, res) => {
     // PPN rate
     const [ppnRows] = await db.query("SELECT nilai FROM settings WHERE `key` = 'ppn' LIMIT 1");
     const ppnRate = ppnRows.length > 0 ? parseFloat(ppnRows[0].nilai) : 11;
-    const ppnAmount = Math.round(totalBulan * ppnRate / (100 + ppnRate));
+    const ppnAmount = Math.round(totalBulan * (ppnRate / 100));
+    const netRevenue = totalBulan - ppnAmount;
 
     // Penjualan per menu bulan ini
     const [menuDetail] = await db.query(`
@@ -225,7 +226,7 @@ exports.laporanBulanan = async (req, res) => {
       total_pesanan: totalPesananBulan,
       ppn_rate: ppnRate,
       ppn_amount: ppnAmount,
-      net_revenue: totalBulan - ppnAmount,
+      net_revenue: netRevenue,
       metode_pembayaran: metodePembayaran,
       menu_detail: menuDetail,
       harian
