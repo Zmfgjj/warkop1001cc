@@ -56,19 +56,34 @@ export default function KonfirmasiPembayaran() {
     }
   }, [socket, debouncedFetch])
 
-  const handleConfirm = async (id, status) => {
-    if (status === 'unpaid' && (!confirmModal || confirmModal !== id)) {
-      setConfirmModal(id);
-      return;
+  const handleActionClick = (p, action) => {
+    if (action === 'lunas') {
+      executeAction(p.id, 'lunas');
+    } else if (action === 'tolak') {
+      if (p.payment_status === 'pending_verification') {
+        setConfirmModal({ id: p.id, type: 'tolak_bukti' });
+      } else {
+        setConfirmModal({ id: p.id, type: 'batal_order' });
+      }
     }
-    
+  }
+
+  const executeAction = async (id, type) => {
     try {
-      await api.put(`/pesanan/${id}/pembayaran`, { status })
-      showAlert('Status pembayaran berhasil diupdate', 'Berhasil', 'success')
+      if (type === 'lunas') {
+        await api.put(`/pesanan/${id}/pembayaran`, { status: 'paid' })
+        showAlert('Pembayaran berhasil dikonfirmasi', 'Berhasil', 'success')
+      } else if (type === 'tolak_bukti') {
+        await api.put(`/pesanan/${id}/pembayaran`, { status: 'unpaid' })
+        showAlert('Bukti pembayaran ditolak', 'Berhasil', 'success')
+      } else if (type === 'batal_order') {
+        await api.put(`/pesanan/${id}/status`, { status: 'batal' })
+        showAlert('Pesanan berhasil dibatalkan', 'Berhasil', 'success')
+      }
       fetchData()
     } catch (err) {
       console.error(err)
-      showAlert('Gagal konfirmasi pembayaran', 'Gagal', 'error')
+      showAlert('Aksi gagal diproses', 'Gagal', 'error')
     } finally {
       setConfirmModal(null)
     }
@@ -161,13 +176,13 @@ export default function KonfirmasiPembayaran() {
 
                   <div className="mt-auto grid grid-cols-2 gap-2">
                     <button 
-                      onClick={() => handleConfirm(p.id, 'unpaid')}
+                      onClick={() => handleActionClick(p, 'tolak')}
                       className="py-2.5 rounded-xl font-bold text-xs bg-white text-red-500 border border-red-200 hover:bg-red-50 transition"
                     >
                       <XCircle size={16} className="inline mr-1" /> Tolak
                     </button>
                     <button 
-                      onClick={() => handleConfirm(p.id, 'paid')}
+                      onClick={() => handleActionClick(p, 'lunas')}
                       className="py-2.5 rounded-xl font-bold text-xs bg-[#27ae60] text-white shadow-md shadow-green-200 hover:bg-[#219653] transition"
                     >
                       <CheckCircle size={16} className="inline mr-1" /> Lunas
@@ -180,16 +195,27 @@ export default function KonfirmasiPembayaran() {
         )}
       </div>
 
-      {/* Modal Konfirmasi Tolak */}
+      {/* Modal Konfirmasi */}
       {confirmModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setConfirmModal(null)}>
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex justify-center mb-4 text-red-500"><XCircle size={48} /></div>
-            <h3 className="text-lg font-bold text-center text-[#442D1D] mb-2">Yakin Ingin Menolak?</h3>
-            <p className="text-sm text-center text-gray-500 mb-6">Bukti pembayaran akan dihapus dan pelanggan akan diminta mengunggah ulang.</p>
+            
+            {confirmModal.type === 'tolak_bukti' ? (
+              <>
+                <h3 className="text-lg font-bold text-center text-[#442D1D] mb-2">Tolak Bukti Pembayaran?</h3>
+                <p className="text-sm text-center text-gray-500 mb-6">Bukti pembayaran akan dihapus dan pelanggan akan diminta mengunggah ulang.</p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-bold text-center text-[#442D1D] mb-2">Batalkan Pesanan?</h3>
+                <p className="text-sm text-center text-gray-500 mb-6">Pesanan yang belum dibayar ini akan dibatalkan secara permanen.</p>
+              </>
+            )}
+
             <div className="flex gap-3">
-              <button onClick={() => setConfirmModal(null)} className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-gray-100 text-gray-600 hover:bg-gray-200">Batal</button>
-              <button onClick={() => handleConfirm(confirmModal, 'unpaid')} className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-red-500 text-white shadow-md shadow-red-200 hover:bg-red-600">Ya, Tolak</button>
+              <button onClick={() => setConfirmModal(null)} className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-gray-100 text-gray-600 hover:bg-gray-200">Kembali</button>
+              <button onClick={() => executeAction(confirmModal.id, confirmModal.type)} className="flex-1 py-2.5 rounded-xl font-bold text-sm bg-red-500 text-white shadow-md shadow-red-200 hover:bg-red-600">Ya, {confirmModal.type === 'tolak_bukti' ? 'Tolak' : 'Batalkan'}</button>
             </div>
           </div>
         </div>
