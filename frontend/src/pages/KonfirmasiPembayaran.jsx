@@ -4,6 +4,7 @@ import api from '../api/auth'
 import MobileLayout from '../components/MobileLayout'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import { useAlert } from '../context/AlertContext'
+import { cetakStruk, cetakStrukThermal } from '../utils/printStruk'
 
 function formatRupiah(n) {
   return 'Rp ' + Number(n).toLocaleString('id-ID')
@@ -58,7 +59,7 @@ export default function KonfirmasiPembayaran() {
 
   const handleActionClick = (p, action) => {
     if (action === 'lunas') {
-      executeAction(p.id, 'lunas');
+      executeAction(p, 'lunas');
     } else if (action === 'tolak') {
       if (p.payment_status === 'pending_verification') {
         setConfirmModal({ id: p.id, type: 'tolak_bukti' });
@@ -68,16 +69,39 @@ export default function KonfirmasiPembayaran() {
     }
   }
 
-  const executeAction = async (id, type) => {
+  const executeAction = async (payload, type) => {
     try {
       if (type === 'lunas') {
-        await api.put(`/pesanan/${id}/pembayaran`, { status: 'paid' })
-        showAlert('Pembayaran berhasil dikonfirmasi', 'Berhasil', 'success')
+        const p = payload;
+        await api.put(`/pesanan/${p.id}/pembayaran`, { status: 'paid' })
+        
+        const strukData = {
+          pesananId: p.id,
+          meja: p.nomor_meja || p.meja_id,
+          tipe: p.tipe,
+          kasir: 'Kasir',
+          tanggal: p.created_at,
+          items: p.items,
+          total: p.total,
+          subtotal: p.total,
+          ppn: 0,
+          ppnRate: 0,
+          metodeBayar: 'QRIS/Transfer',
+          jumlahBayar: p.total,
+          kembali: 0
+        };
+        const printTypes = ['kasir', 'pelanggan', 'bar'];
+        if (p.tipe === 'dine-in') printTypes.push('meja');
+        
+        const thermalOk = await cetakStrukThermal(strukData, printTypes).catch(() => false);
+        if (!thermalOk) cetakStruk(strukData, printTypes);
+
+        showAlert('Pembayaran berhasil dikonfirmasi & struk dicetak', 'Berhasil', 'success')
       } else if (type === 'tolak_bukti') {
-        await api.put(`/pesanan/${id}/pembayaran`, { status: 'unpaid' })
+        await api.put(`/pesanan/${payload}/pembayaran`, { status: 'unpaid' })
         showAlert('Bukti pembayaran ditolak', 'Berhasil', 'success')
       } else if (type === 'batal_order') {
-        await api.put(`/pesanan/${id}/status`, { status: 'batal' })
+        await api.put(`/pesanan/${payload}/status`, { status: 'batal' })
         showAlert('Pesanan berhasil dibatalkan', 'Berhasil', 'success')
       }
       fetchData()

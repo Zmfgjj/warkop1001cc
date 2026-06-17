@@ -21,7 +21,7 @@ export default function KasirPOS() {
   const [search, setSearch] = useState('')
   const [menuList, setMenuList] = useState([])
   const [mejaList, setMejaList] = useState([])
-  const [selectedMeja, setSelectedMeja] = useState(null)
+  
   const [order, setOrder] = useState([])
   const [metodeBayar, setMetodeBayar] = useState('Tunai')
   const [jumlahBayar, setJumlahBayar] = useState('')
@@ -77,14 +77,10 @@ export default function KasirPOS() {
       const [resMenu, resMeja] = await Promise.all([api.get('/menu'), api.get('/meja')])
       setMenuList(resMenu.data); setMejaList(resMeja.data)
       saveMasterData('menu', resMenu.data); saveMasterData('meja', resMeja.data)
-      const kosong = resMeja.data.find(m => m.status === 'kosong')
-      if (kosong) setSelectedMeja(kosong)
     } catch {
       const offlineMenu = await getMasterData('menu') || []
       const offlineMeja = await getMasterData('meja') || []
       setMenuList(offlineMenu); setMejaList(offlineMeja)
-      const kosong = offlineMeja.find(m => m.status === 'kosong')
-      if (kosong) setSelectedMeja(kosong)
     } finally { setLoading(false) }
   }
   
@@ -100,9 +96,8 @@ export default function KasirPOS() {
   }
 
   useEffect(() => {
-    if (tipeOrder === 'dine-in' && selectedMeja && selectedMeja.status === 'reservasi') fetchActiveBill(selectedMeja.id)
-    else setActiveBill(null)
-  }, [selectedMeja, tipeOrder])
+    setActiveBill(null)
+  }, [tipeOrder])
 
   const fetchActiveBill = async (mejaId) => {
     try { const res = await api.get('/pesanan'); setActiveBill(res.data.find(p => p.meja_id === mejaId && p.is_open_bill === 1) || null) } catch {}
@@ -128,7 +123,7 @@ export default function KasirPOS() {
     setOrder(prev => {
       const ex = prev.find(o => o.menu_id === menu.id)
       if (ex) return prev.map(o => o.menu_id === menu.id ? { ...o, qty: o.qty + 1 } : o)
-      return [...prev, { menu_id: menu.id, nama: menu.nama, harga: menu.harga, qty: 1, catatan: '', gambar: menu.gambar }]
+      return [...prev, { menu_id: menu.id, nama: menu.nama, harga: menu.harga, qty: 1, catatan: '', gambar: menu.gambar, kategori: menu.kategori || menu.kategori_nama || '' }]
     })
   }
   const kurangItem = (menu_id) => {
@@ -148,16 +143,15 @@ export default function KasirPOS() {
   const totalItems = order.reduce((s, o) => s + o.qty, 0)
 
   const handleProsesBayar = async () => {
-    if (tipeOrder === 'dine-in' && !selectedMeja) return showAlert('Pilih meja dulu!', 'Perhatian')
     if (order.length === 0) return showAlert('Tambah menu dulu!', 'Perhatian')
     if (metodeBayar === 'Tunai' && parseInt(jumlahBayar.replace(/\D/g, '') || 0) < total) return showAlert('Jumlah bayar kurang!', 'Perhatian')
     
     setLoadingBayar(true)
     try {
       const pesananData = {
-        meja_id: tipeOrder === 'dine-in' ? selectedMeja?.id : null,
+        meja_id: null,
         tipe: tipeOrder,
-        items: order.map(o => ({ menu_id: o.menu_id, qty: o.qty, catatan: o.catatan })),
+        items: order.map(o => ({ menu_id: o.menu_id, qty: o.qty, catatan: o.catatan, kategori: o.kategori })),
         pembayaran: { metode: metodeBayar.toLowerCase(), jumlah: total } // payload offline
       }
 
@@ -165,13 +159,13 @@ export default function KasirPOS() {
         pesananId: 'TMP-' + Date.now(), 
         items: order, subtotal, ppn, ppnRate, total, metodeBayar, 
         jumlahBayar: parseInt(jumlahBayar.replace(/\D/g, '') || 0), kembali, 
-        meja: selectedMeja?.nomor, tipe: tipeOrder, kasir: user?.username, tanggal: new Date() 
+        meja: null, tipe: tipeOrder, kasir: user?.username, tanggal: new Date() 
       }
 
       if (isOnline) {
         // Online flow
         const resPesanan = await api.post('/pesanan', pesananData)
-        await api.post('/pembayaran', { pesanan_id: resPesanan.data.pesanan_id, metode: metodeBayar.toLowerCase(), jumlah: total })
+        await api.post('/pembayaran', { pesanan_id: resPesanan.data.pesanan_id, metode: metodeBayar.toLowerCase(), jumlah: total, is_kasir: true })
         strukData.pesananId = resPesanan.data.pesanan_id
       } else {
         // Offline flow
@@ -179,9 +173,12 @@ export default function KasirPOS() {
         showAlert('Anda sedang offline. Pesanan disimpan secara lokal dan akan disinkronkan nanti.', 'Mode Offline')
       }
 
-      // Cetak struk baik online maupun offline
-      const thermalOk = await cetakStrukThermal(strukData).catch(() => false)
-      if (!thermalOk) cetakStruk(strukData)
+      // Cetak struk baik online maupun offline (Kasir Printer)
+      const printTypes = ['kasir', 'pelanggan', 'bar'];
+      if (tipeOrder === 'dine-in') printTypes.push('meja');
+      
+      const thermalOk = await cetakStrukThermal(strukData, printTypes).catch(() => false)
+      if (!thermalOk) cetakStruk(strukData, printTypes)
       
       if (isOnline) showAlert('Pesanan berhasil dibuat & pembayaran tercatat!', 'Sukses')
       setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); fetchData()
@@ -225,7 +222,7 @@ export default function KasirPOS() {
               <div className="flex rounded-full overflow-hidden" style={{ border: '1.5px solid #C4A882' }}>
                 <button onClick={() => setTipeOrder('dine-in')} className="px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm font-medium transition-all"
                   style={{ backgroundColor: tipeOrder === 'dine-in' ? '#634930' : '#EDE0CC', color: tipeOrder === 'dine-in' ? '#fff' : '#634930' }}><span className="flex items-center gap-1.5"><Utensils size={14} /> Dine In</span></button>
-                <button onClick={() => { setTipeOrder('take-away'); setSelectedMeja(null) }} className="px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm font-medium transition-all"
+                <button onClick={() => setTipeOrder('take-away')} className="px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm font-medium transition-all"
                   style={{ backgroundColor: tipeOrder === 'take-away' ? '#634930' : '#EDE0CC', color: tipeOrder === 'take-away' ? '#fff' : '#634930' }}><span className="flex items-center gap-1.5"><ShoppingBag size={14} /> TA</span></button>
               </div>
               {userCanEdit('pos') && (
@@ -233,13 +230,6 @@ export default function KasirPOS() {
                   style={{ backgroundColor: '#EDE0CC', color: '#634930', border: '1.5px solid #C4A882' }}>
                   <CalendarPlus size={14} /> <span className="hidden sm:inline">Reservasi</span>
                 </button>
-              )}
-              {tipeOrder === 'dine-in' && (
-                <select value={selectedMeja?.id || ''} onChange={e => setSelectedMeja(mejaList.find(m => m.id === parseInt(e.target.value)))}
-                  className="px-3 md:px-4 py-2.5 md:py-3 rounded-full text-xs md:text-sm focus:outline-none" style={{ backgroundColor: '#EDE0CC', color: '#634930', border: '1.5px solid #C4A882' }}>
-                  <option value="">Pilih Meja</option>
-                  {mejaList.map(m => <option key={m.id} value={m.id}>Meja #{String(m.nomor).padStart(3, '0')} ({m.status})</option>)}
-                </select>
               )}
             </div>
 
@@ -297,7 +287,7 @@ export default function KasirPOS() {
           <div className={`fixed right-0 top-0 bottom-0 z-50 lg:static lg:z-auto w-[320px] md:w-80 max-w-full flex flex-col shadow-xl transition-transform duration-300 ${showOrderPanel ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}`} style={{ backgroundColor: '#fff' }}>
             <div className="p-4 md:p-5 border-b flex justify-between items-center" style={{ borderColor: '#EDE0CC' }}>
               <h2 className="text-base md:text-lg font-bold" style={{ color: '#634930' }}>
-                Order {tipeOrder === 'take-away' ? '(TA)' : selectedMeja ? `(M#${String(selectedMeja.nomor).padStart(3, '0')})` : ''}
+                Order {tipeOrder === 'take-away' ? '(TA)' : ''}
               </h2>
               <button onClick={() => setShowOrderPanel(false)} className="lg:hidden text-[#8B6F47] text-xl"><X size={20} /></button>
             </div>
