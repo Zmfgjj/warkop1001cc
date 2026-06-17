@@ -5,6 +5,7 @@ import { ReceiptText, ShoppingCart, Grid2X2, TrendingUp, Coffee, Clock, ArrowRig
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
+import { cetakStruk, cetakStrukThermal } from '../utils/printStruk'
 
 export default function Kasir() {
   const { user, canView, canEdit: userCanEdit, isInvestor } = useAuth()
@@ -64,6 +65,31 @@ export default function Kasir() {
   const handleConfirmPayment = async (status) => {
     try {
       await api.put(`/pesanan/${detailPesanan.id}/pembayaran`, { status });
+      
+      if (status === 'paid') {
+        const p = detailPesanan;
+        const strukData = {
+          pesananId: p.id,
+          meja: p.nomor_meja || p.meja_id,
+          tipe: p.tipe,
+          kasir: user?.username,
+          tanggal: p.created_at,
+          items: p.items,
+          total: p.total,
+          subtotal: p.total, // approx for older orders
+          ppn: 0,
+          ppnRate: 0,
+          metodeBayar: 'QRIS/Transfer',
+          jumlahBayar: p.total,
+          kembali: 0
+        };
+        const printTypes = ['kasir', 'pelanggan', 'bar'];
+        if (p.tipe === 'dine-in') printTypes.push('meja');
+        
+        const thermalOk = await cetakStrukThermal(strukData, printTypes).catch(() => false);
+        if (!thermalOk) cetakStruk(strukData, printTypes);
+      }
+
       setShowDetail(false);
       fetchDashboard();
     } catch (err) {

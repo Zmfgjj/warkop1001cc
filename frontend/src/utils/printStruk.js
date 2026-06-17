@@ -13,63 +13,100 @@ function formatTanggal(date) {
 }
 
 // Generate HTML struk untuk window.print()
-function generateStrukHTML({ pesananId, items, subtotal, ppn, ppnRate, total, metodeBayar, jumlahBayar, kembali, meja, tipe, kasir, tanggal, copyLabel }) {
-  const itemRows = items.map(o => `
-    <tr>
-      <td style="text-align:left;font-size:11px">${o.nama} ${o.catatan ? `<br><i style="font-size:9px">${o.catatan}</i>` : ''}</td>
-      <td style="text-align:center;font-size:11px">${o.qty}</td>
-      <td style="text-align:right;font-size:11px">${formatRupiah(o.harga * o.qty)}</td>
-    </tr>
-  `).join('')
+function generateStrukHTML({ pesananId, items, subtotal, ppn, ppnRate, total, metodeBayar, jumlahBayar, kembali, meja, tipe, kasir, tanggal, copyLabel, type }) {
+  const isDapurOrBar = type === 'dapur' || type === 'bar';
+  const isMeja = type === 'meja';
+  
+  const t = new Date(tanggal || Date.now());
+  const dateStr = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  const timeStr = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`;
+
+  const itemRows = items.map((o, idx) => `
+    <div style="margin-bottom:4px">
+      <p style="margin:0">${idx + 1}. ${o.nama || o.nama_menu || 'Item'} ${o.catatan ? `( ${o.catatan} )` : ''}</p>
+      <div style="display:flex;justify-content:space-between;padding-left:12px">
+        <span>${o.qty} X ${isDapurOrBar ? '' : (isMeja ? `<del>${formatRupiah(o.harga)}</del>` : formatRupiah(o.harga))}</span>
+        <span>${isDapurOrBar ? '' : (isMeja ? `<del>${formatRupiah(o.harga * o.qty)}</del>` : formatRupiah(o.harga * o.qty))}</span>
+      </div>
+    </div>
+  `).join('');
 
   return `
     <div style="width:280px;font-family:'Courier New',monospace;padding:8px;margin:0 auto">
       <div style="text-align:center;margin-bottom:8px">
-        <h3 style="margin:0;font-size:14px">☕ WARKOP 1001 CC</h3>
-        <p style="margin:2px 0;font-size:10px">Jl. Contoh No. 123</p>
-        <p style="margin:2px 0;font-size:10px">${formatTanggal(tanggal)}</p>
-        ${copyLabel ? `<p style="margin:4px 0;font-size:9px;font-weight:bold;border:1px dashed #000;padding:2px">${copyLabel}</p>` : ''}
+        <h3 style="margin:0;font-size:16px;font-weight:normal;">Warkop 1001cc</h3>
+        <p style="margin:2px 0;font-size:12px">Jl. Raya Bojonggede - Kemang</p>
+        <p style="margin:2px 0;font-size:12px">Warkop1001CC</p>
+        <p style="margin:2px 0;font-size:12px">244238220260604152544</p>
       </div>
-      <hr style="border:none;border-top:1px dashed #000">
-      <div style="font-size:11px;margin:4px 0">
-        <p style="margin:2px 0">No: #${String(pesananId).padStart(4, '0')}</p>
-        <p style="margin:2px 0">${tipe === 'take-away' ? '🛍️ Take Away' : `🍽️ Meja #${String(meja || '?').padStart(3, '0')}`}</p>
-        ${kasir ? `<p style="margin:2px 0">Kasir: ${kasir}</p>` : ''}
+      <hr style="border:none;border-top:1px dashed #000;margin:8px 0">
+      
+      <div style="font-size:12px;display:flex;justify-content:space-between;">
+        <div>
+          <p style="margin:2px 0">No.0-${String(pesananId)}</p>
+          <p style="margin:2px 0">${dateStr}</p>
+          <p style="margin:2px 0">${timeStr}</p>
+        </div>
+        <div style="text-align:right">
+          <p style="margin:2px 0">Meja ${tipe === 'take-away' ? 'TA' : `(${meja || '?'}/1)`}</p>
+          <p style="margin:2px 0">Kasir : Warkop</p>
+          <p style="margin:2px 0">${kasir || 'kasir'}</p>
+        </div>
       </div>
-      <hr style="border:none;border-top:1px dashed #000">
-      <table style="width:100%;border-collapse:collapse">
-        <thead>
-          <tr>
-            <th style="text-align:left;font-size:10px;padding:2px 0">Item</th>
-            <th style="text-align:center;font-size:10px;padding:2px 0">Qty</th>
-            <th style="text-align:right;font-size:10px;padding:2px 0">Total</th>
-          </tr>
-        </thead>
-        <tbody>${itemRows}</tbody>
-      </table>
-      <hr style="border:none;border-top:1px dashed #000">
-      <div style="font-size:11px">
-        <div style="display:flex;justify-content:space-between"><span>Subtotal</span><span>${formatRupiah(subtotal)}</span></div>
-        <div style="display:flex;justify-content:space-between"><span>PPN (${ppnRate}%)</span><span>${formatRupiah(ppn)}</span></div>
-        <hr style="border:none;border-top:1px solid #000">
-        <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:13px"><span>TOTAL</span><span>${formatRupiah(total)}</span></div>
-        <hr style="border:none;border-top:1px solid #000">
-        <div style="display:flex;justify-content:space-between"><span>Bayar (${metodeBayar})</span><span>${metodeBayar === 'Tunai' ? formatRupiah(jumlahBayar) : formatRupiah(total)}</span></div>
-        ${metodeBayar === 'Tunai' ? `<div style="display:flex;justify-content:space-between"><span>Kembali</span><span>${formatRupiah(kembali)}</span></div>` : ''}
+      
+      <hr style="border:none;border-top:1px dashed #000;margin:8px 0">
+      
+      <div style="font-size:12px;margin:8px 0">
+        ${itemRows}
       </div>
-      <hr style="border:none;border-top:1px dashed #000">
-      <div style="text-align:center;font-size:10px;margin-top:6px">
-        <p style="margin:2px 0">Terima kasih!</p>
-        <p style="margin:2px 0">Selamat menikmati ☕</p>
+
+      <hr style="border:none;border-top:1px dashed #000;margin:8px 0">
+      
+      ${!isDapurOrBar ? `
+      <div style="font-size:12px">
+        <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Sub Total</span><span>${isMeja ? `<del>${formatRupiah(subtotal)}</del>` : formatRupiah(subtotal)}</span></div>
+        <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Total</span><span>${isMeja ? `<del>${formatRupiah(total)}</del>` : formatRupiah(total)}</span></div>
+        <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Bayar (${metodeBayar === 'Tunai' ? 'Cash' : metodeBayar})</span><span>${isMeja ? `<del>${formatRupiah(metodeBayar === 'Tunai' ? jumlahBayar : total)}</del>` : formatRupiah(metodeBayar === 'Tunai' ? jumlahBayar : total)}</span></div>
+        ${metodeBayar === 'Tunai' ? `<div style="display:flex;justify-content:space-between;margin:2px 0"><span>Kembali</span><span>${isMeja ? `<del>${formatRupiah(kembali)}</del>` : formatRupiah(kembali)}</span></div>` : ''}
+      </div>
+      <hr style="border:none;border-top:1px dashed #000;margin:8px 0">
+      ` : ''}
+      
+      <div style="text-align:center;font-size:12px;margin-top:8px">
+        <p style="margin:2px 0">Good Vibes In Every Cup</p>
+        <p style="margin:2px 0">Password Wifi :</p>
+        <p style="margin:2px 0">warkopnaikkelaz</p>
+        <br>
+        <p style="margin:2px 0">Bantu kami jadi lebih baik!</p>
+        <p style="margin:2px 0">Beri ulasan di Google Maps:</p>
+        <p style="margin:2px 0;font-weight:bold;">s.id/warkop1001cc-maps</p>
       </div>
     </div>
   `
 }
 
-// Cetak struk via window.print() - 2 copy (pelanggan + laporan)
-export function cetakStruk(data) {
-  const strukPelanggan = generateStrukHTML({ ...data, copyLabel: '📋 PELANGGAN' })
-  const strukLaporan = generateStrukHTML({ ...data, copyLabel: '📊 LAPORAN' })
+function getFilteredItems(items, type) {
+  if (type === 'dapur') return items.filter(i => { const k = (i.kategori_nama || i.kategori || '').toLowerCase(); return k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie'); });
+  if (type === 'bar') return items.filter(i => { const k = (i.kategori_nama || i.kategori || '').toLowerCase(); return k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew'); });
+  return items;
+}
+
+// Cetak struk via window.print()
+export function cetakStruk(data, printTypes = ['kasir', 'pelanggan']) {
+  const receiptsHtml = printTypes.map(type => {
+    let label = '📋 PELANGGAN';
+    if (type === 'kasir') label = '📋 KASIR';
+    else if (type === 'dapur') label = '🍳 DAPUR';
+    else if (type === 'bar') label = '🍸 BAR';
+    else if (type === 'meja') label = '🍽️ MEJA';
+    
+    const filteredItems = getFilteredItems(data.items || [], type);
+    if (filteredItems.length === 0 && (type === 'dapur' || type === 'bar')) return ''; // Skip if empty for kitchen/bar
+
+    return `<div class="page-break">${generateStrukHTML({ ...data, items: filteredItems, copyLabel: label, type })}</div>`;
+  }).filter(html => html !== '').join('');
+
+  if (!receiptsHtml) return;
 
   const printWindow = window.open('', '_blank', 'width=320,height=600')
   if (!printWindow) {
@@ -91,8 +128,7 @@ export function cetakStruk(data) {
       </style>
     </head>
     <body>
-      <div class="page-break">${strukPelanggan}</div>
-      <div>${strukLaporan}</div>
+      ${receiptsHtml}
       <script>
         window.onload = function() { window.print(); window.onafterprint = function() { window.close(); }; }
       <\/script>
@@ -103,7 +139,7 @@ export function cetakStruk(data) {
 }
 
 // Cetak struk via Web Serial API (thermal printer ESC/POS)
-export async function cetakStrukThermal(data) {
+export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
   if (!('serial' in navigator)) {
     globalAlert('Browser tidak mendukung Web Serial API. Gunakan Chrome/Edge.', 'Perhatian', 'error')
     return false
@@ -136,42 +172,81 @@ export async function cetakStrukThermal(data) {
 
     let receipt = INIT
     
-    // Print 2 copies
-    for (let copy = 0; copy < 2; copy++) {
-      const label = copy === 0 ? '[ PELANGGAN ]' : '[ LAPORAN ]'
+    // Print requested copies
+    for (const type of printTypes) {
+      let label = '[ PELANGGAN ]';
+      if (type === 'kasir') label = '[ KASIR ]';
+      else if (type === 'dapur') label = '[ DAPUR ]';
+      else if (type === 'bar') label = '[ BAR ]';
+      else if (type === 'meja') label = '[ MEJA ]';
+
+      const filteredItems = getFilteredItems(data.items || [], type);
+      if (filteredItems.length === 0 && (type === 'dapur' || type === 'bar')) continue;
+
+      const isDapurOrBar = type === 'dapur' || type === 'bar';
+      const isMeja = type === 'meja';
 
       receipt += CENTER + DOUBLE
-      receipt += 'WARKOP 1001 CC' + LF
+      receipt += 'Warkop 1001cc' + LF
       receipt += NORMAL
-      receipt += 'Jl. Contoh No. 123' + LF
-      receipt += formatTanggal(data.tanggal) + LF
-      receipt += BOLD_ON + label + BOLD_OFF + LF
-      receipt += LEFT + line
-      receipt += `No: #${String(data.pesananId).padStart(4, '0')}` + LF
-      receipt += `${data.tipe === 'take-away' ? 'Take Away' : `Meja #${String(data.meja || '?').padStart(3, '0')}`}` + LF
-      if (data.kasir) receipt += `Kasir: ${data.kasir}` + LF
-      receipt += line
+      receipt += 'Jl. Raya Bojonggede - Kemang' + LF
+      receipt += 'Warkop1001CC' + LF
+      receipt += '244238220260604152544' + LF
+      receipt += LEFT + dashed
+      
+      const noStr = padRight(`No.0-${String(data.pesananId)}`, 16);
+      const mejaStr = padLeft(`Meja ${data.tipe === 'take-away' ? 'TA' : `(${data.meja || '?'}/1)`}`, 16);
+      receipt += noStr + mejaStr + LF;
+      
+      const t = new Date(data.tanggal || Date.now());
+      const dateStr = padRight(`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`, 16);
+      const kasirT1 = padLeft('Kasir : Warkop', 16);
+      receipt += dateStr + kasirT1 + LF;
 
-      for (const item of data.items) {
-        receipt += item.nama + LF
-        receipt += `  ${item.qty}x ${padLeft(formatRupiah(item.harga), 12)} ${padLeft(formatRupiah(item.harga * item.qty), 12)}` + LF
-        if (item.catatan) receipt += `  * ${item.catatan}` + LF
-      }
+      const timeStr = padRight(`${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`, 16);
+      const kasirT2 = padLeft(data.kasir || 'kasir', 16);
+      receipt += timeStr + kasirT2 + LF;
 
-      receipt += line
-      receipt += padRight('Subtotal', 20) + padLeft(formatRupiah(data.subtotal), 12) + LF
-      receipt += padRight(`PPN (${data.ppnRate}%)`, 20) + padLeft(formatRupiah(data.ppn), 12) + LF
       receipt += dashed
-      receipt += BOLD_ON
-      receipt += padRight('TOTAL', 20) + padLeft(formatRupiah(data.total), 12) + LF
-      receipt += BOLD_OFF + dashed
-      receipt += padRight(`Bayar (${data.metodeBayar})`, 20) + padLeft(formatRupiah(data.metodeBayar === 'Tunai' ? data.jumlahBayar : data.total), 12) + LF
-      if (data.metodeBayar === 'Tunai') {
-        receipt += padRight('Kembali', 20) + padLeft(formatRupiah(data.kembali), 12) + LF
+
+      let idx = 1;
+      for (const item of filteredItems) {
+        receipt += `${idx}. ${item.nama || item.nama_menu || 'Item'} ${item.catatan ? `( ${item.catatan} )` : ''}` + LF
+        if (!isDapurOrBar) {
+          const priceStr = isMeja ? '------' : formatRupiah(item.harga);
+          const totalStr = isMeja ? '------' : formatRupiah(item.harga * item.qty);
+          receipt += `   ${item.qty}  X ${padRight(priceStr, 12)} ${padLeft(totalStr, 11)}` + LF
+        } else {
+          receipt += `   ${item.qty}  X` + LF
+        }
+        idx++;
       }
-      receipt += line
-      receipt += CENTER + 'Terima kasih!' + LF
-      receipt += 'Selamat menikmati' + LF + LF + LF
+
+      receipt += dashed
+      if (!isDapurOrBar) {
+        const subtotalStr = isMeja ? '------' : formatRupiah(data.subtotal);
+        const totalStr = isMeja ? '------' : formatRupiah(data.total);
+        
+        receipt += padRight('Sub Total', 16) + padLeft(subtotalStr, 16) + LF
+        receipt += padRight('Total', 16) + padLeft(totalStr, 16) + LF
+        
+        const bayarStr = isMeja ? '------' : formatRupiah(data.metodeBayar === 'Tunai' ? data.jumlahBayar : data.total);
+        receipt += padRight(`Bayar (${data.metodeBayar === 'Tunai' ? 'Cash' : data.metodeBayar})`, 16) + padLeft(bayarStr, 16) + LF
+        if (data.metodeBayar === 'Tunai') {
+          const kembaliStr = isMeja ? '------' : formatRupiah(data.kembali);
+          receipt += padRight('Kembali', 16) + padLeft(kembaliStr, 16) + LF
+        }
+        receipt += dashed
+      }
+
+      receipt += CENTER + 'Good Vibes In Every Cup' + LF
+      receipt += 'Password Wifi :' + LF
+      receipt += 'warkopnaikkelaz' + LF + LF
+      receipt += 'Bantu kami jadi lebih baik!' + LF
+      receipt += 'Beri ulasan di Google Maps:' + LF
+      receipt += 's.id/warkop1001cc-maps' + LF
+      
+      receipt += LF + LF
       receipt += CUT
     }
 

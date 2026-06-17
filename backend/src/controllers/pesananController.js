@@ -1,5 +1,38 @@
 const db = require('../config/database');
 
+async function getNomorAntrean(conn, isOffline) {
+  // Lock settings
+  await conn.query('SELECT id FROM settings FOR UPDATE');
+  
+  const [rows] = await conn.query('SELECT `key`, nilai FROM settings WHERE `key` IN ("queue_date", "queue_online", "queue_offline")');
+  const settings = {};
+  for (const r of rows) settings[r.key] = r.nilai;
+  
+  const d = new Date();
+  const todayStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+
+  if (settings.queue_date !== todayStr) {
+    settings.queue_date = todayStr;
+    settings.queue_online = '0';
+    settings.queue_offline = '30';
+    await conn.query('UPDATE settings SET nilai = ? WHERE `key` = "queue_date"', [todayStr]);
+    await conn.query('UPDATE settings SET nilai = "0" WHERE `key` = "queue_online"');
+    await conn.query('UPDATE settings SET nilai = "30" WHERE `key` = "queue_offline"');
+  }
+
+  let nextNo = 0;
+  if (isOffline) {
+    nextNo = parseInt(settings.queue_offline || '30') + 1;
+    await conn.query('UPDATE settings SET nilai = ? WHERE `key` = "queue_offline"', [nextNo]);
+  } else {
+    nextNo = parseInt(settings.queue_online || '0') + 1;
+    if (nextNo > 30) nextNo = 1; // loop back to 1 if it exceeds 30
+    await conn.query('UPDATE settings SET nilai = ? WHERE `key` = "queue_online"', [nextNo]);
+  }
+  return nextNo;
+}
+
+
 exports.buatPesanan = async (req, res) => {
   const conn = await db.getConnection();
   try {
@@ -51,9 +84,12 @@ exports.buatPesanan = async (req, res) => {
       }
     } else {
       total = totalBaru;
+      const isOffline = kasir_id !== null;
+      const nomor_antrean = await getNomorAntrean(conn, isOffline);
+
       const [result] = await conn.query(
-        'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total) VALUES (?, ?, ?, ?, ?)',
-        [meja_id, kasir_id, tipe, catatan, total]
+        'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total, nomor_antrean) VALUES (?, ?, ?, ?, ?, ?)',
+        [meja_id, kasir_id, tipe, catatan, total, nomor_antrean]
       );
       pesanan_id = result.insertId;
 
@@ -99,9 +135,11 @@ exports.buatReservasi = async (req, res) => {
       return res.status(400).json({ message: 'Meja dan nama pelanggan wajib diisi' });
     }
 
+    const nomor_antrean = await getNomorAntrean(conn, true); // Reservasi is always offline/kasir
+
     const [result] = await conn.query(
-      'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total, is_open_bill, dp_amount, nama_pelanggan) VALUES (?, ?, "dine-in", "", 0, true, ?, ?)',
-      [meja_id, kasir_id, dp_amount || 0, nama_pelanggan]
+      'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total, is_open_bill, dp_amount, nama_pelanggan, nomor_antrean) VALUES (?, ?, "dine-in", "", 0, true, ?, ?, ?)',
+      [meja_id, kasir_id, dp_amount || 0, nama_pelanggan, nomor_antrean]
     );
 
     await conn.query('UPDATE meja SET status = "reservasi" WHERE id = ?', [meja_id]);
@@ -138,9 +176,10 @@ exports.getPesanan = async (req, res) => {
     if (rows.length > 0) {
       const ids = rows.map(r => r.id);
       const [allDetails] = await db.query(`
-        SELECT dp.*, mn.nama as nama_menu
+        SELECT dp.*, mn.nama as nama_menu, k.nama as kategori_nama
         FROM detail_pesanan dp
         LEFT JOIN menu mn ON dp.menu_id = mn.id
+        LEFT JOIN kategori k ON mn.kategori_id = k.id
         WHERE dp.pesanan_id IN (?)
       `, [ids]);
 

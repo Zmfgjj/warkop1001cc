@@ -1,10 +1,11 @@
 import { useAuth } from '../hooks/useAuth'
 import { useState, useEffect } from 'react'
-import { MonitorPlay, ShoppingBag, Utensils, Clock, CheckCircle, Check, Circle, FileText } from 'lucide-react';
+import { MonitorPlay, ShoppingBag, Utensils, Clock, CheckCircle, Check, Circle, FileText, Coffee } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
 import { useAlert } from '../context/AlertContext'
+import { cetakStruk, cetakStrukThermal } from '../utils/printStruk'
 
 export default function KDS() {
   const { user, canEdit: userCanEdit } = useAuth()
@@ -14,6 +15,7 @@ export default function KDS() {
   const [loading, setLoading] = useState(true)
   const [selectedNote, setSelectedNote] = useState(null)
   const [confirmModal, setConfirmModal] = useState(null)
+  const [kdsMode, setKdsMode] = useState('dapur') // 'dapur', 'bar', 'semua'
 
   const fetchPesanan = async () => {
     setLoading(true)
@@ -84,7 +86,22 @@ export default function KDS() {
   const processUpdateStatusPesanan = async (pesananId, status) => {
     if (status === 'selesai') {
       // Optimistic remove for 'selesai'
-      setPesananList(prev => prev.filter(p => p.id !== pesananId))
+      const p = pesananList.find(x => x.id === pesananId)
+      setPesananList(prev => prev.filter(x => x.id !== pesananId))
+
+      // Print Struk Dapur when completed
+      if (p && kdsMode === 'dapur') {
+        const strukData = {
+          pesananId: p.id,
+          meja: p.nomor_meja || p.meja_id,
+          tipe: p.tipe,
+          kasir: p.nama_kasir,
+          tanggal: p.created_at,
+          items: p.items,
+        }
+        const thermalOk = await cetakStrukThermal(strukData, ['dapur']).catch(() => false)
+        if (!thermalOk) cetakStruk(strukData, ['dapur'])
+      }
     }
 
     try {
@@ -95,6 +112,18 @@ export default function KDS() {
     }
     setConfirmModal(null)
   }
+
+  // Filter pesanan based on kdsMode
+  const filteredPesanan = pesananList.map(p => {
+    if (kdsMode === 'semua') return p;
+    const filteredItems = p.items.filter(i => {
+      const k = (i.kategori_nama || i.kategori || '').toLowerCase();
+      if (kdsMode === 'dapur') return k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie');
+      if (kdsMode === 'bar') return k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew');
+      return true;
+    });
+    return { ...p, items: filteredItems };
+  }).filter(p => p.items.length > 0);
 
   return (
     <MobileLayout activeMenu="KDS">
@@ -144,8 +173,14 @@ export default function KDS() {
             <p style={{ color: '#8B6F47' }}>Tidak ada pesanan aktif</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 md:gap-5 pb-8">
-            {pesananList.map(pesanan => (
+          <div>
+            <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+              <button onClick={() => setKdsMode('semua')} className="px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all whitespace-nowrap" style={{ backgroundColor: kdsMode === 'semua' ? '#634930' : '#fff', color: kdsMode === 'semua' ? '#fff' : '#634930', border: '1px solid #634930' }}>Semua</button>
+              <button onClick={() => setKdsMode('dapur')} className="px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all whitespace-nowrap flex items-center gap-1" style={{ backgroundColor: kdsMode === 'dapur' ? '#634930' : '#fff', color: kdsMode === 'dapur' ? '#fff' : '#634930', border: '1px solid #634930' }}><Utensils size={14}/> Dapur</button>
+              <button onClick={() => setKdsMode('bar')} className="px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all whitespace-nowrap flex items-center gap-1" style={{ backgroundColor: kdsMode === 'bar' ? '#634930' : '#fff', color: kdsMode === 'bar' ? '#fff' : '#634930', border: '1px solid #634930' }}><Coffee size={14}/> Bar</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 md:gap-5 pb-8">
+            {filteredPesanan.map(pesanan => (
               <div
                 key={pesanan.id}
                 className="rounded-2xl md:rounded-3xl overflow-hidden bg-white shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col"
@@ -273,6 +308,7 @@ export default function KDS() {
                 )}
               </div>
             ))}
+          </div>
           </div>
         )}
       </div>

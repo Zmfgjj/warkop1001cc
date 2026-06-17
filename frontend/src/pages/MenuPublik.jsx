@@ -99,8 +99,27 @@ export default function MenuPublik() {
 
     // Listen for payment confirmation from cashier
     const onPembayaran = (data) => {
-      if (orderSummary && data.pesanan_id === orderSummary.pesananId && data.status === 'paid') {
-        setOrderStatus('paid')
+      if (orderSummary && data.pesanan_id === orderSummary.pesananId) {
+        if (data.status === 'sukses') {
+          setOrderStatus('paid')
+        } else if (data.status === 'unpaid') {
+          setOrderStatus('unpaid')
+          alert('Bukti pembayaran Anda ditolak oleh kasir. Silakan unggah ulang bukti yang valid.')
+        }
+      }
+    }
+
+    const onStatusPesanan = (data) => {
+      if (orderSummary && data.pesanan_id === orderSummary.pesananId) {
+        if (data.payment_status === 'paid') setOrderStatus('paid')
+        if (data.payment_status === 'unpaid') {
+          setOrderStatus('unpaid')
+          alert('Bukti pembayaran Anda ditolak oleh kasir. Silakan unggah ulang bukti yang valid.')
+        }
+        if (data.status === 'batal') {
+          alert('Pesanan Anda dibatalkan oleh kasir.')
+          setSubmitted(false); setCheckoutMode(false); setOrderStatus('unpaid');
+        }
       }
     }
 
@@ -108,12 +127,14 @@ export default function MenuPublik() {
     socket.on('menuUpdated', onMenuChange)
     socket.on('menuDeleted', onMenuChange)
     socket.on('pembayaran', onPembayaran)
+    socket.on('status_pesanan', onStatusPesanan)
 
     return () => {
       socket.off('menuAdded', onMenuChange)
       socket.off('menuUpdated', onMenuChange)
       socket.off('menuDeleted', onMenuChange)
       socket.off('pembayaran', onPembayaran)
+      socket.off('status_pesanan', onStatusPesanan)
     }
   }, [socket, debouncedFetch, orderSummary])
 

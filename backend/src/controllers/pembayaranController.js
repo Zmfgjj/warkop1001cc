@@ -5,7 +5,7 @@ exports.buatPembayaran = async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    const { pesanan_id, metode } = req.body;
+    const { pesanan_id, metode, is_kasir } = req.body;
 
     // Cek pesanan
     const [pesanan] = await conn.query(
@@ -31,14 +31,16 @@ exports.buatPembayaran = async (req, res) => {
     const dpAmount = parseFloat(pesanan[0].dp_amount || 0);
     const jumlahBayar = Math.max(0, totalTagihan - dpAmount);
 
+    const isInstantSuccess = (metode === 'cash' || metode === 'tunai' || is_kasir);
+
     // Insert pembayaran
     const [result] = await conn.query(
       'INSERT INTO pembayaran (pesanan_id, metode, jumlah, status) VALUES (?, ?, ?, ?)',
-      [pesanan_id, metode, jumlahBayar, (metode === 'cash' || metode === 'tunai') ? 'sukses' : 'pending']
+      [pesanan_id, metode, jumlahBayar, isInstantSuccess ? 'sukses' : 'pending']
     );
 
     // Close open bill if cash/tunai (or wait for QRIS)
-    if (metode === 'cash' || metode === 'tunai') {
+    if (isInstantSuccess) {
       await conn.query('UPDATE pesanan SET is_open_bill = 0, payment_status = "paid" WHERE id = ?', [pesanan_id]);
     }
 
@@ -50,11 +52,11 @@ exports.buatPembayaran = async (req, res) => {
     // Emit socket
     const io = req.app.get('io');
     if (io) {
-      io.emit('pembayaran', { pesanan_id, metode, status: (metode === 'cash' || metode === 'tunai') ? 'sukses' : 'pending' });
+      io.emit('pembayaran', { pesanan_id, metode, status: isInstantSuccess ? 'sukses' : 'pending' });
     }
 
     res.status(201).json({
-      message: (metode === 'cash' || metode === 'tunai') ? 'Pembayaran berhasil' : 'Menunggu pembayaran QRIS',
+      message: isInstantSuccess ? 'Pembayaran berhasil' : 'Menunggu pembayaran QRIS',
       pembayaran_id: result.insertId,
       jumlah: jumlahBayar,
       metode
