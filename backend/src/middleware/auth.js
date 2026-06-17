@@ -49,6 +49,13 @@ module.exports = (config = []) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = decoded;
 
+      const userRole = (decoded.role || '').toString().toLowerCase().trim();
+
+      // Investor role globally restricted to GET only
+      if (userRole === 'investor' && req.method !== 'GET') {
+        return res.status(403).json({ message: 'Read-only: Investor tidak dapat melakukan perubahan data' });
+      }
+
       // If config is empty array, just authenticate
       if (Array.isArray(config) && config.length === 0) {
         return next();

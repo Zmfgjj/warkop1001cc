@@ -41,7 +41,36 @@ exports.getMenuPublik = async (req, res) => {
       WHERE m.tersedia = 1
       ORDER BY kategori_urutan, m.nama
     `);
-    res.json(rows);
+
+    // Fetch varian
+    const [variants] = await db.query('SELECT * FROM menu_varian');
+    const variantMap = {};
+    for (const v of variants) {
+      if (!variantMap[v.menu_id]) variantMap[v.menu_id] = [];
+      variantMap[v.menu_id].push({
+        id: v.id,
+        nama: v.nama,
+        harga_tambahan: v.harga_tambahan || 0
+      });
+    }
+
+    const result = rows.map(m => {
+      // Map legacy pilihan_rasa to variant format if no DB variants exist
+      let mappedVariants = variantMap[m.id] || [];
+      if (mappedVariants.length === 0 && m.pilihan_rasa) {
+        mappedVariants = m.pilihan_rasa.split(',').map((r, i) => ({
+          id: `legacy_${i}`,
+          nama: r.trim(),
+          harga_tambahan: 0
+        })).filter(r => r.nama);
+      }
+      return {
+        ...m,
+        variants: mappedVariants
+      };
+    });
+
+    res.json(result);
   } catch (err) {
     console.error('publikController.getMenuPublik:', err.message);
     res.status(500).json({ message: 'Server error' });
@@ -160,9 +189,21 @@ exports.buatPesananPublik = async (req, res) => {
         return res.status(400).json({ message: `Menu ID ${menuId} tidak tersedia` });
       }
 
+      let itemHarga = menuRows[0].harga;
+
+      if (item.varian_nama) {
+        const [varianRows] = await conn.query(
+          'SELECT harga_tambahan FROM menu_varian WHERE menu_id = ? AND nama = ?',
+          [menuId, item.varian_nama]
+        );
+        if (varianRows.length > 0) {
+          itemHarga += varianRows[0].harga_tambahan;
+        }
+      }
+
       const itemCatatan = sanitize(item.catatan || '');
-      total += menuRows[0].harga * qty;
-      validatedItems.push({ menu_id: menuId, qty, harga: menuRows[0].harga, catatan: itemCatatan });
+      total += itemHarga * qty;
+      validatedItems.push({ menu_id: menuId, qty, harga: itemHarga, catatan: itemCatatan });
     }
 
     // Check Open Bill

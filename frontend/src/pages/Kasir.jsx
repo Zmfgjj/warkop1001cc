@@ -1,7 +1,7 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { ReceiptText, ShoppingCart, Grid2X2, TrendingUp, Coffee, Clock, ArrowRight, ShoppingBag, Utensils } from 'lucide-react';
+import { ReceiptText, ShoppingCart, Grid2X2, TrendingUp, Coffee, Clock, ArrowRight, ShoppingBag, Utensils, Trash2 } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
@@ -36,6 +36,18 @@ export default function Kasir() {
       setLoading(false)
     }
   }
+
+  const handleDeletePesanan = async (id) => {
+    if (!window.confirm('Yakin ingin menghapus pesanan ini secara permanen? Data transaksi dan pembayaran akan terhapus.')) return;
+    try {
+      await api.delete(`/pesanan/${id}`);
+      setShowDetail(false);
+      fetchDashboard();
+    } catch (err) {
+      console.error(err);
+      alert('Gagal menghapus pesanan');
+    }
+  };
 
   const debouncedFetch = useDebouncedCallback(fetchDashboard, 400)
 
@@ -380,9 +392,16 @@ export default function Kasir() {
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">{new Date(detailPesanan.created_at).toLocaleString('id-ID', { dateStyle: 'full', timeStyle: 'short' })}</p>
               </div>
-              <button onClick={() => setShowDetail(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-800 transition-colors">
-                ✕
-              </button>
+              <div className="flex gap-2">
+                {user?.role === 'owner' && (
+                  <button onClick={() => handleDeletePesanan(detailPesanan.id)} className="w-8 h-8 flex items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-colors" title="Hapus Pesanan">
+                    <Trash2 size={16} />
+                  </button>
+                )}
+                <button onClick={() => setShowDetail(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-800 transition-colors">
+                  ✕
+                </button>
+              </div>
             </div>
             
             {/* Modal Body */}

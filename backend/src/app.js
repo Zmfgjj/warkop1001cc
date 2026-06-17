@@ -91,6 +91,8 @@ const settingsRoutes = require('./routes/settings');
 app.use('/api/settings', settingsRoutes);
 const roleRoutes = require('./routes/role');
 app.use('/api/roles', roleRoutes);
+const bonusRoutes = require('./routes/bonus');
+app.use('/api/bonus', bonusRoutes);
 const publikRoutes = require('./routes/publik');
 app.use('/api/publik', strictLimiter, publikRoutes);
 

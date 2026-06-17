@@ -180,11 +180,13 @@ export default function Laporan() {
     ;(d.menu_detail || []).forEach(m => {
       const omset = Number(m.total_pendapatan)
       const hppTotal = Number(m.total_hpp || 0)
-      ringkasan.push([m.nama, m.kategori || '-', createCell(Number(m.hpp), styleCurrency), createCell(Number(m.harga_jual), styleCurrency), createCell(Number(m.total_terjual), styleCenter), createCell(omset, styleCurrency), createCell(hppTotal, styleCurrency), createCell(omset - hppTotal, styleCurrency)])
+      const ppnMenu = omset * ((ppnRate || 0) / 100)
+      ringkasan.push([m.nama, m.kategori || '-', createCell(Number(m.hpp), styleCurrency), createCell(Number(m.harga_jual), styleCurrency), createCell(Number(m.total_terjual), styleCenter), createCell(omset, styleCurrency), createCell(hppTotal, styleCurrency), createCell(omset - ppnMenu - hppTotal, styleCurrency)])
     })
     const totalOmsetMenu = (d.menu_detail || []).reduce((s, m) => s + Number(m.total_pendapatan), 0)
     const totalHppMenu = (d.menu_detail || []).reduce((s, m) => s + Number(m.total_hpp || 0), 0)
-    ringkasan.push([createCell('TOTAL', styleBold), '', '', '', '', createCell(totalOmsetMenu, styleCurrencyBold), createCell(totalHppMenu, styleCurrencyBold), createCell(totalOmsetMenu - totalHppMenu, styleCurrencyBold)])
+    const totalPpnMenu = totalOmsetMenu * ((ppnRate || 0) / 100)
+    ringkasan.push([createCell('TOTAL', styleBold), '', '', '', '', createCell(totalOmsetMenu, styleCurrencyBold), createCell(totalHppMenu, styleCurrencyBold), createCell(totalOmsetMenu - totalPpnMenu - totalHppMenu, styleCurrencyBold)])
 
     const ws = XLSX.utils.aoa_to_sheet(ringkasan)
     ws['!cols'] = [{ wch: 35 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 18 }]
@@ -236,11 +238,13 @@ export default function Laporan() {
     ;(d.menu_detail || []).forEach(m => {
       const omset = Number(m.total_pendapatan)
       const hppTotal = Number(m.total_hpp || 0)
-      rows.push([m.nama, m.kategori || '-', createCell(Number(m.hpp), styleCurrency), createCell(Number(m.harga_jual), styleCurrency), createCell(Number(m.total_terjual), styleCenter), createCell(omset, styleCurrency), createCell(hppTotal, styleCurrency), createCell(omset - hppTotal, styleCurrency)])
+      const ppnMenu = omset * ((ppnRate || 0) / 100)
+      rows.push([m.nama, m.kategori || '-', createCell(Number(m.hpp), styleCurrency), createCell(Number(m.harga_jual), styleCurrency), createCell(Number(m.total_terjual), styleCenter), createCell(omset, styleCurrency), createCell(hppTotal, styleCurrency), createCell(omset - ppnMenu - hppTotal, styleCurrency)])
     })
     const totalOmsetMenu = (d.menu_detail || []).reduce((s, m) => s + Number(m.total_pendapatan), 0)
     const totalHppMenu = (d.menu_detail || []).reduce((s, m) => s + Number(m.total_hpp || 0), 0)
-    rows.push([createCell('TOTAL', styleBold), '', '', '', '', createCell(totalOmsetMenu, styleCurrencyBold), createCell(totalHppMenu, styleCurrencyBold), createCell(totalOmsetMenu - totalHppMenu, styleCurrencyBold)])
+    const totalPpnMenu = totalOmsetMenu * ((ppnRate || 0) / 100)
+    rows.push([createCell('TOTAL', styleBold), '', '', '', '', createCell(totalOmsetMenu, styleCurrencyBold), createCell(totalHppMenu, styleCurrencyBold), createCell(totalOmsetMenu - totalPpnMenu - totalHppMenu, styleCurrencyBold)])
 
     const ws = XLSX.utils.aoa_to_sheet(rows)
     ws['!cols'] = [{ wch: 35 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 18 }]
@@ -304,7 +308,8 @@ export default function Laporan() {
     if (!menuData || menuData.length === 0) return null
     const totalOmset = menuData.reduce((s, m) => s + Number(m.total_pendapatan), 0)
     const totalHpp = menuData.reduce((s, m) => s + Number(m.total_hpp || 0), 0)
-    const totalProfit = totalOmset - totalHpp
+    const totalPpn = totalOmset * ((ppnRate || 0) / 100)
+    const totalProfit = totalOmset - totalPpn - totalHpp
 
     return (
       <div className="bg-white rounded-3xl p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 flex flex-col">
@@ -328,7 +333,8 @@ export default function Laporan() {
               {menuData.map((m, i) => {
                 const omset = Number(m.total_pendapatan)
                 const hppTotal = Number(m.total_hpp || 0)
-                const profit = omset - hppTotal
+                const ppnMenu = omset * ((ppnRate || 0) / 100)
+                const profit = omset - ppnMenu - hppTotal
                 return (
                   <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                     <td className="py-3.5 font-bold text-[#634930]">{m.nama} <br/><span className="text-xs text-gray-400 font-normal">{m.kategori || '-'}</span></td>

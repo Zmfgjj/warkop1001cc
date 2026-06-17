@@ -1,5 +1,5 @@
 import { useAuth } from '../hooks/useAuth'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { MonitorPlay, ShoppingBag, Utensils, Clock, CheckCircle, Check, Circle, FileText, Coffee } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
@@ -16,6 +16,9 @@ export default function KDS() {
   const [selectedNote, setSelectedNote] = useState(null)
   const [confirmModal, setConfirmModal] = useState(null)
   const [kdsMode, setKdsMode] = useState('dapur') // 'dapur', 'bar', 'semua'
+  const [audioEnabled, setAudioEnabled] = useState(false)
+  const audioObjRef = useRef(new Audio('/sounds/order-alert.mp3'))
+  const previousIdsRef = useRef(new Set())
 
   const fetchPesanan = async () => {
     setLoading(true)
@@ -53,6 +56,61 @@ export default function KDS() {
       socket.off('catatan_item', onChange)
     }
   }, [socket, debouncedFetch])
+
+  // Fallback polling every 10 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      debouncedFetch();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [debouncedFetch]);
+
+  // Audio Notification Logic
+  useEffect(() => {
+    if (pesananList.length === 0) return;
+    
+    const currentIds = new Set(pesananList.map(p => p.id));
+    const previousIds = previousIdsRef.current;
+
+    // Skip first load
+    if (previousIds.size === 0) {
+      previousIdsRef.current = currentIds;
+      return;
+    }
+
+    // Detect new orders
+    const newOrders = pesananList.filter(p => !previousIds.has(p.id));
+    
+    if (newOrders.length > 0) {
+      let shouldAlert = false;
+      for (const p of newOrders) {
+        if (kdsMode === 'semua') {
+          shouldAlert = true;
+          break;
+        }
+        const hasRelevantItem = p.items.some(i => {
+          const k = (i.kategori_nama || i.kategori || '').toLowerCase();
+          if (kdsMode === 'dapur') return k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie');
+          if (kdsMode === 'bar') return k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew');
+          return false;
+        });
+        if (hasRelevantItem) {
+          shouldAlert = true;
+          break;
+        }
+      }
+      
+      if (shouldAlert) {
+        showAlert('Ada Pesanan Baru Masuk!', 'Info KDS', 'success');
+        if (audioEnabled) {
+          audioObjRef.current.currentTime = 0;
+          audioObjRef.current.play().catch(e => console.log('Audio error:', e));
+        }
+      }
+    }
+    
+    previousIdsRef.current = currentIds;
+  }, [pesananList, kdsMode, audioEnabled, showAlert]);
 
   const updateStatusItem = async (detailId, pesananId, status) => {
     // Optimistic UI update
@@ -143,6 +201,17 @@ export default function KDS() {
         </div>
 
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => {
+              setAudioEnabled(!audioEnabled);
+              if (!audioEnabled) {
+                audioObjRef.current.play().then(() => audioObjRef.current.pause()).catch(() => {});
+              }
+            }}
+            className={`px-3 md:px-4 py-2 rounded-full font-bold text-xs md:text-sm transition-all shadow-sm ${audioEnabled ? 'bg-[#22B214] text-white' : 'bg-gray-200 text-gray-500'}`}
+          >
+            {audioEnabled ? '🔊 Suara Nyala' : '🔇 Suara Mati'}
+          </button>
           <div className="text-right">
             <p className="text-sm font-bold" style={{ color: '#634930' }}>Halo, {user?.username}</p>
             <p className="text-xs uppercase" style={{ color: '#8B6F47' }}>{user?.role || 'Kasir'}</p>

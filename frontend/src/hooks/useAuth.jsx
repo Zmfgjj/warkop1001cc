@@ -45,6 +45,7 @@ export const AuthProvider = ({ children }) => {
 
   // Helper: check if user has edit access to a module
   const canEdit = (module) => {
+    if (user?.role === 'investor') return false
     if (!user?.permissions) return false
     return user.permissions[module]?.edit === true
   }

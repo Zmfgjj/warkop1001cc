@@ -137,8 +137,8 @@ export default function KasirPOS() {
   const getQty = (menu_id) => order.find(o => o.menu_id === menu_id)?.qty || 0
 
   const subtotal = order.reduce((sum, o) => sum + o.harga * o.qty, 0)
-  const ppn = Math.round(subtotal * ppnRate / 100)
-  const total = subtotal + ppn
+  const ppn = 0 // PPN sudah include di harga, tidak dihitung terpisah di kasir
+  const total = subtotal
   const kembali = jumlahBayar ? Math.max(0, parseInt(jumlahBayar.replace(/\D/g, '') || 0) - total) : 0
   const totalItems = order.reduce((s, o) => s + o.qty, 0)
 
@@ -327,9 +327,10 @@ export default function KasirPOS() {
 
             {/* Footer */}
             <div className="p-4 border-t" style={{ borderColor: '#EDE0CC' }}>
-              <div className="flex justify-between text-sm mb-1"><span style={{ color: '#634930' }}>Subtotal</span><span className="font-bold" style={{ color: '#634930' }}>Rp {subtotal.toLocaleString('id-ID')}</span></div>
-              <div className="flex justify-between text-sm mb-1"><span style={{ color: '#634930' }}>PPN ({ppnRate}%)</span><span className="font-bold" style={{ color: '#634930' }}>Rp {ppn.toLocaleString('id-ID')}</span></div>
-              <div className="flex justify-between text-sm mb-3"><span className="font-bold" style={{ color: '#634930' }}>TOTAL</span><span className="font-bold" style={{ color: '#634930' }}>Rp {total.toLocaleString('id-ID')}</span></div>
+              <div className="flex justify-between text-sm mb-3"><span className="font-bold" style={{ color: '#634930' }}>TOTAL Tagihan</span><span className="font-bold" style={{ color: '#634930' }}>Rp {total.toLocaleString('id-ID')}</span></div>
+              <div className="text-right mt-1 mb-3">
+                <span className="text-[10px] text-gray-400 italic">Harga sudah termasuk PPN</span>
+              </div>
 
               <div className="flex gap-2 mb-3">
                 <select value={metodeBayar} onChange={e => setMetodeBayar(e.target.value)} className="flex-1 px-3 py-2 rounded-lg text-sm focus:outline-none" style={{ backgroundColor: '#F5F0E8', color: '#634930', border: '1px solid #C4A882' }}>
