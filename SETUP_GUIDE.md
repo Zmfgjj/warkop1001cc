@@ -4,7 +4,7 @@
 
 ### 1. Setup Pengguna Default
 
-Jalankan query SQL di file `backend/seed_users.sql` ke database Anda untuk membuat pengguna default:
+Jalankan query SQL di file `backend/scripts/seed_users.sql` ke database Anda untuk membuat pengguna default:
 
 ```sql
 INSERT INTO users (nama, username, password, role, aktif, created_at) VALUES 
@@ -15,7 +15,7 @@ INSERT INTO users (nama, username, password, role, aktif, created_at) VALUES
 ('Admin', 'admin', '$2a$10$Y9jtsilJ2.Ccm3.linHK6OPST9/PgBkqquzi.Oy1skWyQcsqC9YFm', 'admin', 1, NOW());
 ```
 
-**Password untuk semua user: `password123`**
+**Password untuk semua user: `password`**
 
 ---
 
@@ -109,7 +109,7 @@ INSERT INTO users (nama, username, password, role, aktif, created_at) VALUES
 
 ## Port Configuration
 
-- **Frontend:** http://localhost:5174
+- **Frontend:** http://localhost:5173
 - **Backend API:** http://localhost:3000
 - **Database:** Sesuai konfigurasi di `.env`
 
