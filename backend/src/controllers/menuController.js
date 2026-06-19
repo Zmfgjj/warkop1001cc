@@ -278,29 +278,4 @@ exports.updateBulkPromo = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
-exports.updateBulkHPP = async (req, res) => {
-  try {
-    const { percent } = req.body;
-    
-    if (!percent || isNaN(percent) || Number(percent) <= 0 || Number(percent) >= 100) {
-      return res.status(400).json({ message: 'Persentase tidak valid. Masukkan angka antara 1-99.' });
-    }
-
-    const multiplier = Number(percent) / 100;
-
-    // Update HPP for all menus based on the percentage of their normal price
-    // Only update if HPP is currently 0 or null (optional condition, but we'll update all for simplicity)
-    await db.query(`UPDATE menu SET hpp = ROUND(harga * ?)`, [multiplier]);
-
-    // Trigger update for clients
-    const io = req.app.get('io');
-    const [updatedMenus] = await db.query(`SELECT * FROM menu`);
-    updatedMenus.forEach(menu => io.emit('menuUpdated', menu));
-
-    res.json({ message: `Berhasil mengatur HPP massal sebesar ${percent}% dari harga jual.` });
-  } catch (err) {
-    console.error('❌ Error set bulk HPP:', err.message);
-    res.status(500).json({ message: 'Server error saat update HPP massal' });
-  }
-};
+

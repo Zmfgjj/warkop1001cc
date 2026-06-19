@@ -174,25 +174,6 @@ export default function ManajemenMenu() {
     }
   }
 
-  const handleBulkHPP = async () => {
-    const percentStr = window.prompt('Masukkan persentase HPP dari harga jual (contoh: 40 untuk 40%):', '40')
-    if (!percentStr) return
-    
-    const percent = parseInt(percentStr)
-    if (isNaN(percent) || percent <= 0 || percent >= 100) {
-      return showAlert('Persentase tidak valid. Harap masukkan angka 1-99.', 'Perhatian', 'error')
-    }
-
-    if (!window.confirm(`Anda yakin ingin mengatur HPP semua menu menjadi ${percent}% dari harga jualnya?`)) return
-
-    try {
-      const res = await api.put('/menu/hpp/bulk', { percent })
-      showAlert(res.data.message || 'HPP berhasil diperbarui', 'Sukses')
-      fetchMenu()
-    } catch (err) {
-      showAlert(err.response?.data?.message || 'Gagal update HPP', 'Gagal', 'error')
-    }
-  }
 
   const openEditModal = (menu) => {
     setEditTarget(menu)
@@ -258,14 +239,6 @@ export default function ManajemenMenu() {
             
             {canEdit && (
               <div className="flex items-center gap-2">
-                <button
-                  onClick={handleBulkHPP}
-                  className="flex items-center gap-2 px-4 py-3 rounded-2xl font-medium text-stone-700 bg-stone-200 hover:bg-stone-300 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95"
-                  title="Tombol sementara untuk set HPP massal"
-                >
-                  Set HPP Massal
-                </button>
-                <button
                   onClick={() => setShowTambah(true)}
                   className="flex items-center gap-2 px-6 py-3 rounded-2xl font-medium text-amber-50 bg-[#5C4033] hover:bg-[#4A3320] transition-all duration-300 shadow-lg shadow-[#5C4033]/20 hover:shadow-[#5C4033]/30 hover:-translate-y-0.5 active:scale-95"
                 >
