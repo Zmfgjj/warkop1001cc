@@ -58,6 +58,9 @@ Pastikan komputer Anda sudah terinstal:
    npm run dev
    ```
    *Frontend akan berjalan di browser, biasanya di http://localhost:5173 atau port lain yang tertera di terminal.*
+
+> **Catatan WhatsApp Gateway:**
+> Backend sekarang sudah dilengkapi dengan Local WhatsApp Gateway (menggunakan `whatsapp-web.js`). Saat pertama kali di-*run* (`npm install` atau `npm run dev`), sistem mungkin akan mendownload Chromium secara otomatis. Pastikan koneksi internet stabil. Scan QR Code WhatsApp tersedia di halaman CRM pada Frontend untuk menghubungkan nomor pengirim.
 4. Jika ingin mengekspose menu publik lewat tunnel, jalankan:
    ```bash
    npm run tunnel
