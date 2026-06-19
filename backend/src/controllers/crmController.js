@@ -43,45 +43,7 @@ exports.getPelanggan = async (req, res) => {
   }
 };
 
-exports.broadcastGateway = async (req, res) => {
-  try {
-    const { targets, message, token } = req.body;
-    
-    if (!targets || targets.length === 0 || !message || !token) {
-      return res.status(400).json({ message: 'Data tidak lengkap. Pastikan ada nomor, pesan, dan token gateway.' });
-    }
 
-    // Fonnte API format for customized messages: target="phone|name,phone2|name2", message="Halo {name}"
-    const targetString = targets.map(t => `${t.phone}|${t.name}`).join(',');
-    const fonnteMessage = message.replace(/\[Nama\]/gi, '{name}');
-    
-    // Using native fetch (Node 18+)
-    const response = await fetch('https://api.fonnte.com/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': token,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        target: targetString,
-        message: fonnteMessage,
-        delay: '2', // 2 seconds delay between messages
-        countryCode: '62'
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (data.status) {
-      res.json({ message: 'Broadcast berhasil dikirim ke antrean Gateway', data });
-    } else {
-      res.status(400).json({ message: 'Gagal dari Gateway: ' + (data.reason || 'Unknown error') });
-    }
-  } catch (err) {
-    console.error('CRM Broadcast Gateway Error:', err);
-    res.status(500).json({ message: 'Server error saat mengirim broadcast gateway', error: err.message });
-  }
-};
 
 exports.getWaStatus = (req, res) => {
   try {

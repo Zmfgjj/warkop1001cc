@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { ShoppingCart, Plus, Search, Edit2, Trash2, Image as ImageIcon } from 'lucide-react';
 import api from '../api/auth'
-import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
+import { useSocket } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
 import ImageLoader from '../components/ImageLoader'
 import { useAlert } from '../context/AlertContext'
