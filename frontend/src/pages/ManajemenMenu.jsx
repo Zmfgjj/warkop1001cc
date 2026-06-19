@@ -239,6 +239,7 @@ export default function ManajemenMenu() {
             
             {canEdit && (
               <div className="flex items-center gap-2">
+                <button
                   onClick={() => setShowTambah(true)}
                   className="flex items-center gap-2 px-6 py-3 rounded-2xl font-medium text-amber-50 bg-[#5C4033] hover:bg-[#4A3320] transition-all duration-300 shadow-lg shadow-[#5C4033]/20 hover:shadow-[#5C4033]/30 hover:-translate-y-0.5 active:scale-95"
                 >
