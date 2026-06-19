@@ -94,11 +94,11 @@ ALLOWED_ORIGINS=https://warkop1001cc.cloud,http://localhost:5173
 
 ## 👥 Akun Default (Login)
 Jika menggunakan *database seed* bawaan, Anda bisa login dengan:
-- **Owner**: `owner` / `password123`
-- **Manager**: `manager` / `password123`
-- **Kasir**: `kasir1` / `password123`
-- **Dapur (KDS)**: `dapur` / `password123`
-- **Investor**: `investor` / `password123` (Hak akses *Read-Only*)
+- **Owner**: `owner` / `password`
+- **Manager**: `manager` / `password`
+- **Kasir**: `kasir1` / `password`
+- **Dapur (KDS)**: `dapur` / `password`
+- **Investor**: `investor` / `password` (Hak akses *Read-Only*)
 
 ---
 
