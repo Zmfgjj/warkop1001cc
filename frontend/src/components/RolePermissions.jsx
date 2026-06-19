@@ -7,10 +7,14 @@ const MODULE_LABELS = {
   dashboard: 'Dashboard',
   pos: 'Kasir (POS)',
   manajemen_menu: 'Manajemen Menu',
+  manajemen_promo: 'Manajemen Promo',
   manajemen_meja: 'Manajemen Meja',
   kds: 'KDS (Dapur)',
   laporan: 'Laporan',
-  user_manage: 'User Manage'
+  user_manage: 'User Manage',
+  bonus_karyawan: 'Bonus Karyawan',
+  crm: 'CRM (Pelanggan)',
+  manajemen_stock: 'Manajemen Stock'
 }
 
 export default function RolePermissions() {
@@ -60,10 +64,12 @@ export default function RolePermissions() {
     setSaving(role.id)
     try {
       await api.put(`/roles/${role.id}`, { name: role.name, permissions: role.permissions })
-      showAlert('Hak akses berhasil disimpan!', 'Sukses')
+      showAlert('Hak akses berhasil disimpan! Memuat ulang sistem...', 'Sukses')
+      setTimeout(() => {
+        window.location.reload()
+      }, 1500)
     } catch (err) {
       showAlert(err.response?.data?.message || 'Gagal menyimpan', 'Gagal', 'error')
-    } finally {
       setSaving(null)
     }
   }
@@ -75,10 +81,10 @@ export default function RolePermissions() {
       await api.post('/roles', { name: newRoleName.trim() })
       setNewRoleName('')
       setShowAdd(false)
-      fetchRoles()
+      showAlert('Role berhasil ditambahkan! Memuat ulang sistem...', 'Sukses')
+      setTimeout(() => window.location.reload(), 1500)
     } catch (err) {
       showAlert(err.response?.data?.message || 'Gagal menambah role', 'Gagal', 'error')
-    } finally {
       setAddLoading(false)
     }
   }
@@ -88,10 +94,10 @@ export default function RolePermissions() {
     try {
       await api.delete(`/roles/${id}`)
       setShowDelete(null)
-      fetchRoles()
+      showAlert('Role berhasil dihapus! Memuat ulang sistem...', 'Sukses')
+      setTimeout(() => window.location.reload(), 1500)
     } catch (err) {
       showAlert(err.response?.data?.message || 'Gagal menghapus role', 'Gagal', 'error')
-    } finally {
       setDelLoading(false)
     }
   }

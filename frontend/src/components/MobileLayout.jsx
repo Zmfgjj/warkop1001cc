@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
-import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut, Menu, X, Shield, CreditCard } from 'lucide-react'
+import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut, Menu, X, Shield, CreditCard, Tag, MessageCircle, Package } from 'lucide-react'
 
 // Map of menu items with their permission module keys
 const allMenuItems = [
@@ -9,6 +9,9 @@ const allMenuItems = [
   { icon: <ReceiptText size={20} />, label: 'Kasir (POS)', path: '/kasir/pos', module: 'pos' },
   { icon: <CreditCard size={20} />, label: 'Konfirmasi Pembayaran', path: '/kasir/pembayaran', module: 'pos' },
   { icon: <ShoppingCart size={20} />, label: 'Manajemen Menu', path: '/kasir/menu', module: 'manajemen_menu' },
+  { icon: <Tag size={20} />, label: 'Manajemen Promo', path: '/kasir/promo', module: 'manajemen_promo' },
+  { icon: <MessageCircle size={20} />, label: 'CRM (Pelanggan)', path: '/kasir/crm', module: 'crm' },
+  { icon: <Package size={20} />, label: 'Manajemen Stock', path: '/kasir/stock', module: 'manajemen_stock' },
   { icon: <Grid2X2 size={20} />, label: 'Manajemen Meja', path: '/kasir/meja', module: 'manajemen_meja' },
   { icon: <MonitorPlay size={20} />, label: 'KDS', path: '/kasir/kds', module: 'kds' },
   { icon: <BarChart3 size={20} />, label: 'Laporan', path: '/kasir/laporan', module: 'laporan' },
@@ -31,7 +34,7 @@ export default function MobileLayout({ activeMenu, children }) {
   })
 
   return (
-    <div className="flex min-h-screen font-sans" style={{ backgroundColor: '#F9F5F0' }}>
+    <div className="flex h-[100dvh] font-sans overflow-hidden" style={{ backgroundColor: '#F9F5F0' }}>
 
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -44,7 +47,7 @@ export default function MobileLayout({ activeMenu, children }) {
       {/* Sidebar - desktop: static, mobile: slide-in drawer */}
       <div
         className={`
-          fixed inset-y-0 left-0 z-50 lg:static lg:z-auto
+          fixed inset-y-0 left-0 z-50 lg:sticky lg:top-0 h-screen overflow-y-auto scrollbar-hide
           w-64 flex flex-col items-center py-8 px-4 shadow-xl
           transition-transform duration-300 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -100,10 +103,10 @@ export default function MobileLayout({ activeMenu, children }) {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+      <div className="flex-1 flex flex-col h-[100dvh] min-w-0">
 
         {/* Mobile top bar - only shows on mobile */}
-        <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-[#EDE0CC] shadow-sm sticky top-0 z-30">
+        <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-[#EDE0CC] shadow-sm z-30 shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
             className="w-10 h-10 rounded-xl bg-[#634930]/10 text-[#634930] flex items-center justify-center"
@@ -127,7 +130,9 @@ export default function MobileLayout({ activeMenu, children }) {
           </div>
         </div>
 
-        {children}
+        <div className="flex-1 overflow-y-auto relative">
+          {children}
+        </div>
       </div>
     </div>
   )

@@ -118,10 +118,10 @@ export default function UserManage() {
       })
       setShowEditRole(false)
       setEditTarget(null)
-      fetchUser()
+      showAlert('Role berhasil diubah! Memuat ulang sistem...', 'Sukses')
+      setTimeout(() => window.location.reload(), 1500)
     } catch (err) {
       showAlert(err.response?.data?.message || 'Gagal update role', 'Gagal', 'error')
-    } finally {
       setLoadingEdit(false)
     }
   }

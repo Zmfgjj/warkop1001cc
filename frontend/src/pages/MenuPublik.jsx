@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
-import { Coffee, CheckCircle, CreditCard, Smile, ShoppingCart, Utensils, X, User, Phone, Mail, ArrowLeft, Image as ImageIcon } from 'lucide-react'
+import { Coffee, CheckCircle, CreditCard, Smile, ShoppingCart, Utensils, X, User, Phone, Mail, ArrowLeft, Image as ImageIcon, Search } from 'lucide-react'
 import ImageLoader from '../components/ImageLoader'
 import { QRCodeSVG } from 'qrcode.react'
 import { generateDynamicQRIS } from '../utils/qrisGenerator'
@@ -22,6 +22,7 @@ export default function MenuPublik() {
   const [kategoriList, setKategoriList] = useState([])
   const [menuList, setMenuList] = useState([])
   const [activeKat, setActiveKat] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const [cart, setCart] = useState([]) // [{menu_id, nama, harga, qty, catatan, rasa_selected}]
   const [selectedFlavors, setSelectedFlavors] = useState({}) // { menu_id: 'rasa' }
@@ -156,21 +157,24 @@ export default function MenuPublik() {
   }, [submitted, paymentMethod, orderStatus, timeLeft])
 
 
-  // Filtered menu by category
-  const filteredMenu = activeKat
-    ? menuList.filter(m => m.kategori_nama === activeKat)
-    : menuList
+  // Filtered menu by category and search
+  const filteredMenu = menuList.filter(m => {
+    const matchKat = activeKat ? m.kategori_nama === activeKat : true;
+    const matchSearch = m.nama.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchKat && matchSearch;
+  })
 
   // Cart helpers
   const getQty = (menu_id, rasa = '') => cart.find(c => c.menu_id === menu_id && c.rasa_selected === rasa)?.qty || 0
 
   const addToCart = (menu, rasa = '', hargaTambahan = 0) => {
+    const baseHarga = Number(menu.harga_diskon) > 0 ? Number(menu.harga_diskon) : menu.harga;
     setCart(prev => {
       const existing = prev.find(c => c.menu_id === menu.id && c.rasa_selected === rasa)
       if (existing) {
         return prev.map(c => (c.menu_id === menu.id && c.rasa_selected === rasa) ? { ...c, qty: c.qty + 1 } : c)
       }
-      return [...prev, { menu_id: menu.id, nama: menu.nama, harga: menu.harga + hargaTambahan, qty: 1, catatan: '', rasa_selected: rasa }]
+      return [...prev, { menu_id: menu.id, nama: menu.nama, harga: baseHarga + hargaTambahan, qty: 1, catatan: '', rasa_selected: rasa }]
     })
   }
 
@@ -196,7 +200,7 @@ export default function MenuPublik() {
       const menu = menuList.find(m => m.id === menu_id)
       const newVariant = menu?.variants?.find(v => v.nama === newRasa)
       const newHargaTambahan = newVariant ? Number(newVariant.harga_tambahan) : 0
-      const baseHarga = menu ? menu.harga : 0
+      const baseHarga = menu ? (Number(menu.harga_diskon) > 0 ? Number(menu.harga_diskon) : menu.harga) : 0
       const newHarga = baseHarga + newHargaTambahan
 
       // Check if newRasa already exists for this menu_id
@@ -218,7 +222,7 @@ export default function MenuPublik() {
 
   const subtotal = cart.reduce((s, c) => s + c.harga * c.qty, 0)
   const ppnAmount = Math.round(subtotal * ppn / 100)
-  const total = subtotal + ppnAmount
+  const total = subtotal // Harga sudah termasuk PPN
 
   const handleFileChange = (e) => {
     const file = e.target.files[0]
@@ -457,7 +461,7 @@ export default function MenuPublik() {
   const totalItems = cart.reduce((s, c) => s + c.qty, 0)
 
   return (
-    <div className="min-h-screen bg-[#FFFAF1] flex flex-col">
+    <div className="h-[100dvh] bg-[#FFFAF1] flex flex-col overflow-hidden">
       {/* Header */}
       <header className="bg-[#ECD7B1] h-[70px] flex items-center px-4 shadow-sm sticky top-0 z-30">
         <div className="flex-1 flex items-center gap-3">
@@ -488,29 +492,45 @@ export default function MenuPublik() {
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT: Menu Panel */}
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Category tabs */}
-          <div className="bg-white border-b border-[#ECD7B1] px-4 py-3 flex gap-3 overflow-x-auto scrollbar-hide">
-            <button
-              onClick={() => setActiveKat(null)}
-              className={`px-5 py-2 rounded-full text-base font-semibold whitespace-nowrap transition ${activeKat === null
-                  ? 'bg-[#ECD7B1] text-[#442D1D]'
-                  : 'bg-[#FFF5E5] text-[#8B6F47] hover:bg-[#ECD7B1]'
-                }`}
-            >
-              Semua
-            </button>
-            {kategoriList.map(k => (
+          {/* Category tabs and Search */}
+          <div className="bg-white border-b border-[#ECD7B1] px-4 py-3 flex flex-col md:flex-row gap-3">
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide flex-1">
               <button
-                key={k.id}
-                onClick={() => setActiveKat(k.nama)}
-                className={`px-5 py-2 rounded-full text-base font-semibold whitespace-nowrap transition ${activeKat === k.nama
+                onClick={() => setActiveKat(null)}
+                className={`px-5 py-2 rounded-full text-base font-semibold whitespace-nowrap transition ${activeKat === null
                     ? 'bg-[#ECD7B1] text-[#442D1D]'
                     : 'bg-[#FFF5E5] text-[#8B6F47] hover:bg-[#ECD7B1]'
                   }`}
               >
-                {k.nama}
+                Semua
               </button>
-            ))}
+              {kategoriList.map(k => (
+                <button
+                  key={k.id}
+                  onClick={() => setActiveKat(k.nama)}
+                  className={`px-5 py-2 rounded-full text-base font-semibold whitespace-nowrap transition ${activeKat === k.nama
+                      ? 'bg-[#ECD7B1] text-[#442D1D]'
+                      : 'bg-[#FFF5E5] text-[#8B6F47] hover:bg-[#ECD7B1]'
+                    }`}
+                >
+                  {k.nama}
+                </button>
+              ))}
+            </div>
+            
+            {/* Search Bar */}
+            <div className="relative w-full md:w-64 shrink-0">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8B6F47]">
+                <Search size={16} />
+              </span>
+              <input
+                type="text"
+                placeholder="Cari menu..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-[#ECD7B1] rounded-full text-sm focus:outline-none focus:border-[#634930] text-[#442D1D] bg-[#FFF5E5]"
+              />
+            </div>
           </div>
 
           {/* Menu Grid */}
@@ -545,7 +565,8 @@ export default function MenuPublik() {
                   const selectedVariantNama = selectedFlavors[menu.id] || (variants.length > 0 ? variants[0].nama : '')
                   const selectedVariant = variants.find(v => v.nama === selectedVariantNama)
                   const hargaTambahan = selectedVariant ? Number(selectedVariant.harga_tambahan) : 0
-                  const displayHarga = menu.harga + hargaTambahan
+                  const baseHarga = Number(menu.harga_diskon) > 0 ? Number(menu.harga_diskon) : menu.harga;
+                  const displayHarga = baseHarga + hargaTambahan
                   const qty = getQty(menu.id, selectedVariantNama)
 
                   return (
@@ -573,9 +594,20 @@ export default function MenuPublik() {
                           <p className="text-sm text-center text-[#442D1D] font-bold leading-tight line-clamp-2 min-h-[2.5rem]">
                             {menu.nama}
                           </p>
-                          <p className="text-sm font-bold text-center text-[#0B8500] mt-1 mb-2 transition-all">
-                            {formatRupiah(displayHarga)}
-                          </p>
+                          {Number(menu.harga_diskon) > 0 ? (
+                            <div className="flex flex-col mt-1 mb-2">
+                              <p className="text-xs text-center text-stone-400 line-through leading-none">
+                                {formatRupiah(menu.harga + hargaTambahan)}
+                              </p>
+                              <p className="text-sm font-bold text-center text-[#0B8500] transition-all">
+                                {formatRupiah(displayHarga)}
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-sm font-bold text-center text-[#0B8500] mt-1 mb-2 transition-all">
+                              {formatRupiah(displayHarga)}
+                            </p>
+                          )}
                         </div>
                         <div>
                           {variants.length > 0 && (
@@ -866,8 +898,8 @@ export default function MenuPublik() {
                   <span>{formatRupiah(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm text-gray-500">
-                  <span>PPN {ppn}%</span>
-                  <span>{formatRupiah(ppnAmount)}</span>
+                  <span>PPN {ppn}% (Termasuk)</span>
+                  <span className="text-gray-400 italic"><del>{formatRupiah(ppnAmount)}</del></span>
                 </div>
                 <div className="flex justify-between text-lg font-bold text-[#442D1D] mt-2 border-t pt-2">
                   <span>Payment Total</span>
