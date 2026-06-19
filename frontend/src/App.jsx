@@ -9,6 +9,8 @@ import Kasir from './pages/Kasir'
 import KasirPOS from './pages/KasirPOS2'
 import UserManage from './pages/UserManage'
 import ManajemenMenu from './pages/ManajemenMenu'
+import ManajemenPromo from './pages/ManajemenPromo'
+import CRM from './pages/CRM'
 import ManajemenMeja from './pages/ManajemenMeja'
 import Laporan from './pages/Laporan'
 import KDS from './pages/KDS.jsx'
@@ -16,6 +18,7 @@ import MenuPublik from './pages/MenuPublik.jsx'
 import RoleManage from './pages/RoleManage'
 import KonfirmasiPembayaran from './pages/KonfirmasiPembayaran.jsx'
 import BonusKaryawan from './pages/BonusKaryawan'
+import ManajemenStock from './pages/ManajemenStock'
 
 /**
  * ProtectedRoute now uses dynamic permissions from the roles table.
@@ -39,11 +42,14 @@ const ProtectedRoute = ({ children, module }) => {
       dashboard: '/kasir',
       pos: '/kasir/pos',
       manajemen_menu: '/kasir/menu',
+      manajemen_promo: '/kasir/promo',
+      crm: '/kasir/crm',
       manajemen_meja: '/kasir/meja',
       kds: '/kasir/kds',
       laporan: '/kasir/laporan',
       user_manage: '/kasir/user-manage',
-      bonus_karyawan: '/kasir/bonus'
+      bonus_karyawan: '/kasir/bonus',
+      manajemen_stock: '/kasir/stock'
     }
     
     for (const [mod, path] of Object.entries(moduleRouteMap)) {
@@ -71,6 +77,7 @@ const AuthRoute = ({ children }) => {
     if (canView('kds')) return <Navigate to="/kasir/kds" replace />
     if (canView('laporan')) return <Navigate to="/kasir/laporan" replace />
     if (canView('manajemen_menu')) return <Navigate to="/kasir/menu" replace />
+    if (canView('crm')) return <Navigate to="/kasir/crm" replace />
     if (canView('manajemen_meja')) return <Navigate to="/kasir/meja" replace />
     if (canView('user_manage')) return <Navigate to="/kasir/user-manage" replace />
     if (canView('bonus_karyawan')) return <Navigate to="/kasir/bonus" replace />
@@ -89,11 +96,14 @@ function AppRoutes() {
       <Route path="/kasir/pos" element={<ProtectedRoute module="pos"><KasirPOS /></ProtectedRoute>} />
       <Route path="/kasir/pembayaran" element={<ProtectedRoute module="pos"><KonfirmasiPembayaran /></ProtectedRoute>} />
       <Route path="/kasir/menu" element={<ProtectedRoute module="manajemen_menu"><ManajemenMenu /></ProtectedRoute>} />
+      <Route path="/kasir/promo" element={<ProtectedRoute module="manajemen_promo"><ManajemenPromo /></ProtectedRoute>} />
+      <Route path="/kasir/crm" element={<ProtectedRoute module="crm"><CRM /></ProtectedRoute>} />
       <Route path="/kasir/meja" element={<ProtectedRoute module="manajemen_meja"><ManajemenMeja /></ProtectedRoute>} />
       <Route path="/kasir/kds" element={<ProtectedRoute module="kds"><KDS /></ProtectedRoute>} />
       <Route path="/kasir/laporan" element={<ProtectedRoute module="laporan"><Laporan /></ProtectedRoute>} />
       <Route path="/kasir/user-manage" element={<ProtectedRoute module="user_manage"><UserManage /></ProtectedRoute>} />
       <Route path="/kasir/bonus" element={<ProtectedRoute module="bonus_karyawan"><BonusKaryawan /></ProtectedRoute>} />
+      <Route path="/kasir/stock" element={<ProtectedRoute module="manajemen_stock"><ManajemenStock /></ProtectedRoute>} />
       <Route path="/kasir/role-manage" element={<RoleManage />} />
       {/* Public customer web order - no auth required */}
       <Route path="/menu/:meja_id" element={<MenuPublik />} />

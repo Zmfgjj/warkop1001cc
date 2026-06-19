@@ -20,13 +20,13 @@ export default function ManajemenMenu() {
 
   // Modal tambah menu
   const [showTambah, setShowTambah] = useState(false)
-  const [formTambah, setFormTambah] = useState({ nama: '', harga: '', hpp: '', kategori_id: '', gambar: null, gambarPreview: '', deskripsi: '', pilihan_rasa: '' })
+  const [formTambah, setFormTambah] = useState({ nama: '', harga: '', harga_diskon: '', hpp: '', kategori_id: '', gambar: null, gambarPreview: '', deskripsi: '', variants: [] })
   const [loadingTambah, setLoadingTambah] = useState(false)
 
   // Modal edit menu
   const [showEdit, setShowEdit] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
-  const [formEdit, setFormEdit] = useState({ nama: '', harga: '', hpp: '', kategori_id: '', gambar: null, gambarPreview: '', deskripsi: '', pilihan_rasa: '', tersedia: true })
+  const [formEdit, setFormEdit] = useState({ nama: '', harga: '', harga_diskon: '', hpp: '', kategori_id: '', gambar: null, gambarPreview: '', deskripsi: '', variants: [], tersedia: true })
   const [loadingEdit, setLoadingEdit] = useState(false)
 
   // Modal hapus
@@ -102,10 +102,11 @@ export default function ManajemenMenu() {
       const formData = new FormData()
       formData.append('nama', formTambah.nama)
       formData.append('harga', formTambah.harga)
+      formData.append('harga_diskon', formTambah.harga_diskon || 0)
       formData.append('hpp', formTambah.hpp || 0)
       formData.append('kategori_id', formTambah.kategori_id)
       formData.append('deskripsi', formTambah.deskripsi)
-      formData.append('pilihan_rasa', formTambah.pilihan_rasa)
+      formData.append('variants', JSON.stringify(formTambah.variants))
       if (formTambah.gambar) {
         formData.append('gambar', formTambah.gambar)
       }
@@ -114,7 +115,7 @@ export default function ManajemenMenu() {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       setShowTambah(false)
-      setFormTambah({ nama: '', harga: '', hpp: '', kategori_id: kategoriList[0]?.id || '', gambar: null, gambarPreview: '', deskripsi: '', pilihan_rasa: '' })
+      setFormTambah({ nama: '', harga: '', harga_diskon: '', hpp: '', kategori_id: kategoriList[0]?.id || '', gambar: null, gambarPreview: '', deskripsi: '', variants: [] })
       fetchMenu()
     } catch (err) {
       console.error('❌ Error tambah menu:', err.response?.data)
@@ -133,10 +134,11 @@ export default function ManajemenMenu() {
       const formData = new FormData()
       formData.append('nama', formEdit.nama)
       formData.append('harga', formEdit.harga)
+      formData.append('harga_diskon', formEdit.harga_diskon || 0)
       formData.append('hpp', formEdit.hpp || 0)
       formData.append('kategori_id', formEdit.kategori_id)
       formData.append('deskripsi', formEdit.deskripsi)
-      formData.append('pilihan_rasa', formEdit.pilihan_rasa)
+      formData.append('variants', JSON.stringify(formEdit.variants))
       formData.append('tersedia', formEdit.tersedia ? 1 : 0)
       
       if (formEdit.gambar instanceof File) {
@@ -172,17 +174,38 @@ export default function ManajemenMenu() {
     }
   }
 
+  const handleBulkHPP = async () => {
+    const percentStr = window.prompt('Masukkan persentase HPP dari harga jual (contoh: 40 untuk 40%):', '40')
+    if (!percentStr) return
+    
+    const percent = parseInt(percentStr)
+    if (isNaN(percent) || percent <= 0 || percent >= 100) {
+      return showAlert('Persentase tidak valid. Harap masukkan angka 1-99.', 'Perhatian', 'error')
+    }
+
+    if (!window.confirm(`Anda yakin ingin mengatur HPP semua menu menjadi ${percent}% dari harga jualnya?`)) return
+
+    try {
+      const res = await api.put('/menu/hpp/bulk', { percent })
+      showAlert(res.data.message || 'HPP berhasil diperbarui', 'Sukses')
+      fetchMenu()
+    } catch (err) {
+      showAlert(err.response?.data?.message || 'Gagal update HPP', 'Gagal', 'error')
+    }
+  }
+
   const openEditModal = (menu) => {
     setEditTarget(menu)
     setFormEdit({ 
       nama: menu.nama, 
       harga: menu.harga,
+      harga_diskon: menu.harga_diskon || 0,
       hpp: menu.hpp || 0,
       kategori_id: menu.kategori_id, 
       gambar: null,
       gambarPreview: menu.gambar,
       deskripsi: menu.deskripsi || '',
-      pilihan_rasa: menu.pilihan_rasa || '',
+      variants: menu.variants || [],
       tersedia: menu.tersedia !== 0
     })
     setShowEdit(true)
@@ -234,12 +257,21 @@ export default function ManajemenMenu() {
             </div>
             
             {canEdit && (
-              <button
-                onClick={() => setShowTambah(true)}
-                className="flex items-center gap-2 px-6 py-3 rounded-2xl font-medium text-amber-50 bg-[#5C4033] hover:bg-[#4A3320] transition-all duration-300 shadow-lg shadow-[#5C4033]/20 hover:shadow-[#5C4033]/30 hover:-translate-y-0.5 active:scale-95"
-              >
-                <Plus size={18} /> Tambah Menu Baru
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleBulkHPP}
+                  className="flex items-center gap-2 px-4 py-3 rounded-2xl font-medium text-stone-700 bg-stone-200 hover:bg-stone-300 transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95"
+                  title="Tombol sementara untuk set HPP massal"
+                >
+                  Set HPP Massal
+                </button>
+                <button
+                  onClick={() => setShowTambah(true)}
+                  className="flex items-center gap-2 px-6 py-3 rounded-2xl font-medium text-amber-50 bg-[#5C4033] hover:bg-[#4A3320] transition-all duration-300 shadow-lg shadow-[#5C4033]/20 hover:shadow-[#5C4033]/30 hover:-translate-y-0.5 active:scale-95"
+                >
+                  <Plus size={18} /> Tambah Menu Baru
+                </button>
+              </div>
             )}
           </div>
 
@@ -293,9 +325,18 @@ export default function ManajemenMenu() {
                     <div className="mt-3 pt-3 border-t border-stone-100 flex items-end justify-between">
                       <div>
                         <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-0.5">Harga</p>
-                        <p className="font-extrabold text-lg text-[#5C4033]">
-                          Rp {Number(menu.harga).toLocaleString('id-ID')}
-                        </p>
+                        {Number(menu.harga_diskon) > 0 ? (
+                          <div className="flex flex-col">
+                            <p className="text-xs text-stone-400 line-through">Rp {Number(menu.harga).toLocaleString('id-ID')}</p>
+                            <p className="font-extrabold text-lg text-[#0B8500]">
+                              Rp {Number(menu.harga_diskon).toLocaleString('id-ID')}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="font-extrabold text-lg text-[#5C4033]">
+                            Rp {Number(menu.harga).toLocaleString('id-ID')}
+                          </p>
+                        )}
                       </div>
                       
                       {canEdit && (
@@ -363,17 +404,31 @@ export default function ManajemenMenu() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-stone-600 mb-1.5">HPP (Opsional)</label>
+                  <label className="block text-sm font-medium text-stone-600 mb-1.5">Harga Diskon (Opsional)</label>
                   <div className="relative">
                     <span className="absolute left-4 top-3 text-stone-400 text-sm font-medium">Rp</span>
                     <input
                       type="number"
-                      placeholder="0"
-                      value={formTambah.hpp}
-                      onChange={(e) => setFormTambah({ ...formTambah, hpp: e.target.value })}
+                      placeholder="0 (Kosongkan jika tidak ada)"
+                      value={formTambah.harga_diskon}
+                      onChange={(e) => setFormTambah({ ...formTambah, harga_diskon: e.target.value })}
                       className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
                     />
                   </div>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-stone-600 mb-1.5">HPP (Opsional)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-3 text-stone-400 text-sm font-medium">Rp</span>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={formTambah.hpp}
+                    onChange={(e) => setFormTambah({ ...formTambah, hpp: e.target.value })}
+                    className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
+                  />
                 </div>
               </div>
               
@@ -402,16 +457,30 @@ export default function ManajemenMenu() {
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-stone-600 mb-1.5">Pilihan Rasa (Opsional)</label>
-                <input
-                  type="text"
-                  placeholder="Contoh: Original, Vanilla, Matcha (pisahkan dengan koma)"
-                  value={formTambah.pilihan_rasa}
-                  onChange={(e) => setFormTambah({ ...formTambah, pilihan_rasa: e.target.value })}
-                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
-                />
-                <p className="text-xs text-stone-500 mt-1">Pisahkan tiap pilihan rasa dengan koma (contoh: Manis, Sedang, Tawar)</p>
+              <div className="border border-stone-200 rounded-xl p-4 bg-stone-50">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-bold text-stone-700">Variasi Menu & Harga (Opsional)</label>
+                  <button type="button" onClick={() => setFormTambah(prev => ({ ...prev, variants: [...prev.variants, { nama: '', harga_tambahan: 0 }] }))} className="text-xs bg-[#5C4033] text-white px-2 py-1 rounded hover:bg-[#4A3320] transition-colors flex items-center gap-1"><Plus size={14} /> Tambah Varian</button>
+                </div>
+                {formTambah.variants.length === 0 ? (
+                  <p className="text-xs text-stone-500 italic">Tidak ada variasi. Klik tambah untuk membuat pilihan rasa/ukuran.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {formTambah.variants.map((v, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <input type="text" placeholder="Nama Varian (mis: Pedas Level 1)" value={v.nama} onChange={e => {
+                          const newV = [...formTambah.variants]; newV[i].nama = e.target.value; setFormTambah({...formTambah, variants: newV})
+                        }} className="flex-1 px-3 py-2 border border-stone-300 rounded focus:outline-none focus:border-[#5C4033] text-sm" />
+                        <input type="number" placeholder="Harga Tambahan (0 jika gratis)" value={v.harga_tambahan} onChange={e => {
+                          const newV = [...formTambah.variants]; newV[i].harga_tambahan = Number(e.target.value); setFormTambah({...formTambah, variants: newV})
+                        }} className="w-32 px-3 py-2 border border-stone-300 rounded focus:outline-none focus:border-[#5C4033] text-sm" />
+                        <button type="button" onClick={() => {
+                          const newV = formTambah.variants.filter((_, idx) => idx !== i); setFormTambah({...formTambah, variants: newV})
+                        }} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               
               <div>
@@ -509,16 +578,29 @@ export default function ManajemenMenu() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-stone-600 mb-1.5">HPP (Opsional)</label>
+                  <label className="block text-sm font-medium text-stone-600 mb-1.5">Harga Diskon (Opsional)</label>
                   <div className="relative">
                     <span className="absolute left-4 top-3 text-stone-400 text-sm font-medium">Rp</span>
                     <input
                       type="number"
-                      value={formEdit.hpp}
-                      onChange={(e) => setFormEdit({ ...formEdit, hpp: e.target.value })}
+                      value={formEdit.harga_diskon}
+                      onChange={(e) => setFormEdit({ ...formEdit, harga_diskon: e.target.value })}
                       className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
                     />
                   </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-stone-600 mb-1.5">HPP (Opsional)</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-3 text-stone-400 text-sm font-medium">Rp</span>
+                  <input
+                    type="number"
+                    value={formEdit.hpp}
+                    onChange={(e) => setFormEdit({ ...formEdit, hpp: e.target.value })}
+                    className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
+                  />
                 </div>
               </div>
               
@@ -546,16 +628,30 @@ export default function ManajemenMenu() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-stone-600 mb-1.5">Pilihan Rasa (Opsional)</label>
-                <input
-                  type="text"
-                  placeholder="Contoh: Original, Vanilla, Matcha (pisahkan dengan koma)"
-                  value={formEdit.pilihan_rasa}
-                  onChange={(e) => setFormEdit({ ...formEdit, pilihan_rasa: e.target.value })}
-                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
-                />
-                <p className="text-xs text-stone-500 mt-1">Pisahkan tiap pilihan rasa dengan koma</p>
+              <div className="border border-stone-200 rounded-xl p-4 bg-stone-50">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-sm font-bold text-stone-700">Variasi Menu & Harga (Opsional)</label>
+                  <button type="button" onClick={() => setFormEdit(prev => ({ ...prev, variants: [...prev.variants, { nama: '', harga_tambahan: 0 }] }))} className="text-xs bg-[#5C4033] text-white px-2 py-1 rounded hover:bg-[#4A3320] transition-colors flex items-center gap-1"><Plus size={14} /> Tambah Varian</button>
+                </div>
+                {formEdit.variants.length === 0 ? (
+                  <p className="text-xs text-stone-500 italic">Tidak ada variasi. Klik tambah untuk membuat pilihan rasa/ukuran.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {formEdit.variants.map((v, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <input type="text" placeholder="Nama Varian (mis: Pedas Level 1)" value={v.nama} onChange={e => {
+                          const newV = [...formEdit.variants]; newV[i].nama = e.target.value; setFormEdit({...formEdit, variants: newV})
+                        }} className="flex-1 px-3 py-2 border border-stone-300 rounded focus:outline-none focus:border-[#5C4033] text-sm" />
+                        <input type="number" placeholder="Harga Tambahan (0 jika gratis)" value={v.harga_tambahan} onChange={e => {
+                          const newV = [...formEdit.variants]; newV[i].harga_tambahan = Number(e.target.value); setFormEdit({...formEdit, variants: newV})
+                        }} className="w-32 px-3 py-2 border border-stone-300 rounded focus:outline-none focus:border-[#5C4033] text-sm" />
+                        <button type="button" onClick={() => {
+                          const newV = formEdit.variants.filter((_, idx) => idx !== i); setFormEdit({...formEdit, variants: newV})
+                        }} className="p-2 text-red-500 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               
               <div className="flex items-center gap-3 p-4 bg-stone-50 border border-stone-200 rounded-xl">

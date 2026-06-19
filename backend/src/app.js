@@ -10,6 +10,7 @@ const compression = require('compression');
 require('dotenv').config();
 
 const db = require('./config/database');
+const waGateway = require('./services/waGateway');
 
 const rateLimit = require('express-rate-limit');
 
@@ -95,6 +96,8 @@ const bonusRoutes = require('./routes/bonus');
 app.use('/api/bonus', bonusRoutes);
 const publikRoutes = require('./routes/publik');
 app.use('/api/publik', strictLimiter, publikRoutes);
+const crmRoutes = require('./routes/crm');
+app.use('/api/crm', crmRoutes);
 
 // Test route
 app.get('/', (req, res) => {
@@ -106,8 +109,14 @@ app.get('/', (req, res) => {
 
 // Socket.IO
 app.set('io', io);
+waGateway.setSocketIo(io);
+waGateway.initializeGateway();
+
 io.on('connection', (socket) => {
   console.log('🔌 Client connected:', socket.id);
+
+  // Send current WA status to new connected client
+  socket.emit('wa_status', waGateway.getStatus());
 
   socket.on('disconnect', () => {
     console.log('❌ Client disconnected:', socket.id);

@@ -2,7 +2,7 @@ const db = require('../config/database');
 const { clearPermCache } = require('../middleware/auth');
 
 // All available modules for the permission matrix
-const ALL_MODULES = ['dashboard', 'pos', 'manajemen_menu', 'manajemen_meja', 'kds', 'laporan', 'user_manage', 'bonus_karyawan'];
+const ALL_MODULES = ['dashboard', 'pos', 'manajemen_menu', 'manajemen_promo', 'manajemen_meja', 'kds', 'laporan', 'user_manage', 'bonus_karyawan', 'crm', 'manajemen_stock'];
 
 // Get all roles
 exports.getRoles = async (req, res) => {
@@ -129,7 +129,8 @@ exports.deleteRole = async (req, res) => {
 
 // Helper: get permissions for a role name
 exports.getPermissionsForRole = async (roleName) => {
-  const [rows] = await db.query('SELECT permissions FROM roles WHERE name = ?', [roleName.toLowerCase().trim()]);
+  if (!roleName) return null;
+  const [rows] = await db.query('SELECT permissions FROM roles WHERE name = ?', [String(roleName).toLowerCase().trim()]);
   if (rows.length === 0) return null;
   return typeof rows[0].permissions === 'string' ? JSON.parse(rows[0].permissions) : rows[0].permissions;
 };

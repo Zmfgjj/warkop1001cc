@@ -64,11 +64,13 @@ function generateStrukHTML({ pesananId, items, subtotal, ppn, ppnRate, total, me
       
       ${!isDapurOrBar ? `
       <div style="font-size:12px">
+        <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Subtotal</span><span>${isMeja ? `<del>${formatRupiah(subtotal)}</del>` : formatRupiah(subtotal)}</span></div>
+        <div style="display:flex;justify-content:space-between;margin:2px 0"><span>PPN ${ppnRate || 11}% (Inc)</span><span><del>${formatRupiah(Math.round(subtotal * (ppnRate || 11) / 100))}</del></span></div>
         <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Total Tagihan</span><span style="font-weight:bold;">${isMeja ? `<del>${formatRupiah(total)}</del>` : formatRupiah(total)}</span></div>
         <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Bayar (${metodeBayar === 'Tunai' ? 'Cash' : metodeBayar})</span><span>${isMeja ? `<del>${formatRupiah(metodeBayar === 'Tunai' ? jumlahBayar : total)}</del>` : formatRupiah(metodeBayar === 'Tunai' ? jumlahBayar : total)}</span></div>
         ${metodeBayar === 'Tunai' ? `<div style="display:flex;justify-content:space-between;margin:2px 0"><span>Kembali</span><span>${isMeja ? `<del>${formatRupiah(kembali)}</del>` : formatRupiah(kembali)}</span></div>` : ''}
       </div>
-      <div style="text-align:right;font-size:10px;font-style:italic;margin-top:2px;">Harga total sudah termasuk PPN</div>
+      <div style="text-align:right;font-size:10px;font-style:italic;margin-top:2px;">Harga sudah termasuk PPN (Termasuk)</div>
       <hr style="border:none;border-top:1px dashed #000;margin:8px 0">
       ` : ''}
       
@@ -224,8 +226,15 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
 
       receipt += dashed
       if (!isDapurOrBar) {
+        const subtotalStr = isMeja ? '------' : formatRupiah(data.subtotal);
+        receipt += padRight('Subtotal', 16) + padLeft(subtotalStr, 16) + LF
+
+        const ppnRateNum = data.ppnRate || 11;
+        const ppnAmount = Math.round(data.subtotal * ppnRateNum / 100);
+        const ppnStr = isMeja ? '------' : '++ Termasuk ++';
+        receipt += padRight(`PPN ${ppnRateNum}%`, 16) + padLeft(ppnStr, 16) + LF
+
         const totalStr = isMeja ? '------' : formatRupiah(data.total);
-        
         receipt += padRight('Total Tagihan', 16) + padLeft(totalStr, 16) + LF
         
         const bayarStr = isMeja ? '------' : formatRupiah(data.metodeBayar === 'Tunai' ? data.jumlahBayar : data.total);
@@ -234,7 +243,7 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
           const kembaliStr = isMeja ? '------' : formatRupiah(data.kembali);
           receipt += padRight('Kembali', 16) + padLeft(kembaliStr, 16) + LF
         }
-        receipt += padLeft('Harga total sudah termasuk PPN', 32) + LF
+        receipt += padLeft('Harga sudah termasuk PPN', 32) + LF
         receipt += dashed
       }
 

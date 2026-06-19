@@ -20,18 +20,57 @@ exports.getMenu = async (req, res) => {
       LEFT JOIN kategori k ON m.kategori_id = k.id
       ORDER BY k.urutan, m.nama
     `);
-    res.json(rows);
+
+    const [variants] = await db.query('SELECT * FROM menu_varian');
+    const variantMap = {};
+    for (const v of variants) {
+      if (!variantMap[v.menu_id]) variantMap[v.menu_id] = [];
+      variantMap[v.menu_id].push({
+        id: v.id,
+        nama: v.nama,
+        harga_tambahan: v.harga_tambahan || 0
+      });
+    }
+
+    const result = rows.map(m => {
+      let mappedVariants = variantMap[m.id] || [];
+      // Keep legacy for backward compatibility during transition
+      if (mappedVariants.length === 0 && m.pilihan_rasa) {
+        mappedVariants = m.pilihan_rasa.split(',').map((r, i) => ({
+          id: `legacy_${i}`,
+          nama: r.trim(),
+          harga_tambahan: 0
+        })).filter(r => r.nama);
+      }
+      return {
+        ...m,
+        variants: mappedVariants
+      };
+    });
+
+    res.json(result);
   } catch (err) {
     console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };
 
 exports.tambahMenu = async (req, res) => {
+  const conn = await db.getConnection();
   try {
-    const { kategori_id, nama, deskripsi, harga, hpp, pilihan_rasa } = req.body;
+    await conn.beginTransaction();
+    const { kategori_id, nama, deskripsi, harga, hpp } = req.body;
+    let variants = [];
+    try {
+      if (req.body.variants) {
+        variants = JSON.parse(req.body.variants);
+      }
+    } catch (e) {
+      console.error('Error parsing variants:', e);
+    }
     let gambar = '';
 
     if (!nama || !harga || !kategori_id) {
+      await conn.rollback();
       return res.status(400).json({ message: 'Nama, harga, dan kategori wajib diisi' });
     }
 
@@ -60,33 +99,62 @@ exports.tambahMenu = async (req, res) => {
       console.log('✅ Gambar path:', gambar);
     }
     
-    const [result] = await db.query(
-      'INSERT INTO menu (kategori_id, nama, deskripsi, harga, hpp, gambar, pilihan_rasa) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [kategori_id, nama, deskripsi, harga, hpp || 0, gambar, pilihan_rasa || null]
+    const [result] = await conn.query(
+      'INSERT INTO menu (kategori_id, nama, deskripsi, harga, harga_diskon, hpp, gambar, pilihan_rasa) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)',
+      [kategori_id, nama, deskripsi, harga, req.body.harga_diskon || 0, hpp || 0, gambar]
     );
+
+    const menuId = result.insertId;
+
+    if (variants && variants.length > 0) {
+      for (const v of variants) {
+        if (v.nama) {
+          await conn.query(
+            'INSERT INTO menu_varian (menu_id, nama, harga_tambahan) VALUES (?, ?, ?)',
+            [menuId, v.nama, v.harga_tambahan || 0]
+          );
+        }
+      }
+    }
+
+    await conn.commit();
     
     // Emit real-time event
     const io = req.app.get('io');
     const [menuBaru] = await db.query(
       'SELECT m.*, k.nama as kategori_nama FROM menu m LEFT JOIN kategori k ON m.kategori_id = k.id WHERE m.id = ?',
-      [result.insertId]
+      [menuId]
     );
     io.emit('menuAdded', menuBaru[0]);
     
-    res.status(201).json({ message: 'Menu ditambahkan', id: result.insertId });
+    res.status(201).json({ message: 'Menu ditambahkan', id: menuId });
   } catch (err) {
+    if (conn) await conn.rollback();
     console.error('❌ Error tambah menu:', err.message);
     console.error(err); res.status(500).json({ message: 'Server error' });
+  } finally {
+    if (conn) conn.release();
   }
 };
 
 exports.updateMenu = async (req, res) => {
+  const conn = await db.getConnection();
   try {
+    await conn.beginTransaction();
     const { id } = req.params;
-    const { kategori_id, nama, deskripsi, harga, hpp, tersedia, pilihan_rasa } = req.body;
+    const { kategori_id, nama, deskripsi, harga, hpp, tersedia } = req.body;
+    let variants = [];
+    try {
+      if (req.body.variants) {
+        variants = JSON.parse(req.body.variants);
+      }
+    } catch (e) {
+      console.error('Error parsing variants:', e);
+    }
     let gambar = req.body.gambar; // Keep existing if no new file
 
     if (!nama || !harga || !kategori_id) {
+      await conn.rollback();
       return res.status(400).json({ message: 'Nama, harga, dan kategori wajib diisi' });
     }
 
@@ -111,11 +179,26 @@ exports.updateMenu = async (req, res) => {
       gambar = `/uploads/${webpFilename}`;
     }
     
-    await db.query(
-      'UPDATE menu SET kategori_id=?, nama=?, deskripsi=?, harga=?, hpp=?, gambar=?, tersedia=?, pilihan_rasa=? WHERE id=?',
-      [kategori_id, nama, deskripsi, harga, hpp || 0, gambar, tersedia, pilihan_rasa || null, id]
+    await conn.query(
+      'UPDATE menu SET kategori_id=?, nama=?, deskripsi=?, harga=?, harga_diskon=?, hpp=?, gambar=?, tersedia=?, pilihan_rasa=NULL WHERE id=?',
+      [kategori_id, nama, deskripsi, harga, req.body.harga_diskon || 0, hpp || 0, gambar, tersedia, id]
     );
     
+    // Update variants: delete old and insert new
+    await conn.query('DELETE FROM menu_varian WHERE menu_id = ?', [id]);
+    if (variants && variants.length > 0) {
+      for (const v of variants) {
+        if (v.nama) {
+          await conn.query(
+            'INSERT INTO menu_varian (menu_id, nama, harga_tambahan) VALUES (?, ?, ?)',
+            [id, v.nama, v.harga_tambahan || 0]
+          );
+        }
+      }
+    }
+
+    await conn.commit();
+
     // Emit real-time event
     const io = req.app.get('io');
     const [menuUpdated] = await db.query(
@@ -126,7 +209,10 @@ exports.updateMenu = async (req, res) => {
     
     res.json({ message: 'Menu diupdate' });
   } catch (err) {
+    if (conn) await conn.rollback();
     console.error(err); res.status(500).json({ message: 'Server error' });
+  } finally {
+    if (conn) conn.release();
   }
 };
 
@@ -145,5 +231,76 @@ exports.hapusMenu = async (req, res) => {
       return res.status(400).json({ message: 'Menu tidak bisa dihapus karena sudah tercatat di riwayat pesanan. Silakan Edit menu ini dan jadikan "Tidak Tersedia".' });
     }
     console.error(err); res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.updateBulkPromo = async (req, res) => {
+  try {
+    const { action, menu_ids, value, type } = req.body;
+    
+    if (!Array.isArray(menu_ids) || menu_ids.length === 0) {
+      return res.status(400).json({ message: 'Tidak ada menu yang dipilih' });
+    }
+
+    if (action === 'clear') {
+      // Set harga_diskon = 0 for all selected
+      await db.query(`UPDATE menu SET harga_diskon = 0 WHERE id IN (?)`, [menu_ids]);
+    } else if (action === 'set') {
+      if (!value || Number(value) < 0) {
+        return res.status(400).json({ message: 'Nilai diskon tidak valid' });
+      }
+
+      if (type === 'fixed') {
+        await db.query(`UPDATE menu SET harga_diskon = ? WHERE id IN (?)`, [Number(value), menu_ids]);
+      } else if (type === 'nominal') {
+        await db.query(`UPDATE menu SET harga_diskon = GREATEST(harga - ?, 0) WHERE id IN (?)`, [Number(value), menu_ids]);
+      } else if (type === 'percent') {
+        const percent = Number(value) / 100;
+        await db.query(`UPDATE menu SET harga_diskon = GREATEST(harga - (harga * ?), 0) WHERE id IN (?)`, [percent, menu_ids]);
+      } else {
+        return res.status(400).json({ message: 'Tipe diskon tidak valid' });
+      }
+    } else {
+      return res.status(400).json({ message: 'Aksi tidak valid' });
+    }
+
+    // Trigger update for clients
+    const io = req.app.get('io');
+    const [updatedMenus] = await db.query(
+      `SELECT m.*, k.nama as kategori_nama FROM menu m LEFT JOIN kategori k ON m.kategori_id = k.id WHERE m.id IN (?)`,
+      [menu_ids]
+    );
+    updatedMenus.forEach(menu => io.emit('menuUpdated', menu));
+
+    res.json({ message: 'Promo berhasil diperbarui' });
+  } catch (err) {
+    console.error('❌ Error update bulk promo:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.updateBulkHPP = async (req, res) => {
+  try {
+    const { percent } = req.body;
+    
+    if (!percent || isNaN(percent) || Number(percent) <= 0 || Number(percent) >= 100) {
+      return res.status(400).json({ message: 'Persentase tidak valid. Masukkan angka antara 1-99.' });
+    }
+
+    const multiplier = Number(percent) / 100;
+
+    // Update HPP for all menus based on the percentage of their normal price
+    // Only update if HPP is currently 0 or null (optional condition, but we'll update all for simplicity)
+    await db.query(`UPDATE menu SET hpp = ROUND(harga * ?)`, [multiplier]);
+
+    // Trigger update for clients
+    const io = req.app.get('io');
+    const [updatedMenus] = await db.query(`SELECT * FROM menu`);
+    updatedMenus.forEach(menu => io.emit('menuUpdated', menu));
+
+    res.json({ message: `Berhasil mengatur HPP massal sebesar ${percent}% dari harga jual.` });
+  } catch (err) {
+    console.error('❌ Error set bulk HPP:', err.message);
+    res.status(500).json({ message: 'Server error saat update HPP massal' });
   }
 };

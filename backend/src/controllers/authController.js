@@ -7,6 +7,10 @@ exports.login = async (req, res) => {
   try {
     const { username, password } = req.body;
 
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Username dan password wajib diisi' });
+    }
+
     // Cek user
     const [rows] = await db.query(
       'SELECT * FROM users WHERE username = ? AND aktif = 1', 
@@ -14,7 +18,7 @@ exports.login = async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(401).json({ message: 'Username atau password salah' });
+      return res.status(401).json({ message: 'Username tidak ditemukan' });
     }
 
     const user = rows[0];
@@ -22,7 +26,7 @@ exports.login = async (req, res) => {
     // Cek password
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
-      return res.status(401).json({ message: 'Username atau password salah' });
+      return res.status(401).json({ message: 'Password salah' });
     }
 
     // Fetch permissions from roles table
@@ -31,7 +35,7 @@ exports.login = async (req, res) => {
     // Buat token
     const token = jwt.sign(
       { id: user.id, role: user.role },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'warkop_secret_123',
       { expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
     );
 
@@ -55,7 +59,8 @@ exports.login = async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err); res.status(500).json({ message: 'Server error' });
+    console.error('Login Error:', err); 
+    res.status(500).json({ message: 'Server error: ' + (err.message || 'Unknown error') });
   }
 };
 

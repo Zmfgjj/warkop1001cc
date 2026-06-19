@@ -123,7 +123,8 @@ export default function KasirPOS() {
     setOrder(prev => {
       const ex = prev.find(o => o.menu_id === menu.id)
       if (ex) return prev.map(o => o.menu_id === menu.id ? { ...o, qty: o.qty + 1 } : o)
-      return [...prev, { menu_id: menu.id, nama: menu.nama, harga: menu.harga, qty: 1, catatan: '', gambar: menu.gambar, kategori: menu.kategori || menu.kategori_nama || '' }]
+      const baseHarga = Number(menu.harga_diskon) > 0 ? Number(menu.harga_diskon) : menu.harga;
+      return [...prev, { menu_id: menu.id, nama: menu.nama, harga: baseHarga, qty: 1, catatan: '', gambar: menu.gambar, kategori: menu.kategori || menu.kategori_nama || '' }]
     })
   }
   const kurangItem = (menu_id) => {
@@ -252,7 +253,14 @@ export default function KasirPOS() {
                     <div key={menu.id} className="rounded-2xl p-2 md:p-3 flex flex-col items-center justify-center shadow-sm"
                       style={{ backgroundColor: '#EDE0CC', border: qty > 0 ? '2px solid #634930' : '2px solid transparent' }}>
                       <p className="text-xs font-medium text-center mb-1 line-clamp-2" style={{ color: '#634930' }}>{menu.nama}</p>
-                      <p className="text-xs mb-2 md:mb-3" style={{ color: '#8B6F47' }}>Rp {Number(menu.harga).toLocaleString('id-ID')}</p>
+                      {Number(menu.harga_diskon) > 0 ? (
+                        <div className="flex flex-col items-center mb-2 md:mb-3">
+                          <p className="text-[10px] text-gray-500 line-through">Rp {Number(menu.harga).toLocaleString('id-ID')}</p>
+                          <p className="text-xs font-bold text-green-700">Rp {Number(menu.harga_diskon).toLocaleString('id-ID')}</p>
+                        </div>
+                      ) : (
+                        <p className="text-xs mb-2 md:mb-3" style={{ color: '#8B6F47' }}>Rp {Number(menu.harga).toLocaleString('id-ID')}</p>
+                      )}
                       {userCanEdit('pos') && (
                         qty === 0 ? (
                           <button onClick={() => tambahItem(menu)} className="w-full py-1.5 rounded-full text-xs font-bold transition-all" style={{ backgroundColor: '#634930', color: '#fff' }}>+ Tambah</button>
