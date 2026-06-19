@@ -63,7 +63,6 @@ module.exports = (config = []) => {
 
       // Legacy mode: array of role names
       if (Array.isArray(config)) {
-        const userRole = (decoded.role || '').toString().toLowerCase().trim();
         const allowedRoles = config.map(r => r.toLowerCase().trim());
         if (!allowedRoles.includes(userRole)) {
           return res.status(403).json({ message: 'Akses ditolak' });
@@ -74,7 +73,6 @@ module.exports = (config = []) => {
       // Permission mode: { module: 'xxx', action: 'view'|'edit' }
       if (typeof config === 'object' && config.module) {
         const allPerms = await loadPermissions();
-        const userRole = (decoded.role || '').toString().toLowerCase().trim();
         const rolePerms = allPerms[userRole];
         
         if (!rolePerms) {
