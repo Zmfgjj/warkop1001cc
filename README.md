@@ -1,84 +1,107 @@
-# Warkop 1001cc - Point of Sale & KDS
+# ☕ Warkop 1001cc - Point of Sale (POS) & KDS
 
-Aplikasi Point of Sale (POS) dan Kitchen Display System (KDS) untuk Warkop 1001cc. Proyek ini terdiri dari *frontend* (React/Vite) dan *backend* (Node.js/Express/MySQL).
-
----
-
-## 🚀 Panduan Setup untuk Komputer Baru (Setelah Clone)
-
-Ikuti langkah-langkah berikut untuk menjalankan aplikasi ini di komputer lain dengan data dan gambar yang sudah ada.
-
-### Prasyarat:
-Pastikan komputer Anda sudah terinstal:
-- [Node.js](https://nodejs.org/) (Disarankan versi 18+)
-- [MySQL Server](https://dev.mysql.com/downloads/mysql/) (XAMPP / Laragon / Standalone)
-- [Git](https://git-scm.com/)
+Sistem **Point of Sale (POS)** dan **Kitchen Display System (KDS)** komprehensif yang dirancang khusus untuk operasional Warkop 1001cc. Aplikasi ini mengusung arsitektur modern (MERN-like) dengan antarmuka kasir *offline-first* dan manajemen pesanan publik berbasis *QR Code*.
 
 ---
 
-### Langkah 1: Setup Database MySQL
-1. Buka MySQL (melalui phpMyAdmin, DBeaver, atau MySQL CLI).
-2. Buat database baru dengan nama `warkop1001cc`:
-   ```sql
-   CREATE DATABASE warkop1001cc;
-   ```
-3. Import file `warkop1001cc.sql` yang ada di dalam folder `backend/` ke dalam database `warkop1001cc` yang baru dibuat.
-   *(File ini berisi seluruh struktur tabel dan data terakhir, termasuk user dan menu)*.
+## 🌟 Fitur Utama
 
-### Langkah 2: Setup Backend (API & Server)
-1. Buka terminal/command prompt, arahkan ke folder `backend`:
-   ```bash
-   cd backend
-   ```
-2. Instal semua dependensi:
-   ```bash
-   npm install
-   ```
-3. Copy file `env.example` menjadi `.env`:
-   - Di Windows (Command Prompt): `copy env.example .env`
-   - Di Mac/Linux: `cp env.example .env`
-4. Buka file `.env` dan pastikan konfigurasi database sesuai dengan komputer Anda (terutama `DB_PASSWORD` jika ada).
-5. Jalankan server backend:
-   ```bash
-   npm run dev
-   ```
-   *Backend akan berjalan di port 3000.*
-
-### Langkah 3: Setup Frontend (UI)
-1. Buka terminal **baru**, arahkan ke folder `frontend`:
-   ```bash
-   cd frontend
-   ```
-2. Instal semua dependensi:
-   ```bash
-   npm install
-   ```
-3. Jalankan aplikasi frontend:
-   ```bash
-   npm run dev
-   ```
-   *Frontend akan berjalan di browser, biasanya di http://localhost:5173 atau port lain yang tertera di terminal.*
-
-> **Catatan WhatsApp Gateway:**
-> Backend sekarang sudah dilengkapi dengan Local WhatsApp Gateway (menggunakan `whatsapp-web.js`). Saat pertama kali di-*run* (`npm install` atau `npm run dev`), sistem mungkin akan mendownload Chromium secara otomatis. Pastikan koneksi internet stabil. Scan QR Code WhatsApp tersedia di halaman CRM pada Frontend untuk menghubungkan nomor pengirim.
-4. Jika ingin mengekspose menu publik lewat tunnel, jalankan:
-   ```bash
-   npm run tunnel
-   ```
-   *Tunnel akan membuat URL publik yang meneruskan ke frontend dev server.*
-
-   > Contoh: `https://warkop1001cc-publik.loca.lt/menu/011`
+1. **POS & Open Bill**: Mendukung pesanan *dine-in* (meja) dengan sistem *Open Bill* (bisa nambah pesanan tanpa harus bayar dulu).
+2. **KDS (Kitchen Display System)**: Layar sinkronisasi *real-time* untuk dapur menggunakan `Socket.io`.
+3. **Menu Publik (QR Order)**: Pelanggan dapat memindai QR Code di meja untuk memesan secara mandiri dari HP mereka (dilengkapi varian harga dan *rate limiter* anti-spam).
+4. **WhatsApp CRM**: *Local WhatsApp Gateway* terintegrasi. Broadcast otomatis pesan promosi ke database pelanggan menggunakan `whatsapp-web.js`.
+5. **Role & Dynamic Permissions**: Sistem *Role-Based Access Control* (RBAC). Admin bisa mengatur fitur mana saja yang boleh dibuka oleh *Kasir*, *Dapur*, atau *Investor* (read-only).
+6. **Sistem Bonus Karyawan**: Perhitungan otomatis bonus kasir & dapur berdasarkan persentase dari Net Profit (Total Pendapatan - HPP - PPN).
+7. **Integrasi Stok**: Menampilkan modul Manajemen Stok berbasis Laravel melalui antarmuka *Iframe*.
 
 ---
 
-## 🖼️ Catatan Tentang Gambar Menu
-Semua gambar yang telah diupload untuk menu tersimpan di folder `backend/public/uploads/`. Karena folder ini ikut di-*push* ke Github, maka gambar-gambar tersebut akan otomatis muncul saat Anda menjalankan project di komputer baru asalkan database (Langkah 1) telah di-import dengan benar.
+## 🛠️ Tech Stack
+
+- **Frontend:** React.js, Vite, TailwindCSS, Socket.io-client, idb-keyval (Offline DB).
+- **Backend:** Node.js, Express.js, Socket.io, whatsapp-web.js, bcryptjs, jsonwebtoken (JWT).
+- **Database:** MySQL 8+ (menggunakan `mysql2/promise` pool).
+
+---
+
+## 🚀 Panduan Instalasi (Development)
+
+Ikuti langkah-langkah berikut untuk menjalankan aplikasi di lingkungan lokal.
+
+### 1. Setup Database MySQL
+1. Buat database baru bernama `warkop1001cc`.
+2. Lakukan *import* struktur tabel dari file `backend/scripts/` (atau *dump* terakhir Anda).
+
+### 2. Setup Backend (Node.js)
+```bash
+cd backend
+npm install
+```
+Copy file environment:
+```bash
+cp env.example .env
+```
+Sesuaikan konfigurasi `.env` Anda (Lihat bagian Konfigurasi `.env` di bawah).
+
+Jalankan server backend:
+```bash
+npm run dev
+```
+
+### 3. Setup Frontend (React/Vite)
+Buka terminal baru:
+```bash
+cd frontend
+npm install
+```
+Buat file `frontend/.env` dan sesuaikan URL-nya (jika tidak menggunakan *default*):
+```env
+VITE_API_URL=http://localhost:3000
+VITE_STOCK_URL=http://localhost:8000
+```
+Jalankan server frontend:
+```bash
+npm run dev
+```
+
+---
+
+## 🔐 Konfigurasi `.env` (Production)
+
+Saat akan merilis ke *Production* (server *live*), pastikan file `backend/.env` dikonfigurasi dengan ketat:
+
+```env
+PORT=3000
+NODE_ENV=production
+
+# Konfigurasi MySQL
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=password_database_anda
+DB_NAME=warkop1001cc
+
+# Keamanan (WAJIB DIGANTI SAAT LIVE)
+JWT_SECRET=gunakan_string_acak_64_karakter_disini
+JWT_EXPIRES_IN=7d
+
+# Konfigurasi URL (Mencegah error QR Code & CORS)
+FRONTEND_URL=https://warkop1001cc.cloud
+ALLOWED_ORIGINS=https://warkop1001cc.cloud,http://localhost:5173
+```
+
+---
 
 ## 👥 Akun Default (Login)
-Gunakan salah satu akun berikut untuk login ke aplikasi (jika Anda tidak mengubahnya sebelum export):
+Jika menggunakan *database seed* bawaan, Anda bisa login dengan:
 - **Owner**: `owner` / `password123`
 - **Manager**: `manager` / `password123`
 - **Kasir**: `kasir1` / `password123`
 - **Dapur (KDS)**: `dapur` / `password123`
+- **Investor**: `investor` / `password123` (Hak akses *Read-Only*)
 
-Untuk panduan penggunaan fitur secara lengkap, silakan lihat file [SETUP_GUIDE.md](./SETUP_GUIDE.md).
+---
+
+## 📦 Dokumen Lainnya
+- [Rencana Integrasi Payment Gateway](./PAYMENT_GATEWAY_PLAN.md)
+- [Rencana Migrasi Native Node.js Stock](./STOCK_MIGRATION_PLAN.md)
