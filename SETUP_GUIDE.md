@@ -50,14 +50,14 @@ INSERT INTO users (nama, username, password, role, aktif, created_at) VALUES
 ## Cara Mengakses Halaman KDS
 
 1. **Login dengan salah satu role:**
-   - `dapur` / `password123`
-   - `owner` / `password123`
-   - `manager` / `password123`
-   - `admin` / `password123`
+   - `dapur` / `password`
+   - `owner` / `password`
+   - `manager` / `password`
+   - `admin` / `password`
 
 2. **Navigasi ke halaman KDS:**
    - Setelah login, klik menu "📡 KDS" di sidebar
-   - Atau akses langsung: `http://localhost:5174/kasir/kds`
+   - Atau akses langsung: `http://localhost:5173/kasir/kds`
 
 3. **Jika halaman KDS masih tidak muncul:**
    - Buka DevTools (F12) dan cek console untuk error messages
