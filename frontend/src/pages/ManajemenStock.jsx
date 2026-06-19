@@ -4,7 +4,8 @@ import { Package, ExternalLink, RefreshCw } from 'lucide-react'
 
 export default function ManajemenStock() {
   const [iframeError, setIframeError] = useState(false)
-  const laravelUrl = 'http://localhost:8000'
+  // Gunakan URL dari .env jika ada (contoh: https://stock.warkop1001cc.cloud), jika tidak fallback ke localhost
+  const laravelUrl = import.meta.env.VITE_STOCK_URL || 'http://localhost:8000'
 
   return (
     <MobileLayout activeMenu="Manajemen Stock">
