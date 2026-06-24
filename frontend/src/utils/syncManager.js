@@ -21,7 +21,8 @@ export const syncOfflineOrders = async () => {
         await api.post('/pembayaran', { 
           pesanan_id: resPesanan.data.pesanan_id, 
           metode: pembayaran.metode, 
-          jumlah: pembayaran.jumlah 
+          jumlah: pembayaran.jumlah,
+          is_kasir: true
         });
       }
       
