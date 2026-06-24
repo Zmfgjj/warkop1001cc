@@ -17,7 +17,7 @@ export const AuthProvider = ({ children }) => {
       } catch (err) {
         // Fallback to offline user if network fails
         const offlineUser = getOfflineUser();
-        if (offlineUser && !navigator.onLine) {
+        if (offlineUser && (!navigator.onLine || !err.response)) {
           setUser(offlineUser);
         } else {
           setUser(null)

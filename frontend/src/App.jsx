@@ -120,10 +120,14 @@ export default function App() {
   return (
     <AuthProvider>
       <AlertProvider>
-        <OfflineBanner />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <div className="flex flex-col h-[100dvh] overflow-hidden">
+          <OfflineBanner />
+          <div className="flex-1 min-h-0 relative">
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </div>
+        </div>
       </AlertProvider>
     </AuthProvider>
   )

@@ -20,7 +20,7 @@ const allMenuItems = [
   { icon: <Shield size={20} />, label: 'Hak dan Role Akses', path: '/kasir/role-manage', ownerOnly: true },
 ]
 
-export default function MobileLayout({ activeMenu, children }) {
+export default function MobileLayout({ activeMenu, children, overflowClass = 'overflow-y-auto' }) {
   const { user, logout, canView, isInvestor } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -34,7 +34,7 @@ export default function MobileLayout({ activeMenu, children }) {
   })
 
   return (
-    <div className="flex h-[100dvh] font-sans overflow-hidden" style={{ backgroundColor: '#F9F5F0' }}>
+    <div className="flex h-full font-sans overflow-hidden" style={{ backgroundColor: '#F9F5F0' }}>
 
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -103,7 +103,7 @@ export default function MobileLayout({ activeMenu, children }) {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-[100dvh] min-w-0">
+      <div className="flex-1 flex flex-col h-full min-w-0">
 
         {/* Mobile top bar - only shows on mobile */}
         <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-[#EDE0CC] shadow-sm z-30 shrink-0">
@@ -130,7 +130,7 @@ export default function MobileLayout({ activeMenu, children }) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto relative">
+        <div className={`flex-1 relative ${overflowClass}`}>
           {children}
         </div>
       </div>

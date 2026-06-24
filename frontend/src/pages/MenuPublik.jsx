@@ -461,7 +461,7 @@ export default function MenuPublik() {
   const totalItems = cart.reduce((s, c) => s + c.qty, 0)
 
   return (
-    <div className="h-[100dvh] bg-[#FFFAF1] flex flex-col overflow-hidden">
+    <div className="h-full bg-[#FFFAF1] flex flex-col overflow-hidden">
       {/* Header */}
       <header className="bg-[#ECD7B1] h-[70px] flex items-center px-4 shadow-sm sticky top-0 z-30">
         <div className="flex-1 flex items-center gap-3">
