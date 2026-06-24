@@ -383,6 +383,7 @@ export default function KDS() {
                     </div>
                   ))}
                 </div>
+                )}
 
                 {/* Card Footer */}
                 {userCanEdit('kds') && (
