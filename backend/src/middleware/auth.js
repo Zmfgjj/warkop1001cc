@@ -46,7 +46,7 @@ module.exports = (config = []) => {
         return res.status(401).json({ message: 'Token tidak ada' });
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'warkop_secret_123');
       req.user = decoded;
 
       const userRole = (decoded.role || '').toString().toLowerCase().trim();

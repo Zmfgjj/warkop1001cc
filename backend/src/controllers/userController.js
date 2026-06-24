@@ -53,6 +53,16 @@ exports.updateUser = async (req, res) => {
       return res.status(400).json({ message: 'Nama, username, dan role wajib diisi' });
     }
 
+    if (role.toLowerCase() === 'owner' && req.user.role !== 'owner') {
+      return res.status(403).json({ message: 'Anda tidak bisa memberikan akses Owner' });
+    }
+
+    // Cegah admin mengedit owner
+    const [targetUserRows] = await db.query('SELECT role FROM users WHERE id = ?', [id]);
+    if (targetUserRows.length > 0 && targetUserRows[0].role === 'owner' && req.user.role !== 'owner') {
+      return res.status(403).json({ message: 'Anda tidak memiliki hak untuk mengubah Owner' });
+    }
+
     // Validate role exists in roles table
     const [roleRows] = await db.query('SELECT id FROM roles WHERE name = ?', [role.toLowerCase().trim()]);
     if (roleRows.length === 0) {
@@ -103,6 +113,12 @@ exports.hapusUser = async (req, res) => {
     // Jangan hapus diri sendiri
     if (userId === req.user.id) {
       return res.status(400).json({ message: 'Tidak bisa hapus akun sendiri' });
+    }
+
+    // Cegah hapus owner
+    const [targetUserRows] = await db.query('SELECT role FROM users WHERE id = ?', [userId]);
+    if (targetUserRows.length > 0 && targetUserRows[0].role === 'owner' && req.user.role !== 'owner') {
+      return res.status(403).json({ message: 'Anda tidak memiliki hak untuk menghapus Owner' });
     }
 
     await db.query('DELETE FROM users WHERE id = ?', [userId]);
