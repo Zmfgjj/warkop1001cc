@@ -1,6 +1,6 @@
 import { useAuth } from '../hooks/useAuth'
 import { useState, useEffect, useRef } from 'react'
-import { MonitorPlay, ShoppingBag, Utensils, Clock, CheckCircle, Check, Circle, FileText, Coffee } from 'lucide-react';
+import { MonitorPlay, ShoppingBag, Utensils, Clock, CheckCircle, Check, Circle, FileText, Coffee, ChevronDown, ChevronUp } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
@@ -17,8 +17,15 @@ export default function KDS() {
   const [confirmModal, setConfirmModal] = useState(null)
   const [kdsMode, setKdsMode] = useState('dapur') // 'dapur', 'bar', 'semua'
   const [audioEnabled, setAudioEnabled] = useState(false)
+  const [expandedOrders, setExpandedOrders] = useState([])
   const audioObjRef = useRef(new Audio('/sounds/order-alert.mp3'))
   const previousIdsRef = useRef(new Set())
+
+  const toggleOrder = (id) => {
+    setExpandedOrders(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    )
+  }
 
   const fetchPesanan = async () => {
     setLoading(true)
@@ -256,32 +263,47 @@ export default function KDS() {
                 style={{ border: '1px solid #EDE0CC' }}
               >
                 {/* Card Header */}
-                <div className="px-4 md:px-5 py-3 md:py-4 flex justify-between items-center bg-gradient-to-r from-[#F9F5F0] to-white border-b" style={{ borderColor: '#EDE0CC' }}>
+                <div 
+                  className="px-4 md:px-5 py-3 md:py-4 flex justify-between items-center bg-gradient-to-r from-[#F9F5F0] to-white border-b cursor-pointer hover:bg-stone-50" 
+                  style={{ borderColor: '#EDE0CC' }}
+                  onClick={() => toggleOrder(pesanan.id)}
+                >
                   <div className="flex items-center gap-2 md:gap-3">
                     <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl md:rounded-2xl flex items-center justify-center bg-amber-100 text-amber-700 shadow-sm border border-amber-200 text-lg md:text-xl">
                       {pesanan.tipe === 'take-away' ? <ShoppingBag size={20} /> : <Utensils size={20} />}
                     </div>
-                    <h2 className="text-base md:text-lg font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
-                      {pesanan.tipe === 'take-away'
-                        ? `TA #${String(pesanan.id).padStart(3, '0')}`
-                        : `Meja #${String(pesanan.nomor_meja || pesanan.meja_id || '?').padStart(3, '0')} (Ord #${String(pesanan.id).padStart(3, '0')})`
-                      }
-                    </h2>
-                  </div>
-                  <span className="text-xs px-2 md:px-3 py-1 rounded-full font-bold shadow-sm border" style={{
-                    backgroundColor: pesanan.status === 'pending' ? '#FFF9E6' : '#E6F4EA',
-                    color: pesanan.status === 'pending' ? '#b8860b' : '#1E8E3E',
-                    borderColor: pesanan.status === 'pending' ? '#FFE4A0' : '#A8DAB5'
-                  }}>
-                    <div className="flex items-center gap-1">
-                      {pesanan.status === 'pending' ? <Clock size={12} /> : <CheckCircle size={12} />}
-                      <span>{pesanan.status === 'pending' ? 'Menunggu' : 'Diproses'}</span>
+                    <div className="flex flex-col">
+                      <h2 className="text-base md:text-lg font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
+                        {pesanan.tipe === 'take-away'
+                          ? `TA #${String(pesanan.id).padStart(3, '0')}`
+                          : `Meja #${String(pesanan.nomor_meja || pesanan.meja_id || '?').padStart(3, '0')} (Ord #${String(pesanan.id).padStart(3, '0')})`
+                        }
+                      </h2>
+                      {pesanan.nama_pelanggan && (
+                        <span className="text-xs font-bold text-gray-500">{pesanan.nama_pelanggan}</span>
+                      )}
                     </div>
-                  </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs px-2 md:px-3 py-1 rounded-full font-bold shadow-sm border" style={{
+                      backgroundColor: pesanan.status === 'pending' ? '#FFF9E6' : '#E6F4EA',
+                      color: pesanan.status === 'pending' ? '#b8860b' : '#1E8E3E',
+                      borderColor: pesanan.status === 'pending' ? '#FFE4A0' : '#A8DAB5'
+                    }}>
+                      <div className="flex items-center gap-1">
+                        {pesanan.status === 'pending' ? <Clock size={12} /> : <CheckCircle size={12} />}
+                        <span className="hidden sm:inline">{pesanan.status === 'pending' ? 'Menunggu' : 'Diproses'}</span>
+                      </div>
+                    </span>
+                    <button className="text-gray-400 hover:text-gray-600 transition-colors">
+                      {expandedOrders.includes(pesanan.id) ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Items */}
-                <div className="px-3 md:px-4 py-3 space-y-2 flex-1 bg-white">
+                {expandedOrders.includes(pesanan.id) && (
+                  <div className="px-3 md:px-4 py-3 space-y-2 flex-1 bg-white">
                   {(pesanan.items || []).map(item => (
                     <div
                       key={item.id}
