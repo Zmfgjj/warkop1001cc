@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { getMe, logout as apiLogout } from '../api/auth'
+import { saveOfflineCredentials, getOfflineUser, clearOfflineCredentials } from '../utils/offlineAuth'
 
 const AuthContext = createContext(null)
 
@@ -14,7 +15,13 @@ export const AuthProvider = ({ children }) => {
         const data = await getMe()
         setUser(data.user) // now includes permissions
       } catch (err) {
-        setUser(null)
+        // Fallback to offline user if network fails
+        const offlineUser = getOfflineUser();
+        if (offlineUser && !navigator.onLine) {
+          setUser(offlineUser);
+        } else {
+          setUser(null)
+        }
       } finally {
         setLoading(false)
       }
@@ -22,17 +29,21 @@ export const AuthProvider = ({ children }) => {
     fetchUser()
   }, []) // Empty dependency array - hanya run sekali saat mount
 
-  const loginSuccess = (data) => {
+  const loginSuccess = async (data, password) => {
     // token dikelola otomatis via HttpOnly Cookie
     setUser(data.user) // now includes permissions
+    if (password) {
+      await saveOfflineCredentials(data.user, password);
+    }
   }
 
   const logout = async () => {
     try {
-      await apiLogout()
+      if (navigator.onLine) await apiLogout()
     } catch (err) {
       console.error(err)
     } finally {
+      clearOfflineCredentials()
       setUser(null)
     }
   }
