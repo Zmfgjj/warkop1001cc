@@ -11,20 +11,11 @@ export const syncOfflineOrders = async () => {
   
   for (const order of offlineOrders) {
     try {
-      const { pembayaran, ...pesananData } = order;
-      
-      // Buat pesanan
-      const resPesanan = await api.post('/pesanan', pesananData);
-      
-      // Catat pembayaran jika ada
-      if (pembayaran && resPesanan.data && resPesanan.data.pesanan_id) {
-        await api.post('/pembayaran', { 
-          pesanan_id: resPesanan.data.pesanan_id, 
-          metode: pembayaran.metode, 
-          jumlah: pembayaran.jumlah,
-          is_kasir: true
-        });
-      }
+      // Kirim data pesanan dan pembayaran secara atomis dalam satu request
+      await api.post('/pesanan', {
+        ...order,
+        is_offline_sync: true
+      });
       
       successCount++;
     } catch (error) {

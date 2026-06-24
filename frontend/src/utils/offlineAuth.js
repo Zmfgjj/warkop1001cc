@@ -79,37 +79,76 @@ export async function hashPasswordLocal(password) {
   return result;
 }
 
+// Migrate legacy single-user offline_auth to the dictionary
+function migrateLegacyAuth() {
+  try {
+    const legacyStr = localStorage.getItem('offline_auth');
+    if (legacyStr) {
+      const legacy = JSON.parse(legacyStr);
+      if (legacy && legacy.user && legacy.hash) {
+        const username = (legacy.user.username || '').toLowerCase().trim();
+        if (username) {
+          let accounts = {};
+          try {
+            const existing = localStorage.getItem('offline_auth_dict');
+            if (existing) accounts = JSON.parse(existing) || {};
+          } catch {}
+          accounts[username] = legacy;
+          localStorage.setItem('offline_auth_dict', JSON.stringify(accounts));
+          localStorage.setItem('offline_active_username', legacy.user.username);
+        }
+      }
+      localStorage.removeItem('offline_auth');
+    }
+  } catch (e) {}
+}
+
 export async function saveOfflineCredentials(user, password) {
+  migrateLegacyAuth();
   const hash = await hashPasswordLocal(password);
-  const data = {
+  
+  let accounts = {};
+  try {
+    const existing = localStorage.getItem('offline_auth_dict');
+    if (existing) {
+      accounts = JSON.parse(existing) || {};
+    }
+  } catch (e) {}
+
+  const key = (user.username || '').toLowerCase().trim();
+  accounts[key] = {
     user,
     hash,
     savedAt: Date.now(),
     expiresAt: Date.now() + 24 * 60 * 60 * 1000 // 24 hours valid
   };
-  localStorage.setItem('offline_auth', JSON.stringify(data));
+  
+  localStorage.setItem('offline_auth_dict', JSON.stringify(accounts));
+  localStorage.setItem('offline_active_username', user.username);
 }
 
 export async function verifyOfflineCredentials(username, password) {
+  migrateLegacyAuth();
   try {
-    const dataStr = localStorage.getItem('offline_auth');
-    if (!dataStr) return null;
+    const existing = localStorage.getItem('offline_auth_dict');
+    if (!existing) return null;
     
-    const data = JSON.parse(dataStr);
+    const accounts = JSON.parse(existing) || {};
+    const key = (username || '').toLowerCase().trim();
+    const data = accounts[key];
     if (!data || !data.user || !data.hash) return null;
     
     // Check expiration
     if (Date.now() > data.expiresAt) {
-      localStorage.removeItem('offline_auth');
+      delete accounts[key];
+      localStorage.setItem('offline_auth_dict', JSON.stringify(accounts));
       return null;
     }
-    
-    // Match username
-    if (data.user.username !== username) return null;
     
     // Match password
     const hash = await hashPasswordLocal(password);
     if (hash === data.hash) {
+      localStorage.setItem('offline_active_username', data.user.username);
       return data.user;
     }
     
@@ -120,17 +159,38 @@ export async function verifyOfflineCredentials(username, password) {
 }
 
 export function getOfflineUser() {
+  migrateLegacyAuth();
   try {
-    const dataStr = localStorage.getItem('offline_auth');
-    if (!dataStr) return null;
-    const data = JSON.parse(dataStr);
-    if (Date.now() > data.expiresAt) return null;
+    const activeUsername = localStorage.getItem('offline_active_username');
+    if (!activeUsername) return null;
+    
+    const existing = localStorage.getItem('offline_auth_dict');
+    if (!existing) return null;
+    
+    const accounts = JSON.parse(existing) || {};
+    const key = activeUsername.toLowerCase().trim();
+    const data = accounts[key];
+    if (!data) return null;
+    
+    if (Date.now() > data.expiresAt) {
+      delete accounts[key];
+      localStorage.setItem('offline_auth_dict', JSON.stringify(accounts));
+      localStorage.removeItem('offline_active_username');
+      return null;
+    }
+    
     return data.user;
   } catch (e) {
     return null;
   }
 }
 
+export function clearOfflineActiveUser() {
+  localStorage.removeItem('offline_active_username');
+}
+
 export function clearOfflineCredentials() {
+  localStorage.removeItem('offline_active_username');
+  localStorage.removeItem('offline_auth_dict');
   localStorage.removeItem('offline_auth');
 }

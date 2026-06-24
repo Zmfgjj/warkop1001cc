@@ -51,18 +51,45 @@ export default function KDS() {
     if (!socket) return
     const onChange = () => debouncedFetch()
 
+    const onOfflineSync = async (data) => {
+      // Saring item yang relevan untuk KDS ini (Dapur / Bar)
+      const relevantItems = (data.items || []).filter(i => {
+        const k = (i.kategori_nama || i.kategori || '').toLowerCase();
+        if (kdsMode === 'dapur') return k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie');
+        if (kdsMode === 'bar') return k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew');
+        return true; // 'semua'
+      });
+
+      if (relevantItems.length > 0) {
+        const targetPrint = kdsMode === 'semua' ? ['dapur', 'bar'] : [kdsMode];
+        const strukData = {
+          pesananId: data.id || data.pesanan_id,
+          meja: data.nomor_meja || data.meja_id,
+          tipe: data.tipe,
+          kasir: data.nama_kasir || 'Kasir',
+          tanggal: data.created_at || new Date(),
+          items: relevantItems,
+        }
+        const thermalOk = await cetakStrukThermal(strukData, targetPrint).catch(() => false)
+        if (!thermalOk) cetakStruk(strukData, targetPrint)
+      }
+      debouncedFetch()
+    }
+
     socket.on('pesanan_baru', onChange)
     socket.on('status_pesanan', onChange)
     socket.on('status_item', onChange)
     socket.on('catatan_item', onChange)
+    socket.on('pesanan_offline_sync', onOfflineSync)
 
     return () => {
       socket.off('pesanan_baru', onChange)
       socket.off('status_pesanan', onChange)
       socket.off('status_item', onChange)
       socket.off('catatan_item', onChange)
+      socket.off('pesanan_offline_sync', onOfflineSync)
     }
-  }, [socket, debouncedFetch])
+  }, [socket, debouncedFetch, kdsMode])
 
   // Fallback polling every 10 seconds
   useEffect(() => {
