@@ -42,6 +42,9 @@ export const syncOfflineOrders = async () => {
 
 // Setup background sync listener saat online
 export const initSyncManager = () => {
+  if (navigator.onLine) {
+    syncOfflineOrders();
+  }
   window.addEventListener('online', () => {
     console.log('[Sync] Koneksi internet kembali. Menjalankan syncManager...');
     syncOfflineOrders();
