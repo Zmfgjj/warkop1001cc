@@ -38,21 +38,32 @@ exports.buatPesanan = async (req, res) => {
   try {
     await conn.beginTransaction();
     
-    const { meja_id, tipe, catatan, items } = req.body;
+    const { meja_id, tipe, catatan, items, is_offline_sync, pembayaran } = req.body;
     const kasir_id = req.user?.id || null;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ message: 'Items pesanan wajib diisi' });
     }
 
-    // Hitung total dari DB
+    // Hitung total dari DB dan ambil nama menu + kategori untuk keperluan print struk dapur di KDS
     let totalBaru = 0;
     const validatedItems = [];
     for (const item of items) {
-      const [menu] = await conn.query('SELECT harga FROM menu WHERE id = ?', [item.menu_id]);
+      const [menu] = await conn.query(
+        `SELECT m.harga, m.nama, k.nama as kategori_nama 
+         FROM menu m 
+         LEFT JOIN kategori k ON m.kategori_id = k.id 
+         WHERE m.id = ?`,
+        [item.menu_id]
+      );
       if (menu.length > 0) {
         totalBaru += menu[0].harga * item.qty;
-        validatedItems.push({ ...item, harga: menu[0].harga });
+        validatedItems.push({ 
+          ...item, 
+          harga: menu[0].harga,
+          nama_menu: menu[0].nama,
+          kategori_nama: menu[0].kategori_nama
+        });
       }
     }
 
@@ -64,8 +75,8 @@ exports.buatPesanan = async (req, res) => {
       await conn.query('SELECT id FROM meja WHERE id = ? FOR UPDATE', [meja_id]);
     }
 
-    // Cek Open Bill
-    const [openBill] = await conn.query(
+    // Cek Open Bill (Bypass jika ini pesanan sinkronisasi offline)
+    const [openBill] = is_offline_sync ? [[]] : await conn.query(
       "SELECT id, total FROM pesanan WHERE meja_id = ? AND is_open_bill = 1 AND status != 'selesai' AND status != 'batal' LIMIT 1",
       [meja_id]
     );
@@ -87,20 +98,33 @@ exports.buatPesanan = async (req, res) => {
       const isOffline = kasir_id !== null;
       const nomor_antrean = await getNomorAntrean(conn, isOffline);
 
+      // Jika sync offline, status langsung 'selesai' dan payment_status 'paid'
+      const statusValue = is_offline_sync ? 'selesai' : 'pending';
+      const paymentStatusValue = is_offline_sync ? 'paid' : 'unpaid';
+
       const [result] = await conn.query(
-        'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total, nomor_antrean) VALUES (?, ?, ?, ?, ?, ?)',
-        [meja_id, kasir_id, tipe, catatan, total, nomor_antrean]
+        'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total, nomor_antrean, status, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [meja_id, kasir_id, tipe, catatan, total, nomor_antrean, statusValue, paymentStatusValue]
       );
       pesanan_id = result.insertId;
 
+      const itemStatusValue = is_offline_sync ? 'selesai' : 'pending';
       for (const item of validatedItems) {
         await conn.query(
-          'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, catatan) VALUES (?, ?, ?, ?, ?)',
-          [pesanan_id, item.menu_id, item.qty, item.harga, item.catatan || null]
+          'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, catatan, status) VALUES (?, ?, ?, ?, ?, ?)',
+          [pesanan_id, item.menu_id, item.qty, item.harga, item.catatan || null, itemStatusValue]
         );
       }
 
-      if (meja_id) {
+      // Jika sync offline, simpan pembayaran secara otomatis
+      if (is_offline_sync && pembayaran) {
+        await conn.query(
+          'INSERT INTO pembayaran (pesanan_id, metode, jumlah, status) VALUES (?, ?, ?, "sukses")',
+          [pesanan_id, pembayaran.metode || 'tunai', pembayaran.jumlah || total]
+        );
+      }
+
+      if (meja_id && !is_offline_sync) {
         await conn.query('UPDATE meja SET status = "terisi" WHERE id = ?', [meja_id]);
       }
     }
@@ -109,9 +133,38 @@ exports.buatPesanan = async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      io.emit('pesanan_baru', { pesanan_id, meja_id, total });
-      if (meja_id && openBill.length === 0) {
-        io.emit('status_meja', { meja_id, status: 'terisi' });
+      if (is_offline_sync) {
+        // Ambil nama kasir untuk data struk
+        let namaKasir = 'Kasir';
+        if (kasir_id) {
+          const [u] = await db.query('SELECT nama FROM users WHERE id = ?', [kasir_id]);
+          if (u.length > 0) namaKasir = u[0].nama;
+        }
+
+        // Ambil nomor meja jika ada
+        let nomorMeja = null;
+        if (meja_id) {
+          const [m] = await db.query('SELECT nomor FROM meja WHERE id = ?', [meja_id]);
+          if (m.length > 0) nomorMeja = m[0].nomor;
+        }
+
+        io.emit('pesanan_offline_sync', {
+          id: pesanan_id,
+          meja_id,
+          nomor_meja: nomorMeja,
+          tipe,
+          catatan,
+          total,
+          nomor_antrean,
+          created_at: new Date(),
+          nama_kasir: namaKasir,
+          items: validatedItems
+        });
+      } else {
+        io.emit('pesanan_baru', { pesanan_id, meja_id, total });
+        if (meja_id && openBill.length === 0) {
+          io.emit('status_meja', { meja_id, status: 'terisi' });
+        }
       }
     }
 

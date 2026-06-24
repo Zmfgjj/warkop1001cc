@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import { getMe, logout as apiLogout } from '../api/auth'
-import { saveOfflineCredentials, getOfflineUser, clearOfflineCredentials } from '../utils/offlineAuth'
+import { saveOfflineCredentials, getOfflineUser, clearOfflineActiveUser } from '../utils/offlineAuth'
 
 const AuthContext = createContext(null)
 
@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error(err)
     } finally {
-      clearOfflineCredentials()
+      clearOfflineActiveUser()
       setUser(null)
     }
   }

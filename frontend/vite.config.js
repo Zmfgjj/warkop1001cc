@@ -14,7 +14,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,jpeg}'],
         runtimeCaching: [
           {
-            urlPattern: /^http:\/\/localhost:3000\/uploads\/.*/i,
+            urlPattern: /\/uploads\/.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'upload-images-cache',
