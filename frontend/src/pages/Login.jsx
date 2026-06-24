@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { login } from '../api/auth'
 import { useAuth } from '../hooks/useAuth'
+import { verifyOfflineCredentials } from '../utils/offlineAuth'
 
 export default function Login() {
   const [username, setUsername] = useState('')
@@ -23,11 +24,24 @@ export default function Login() {
     setLoading(true)
     try {
       const data = await login(username, password)
-      loginSuccess(data)
+      await loginSuccess(data, password)
       if (data.user.role === 'dapur') navigate('/kasir/kds')
       else navigate('/kasir')
     } catch (err) {
-      setError(err.response?.data?.message || 'Login gagal. Coba lagi.')
+      // Check if it's a network error or offline
+      if (!navigator.onLine || !err.response) {
+        const offlineUser = await verifyOfflineCredentials(username, password);
+        if (offlineUser) {
+          await loginSuccess({ user: offlineUser }, password);
+          if (offlineUser.role === 'dapur') navigate('/kasir/kds')
+          else navigate('/kasir')
+          return;
+        } else {
+          setError('Anda sedang offline dan kredensial salah atau sudah kedaluwarsa.')
+        }
+      } else {
+        setError(err.response?.data?.message || 'Login gagal. Coba lagi.')
+      }
     } finally {
       setLoading(false)
     }
