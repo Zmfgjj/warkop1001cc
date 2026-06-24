@@ -386,7 +386,7 @@ export default function KDS() {
                 )}
 
                 {/* Card Footer */}
-                {userCanEdit('kds') && (
+                {userCanEdit('kds') && kdsMode !== 'semua' && (
                   <div className="px-4 md:px-5 py-3 md:py-4 flex justify-end bg-gray-50 border-t" style={{ borderColor: '#EDE0CC' }}>
                     <button
                       onClick={() => updateStatusPesanan(pesanan.id, 'selesai')}
