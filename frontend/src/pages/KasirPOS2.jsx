@@ -163,14 +163,29 @@ export default function KasirPOS() {
         meja: null, tipe: tipeOrder, kasir: user?.username, tanggal: new Date() 
       }
 
+      let successOffline = false;
+
       if (isOnline) {
-        // Online flow
-        const resPesanan = await api.post('/pesanan', pesananData)
-        await api.post('/pembayaran', { pesanan_id: resPesanan.data.pesanan_id, metode: metodeBayar.toLowerCase(), jumlah: total, is_kasir: true })
-        strukData.pesananId = resPesanan.data.pesanan_id
+        try {
+          // Online flow
+          const resPesanan = await api.post('/pesanan', pesananData)
+          await api.post('/pembayaran', { pesanan_id: resPesanan.data.pesanan_id, metode: metodeBayar.toLowerCase(), jumlah: total, is_kasir: true })
+          strukData.pesananId = resPesanan.data.pesanan_id
+        } catch (err) {
+          // Fallback to offline queue on network error or server down
+          if (!err.response || err.response.status >= 500) {
+            console.warn('[POS] Gagal menghubungi server. Menyimpan pesanan ke antrean offline...', err);
+            await queueOfflineOrder(pesananData);
+            successOffline = true;
+            showAlert('Gagal menghubungi server. Pesanan disimpan secara lokal dan akan disinkronkan nanti.', 'Mode Offline');
+          } else {
+            throw err;
+          }
+        }
       } else {
         // Offline flow
         await queueOfflineOrder(pesananData)
+        successOffline = true
         showAlert('Anda sedang offline. Pesanan disimpan secara lokal dan akan disinkronkan nanti.', 'Mode Offline')
       }
 
@@ -181,7 +196,9 @@ export default function KasirPOS() {
       const thermalOk = await cetakStrukThermal(strukData, printTypes).catch(() => false)
       if (!thermalOk) cetakStruk(strukData, printTypes)
       
-      if (isOnline) showAlert('Pesanan berhasil dibuat & pembayaran tercatat!', 'Sukses')
+      if (!successOffline) {
+        showAlert('Pesanan berhasil dibuat & pembayaran tercatat!', 'Sukses')
+      }
       setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); fetchData()
     } catch (err) { 
       showAlert(err.response?.data?.message || 'Gagal memproses pembayaran', 'Gagal') 
@@ -193,7 +210,7 @@ export default function KasirPOS() {
   const handleCancel = () => { setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in') }
 
   return (
-    <MobileLayout activeMenu="Kasir (POS)">
+    <MobileLayout activeMenu="Kasir (POS)" overflowClass="overflow-hidden flex flex-col">
       {/* Header desktop */}
       <div className="hidden lg:flex justify-end items-center px-8 py-4 shadow-sm" style={{ backgroundColor: '#EDE0CC' }}>
         <div className="flex items-center gap-3">
