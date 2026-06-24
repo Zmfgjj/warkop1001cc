@@ -188,8 +188,8 @@ export default function KonfirmasiPembayaran() {
                   {p.bukti_pembayaran ? (
                     <div className="mb-4 bg-gray-50 p-3 rounded-xl border border-gray-200">
                       <p className="text-xs font-bold text-gray-600 mb-2">Bukti Transfer (QRIS):</p>
-                      <a href={p.bukti_pembayaran} target="_blank" rel="noreferrer">
-                        <img src={p.bukti_pembayaran} alt="Bukti" className="w-full h-32 object-contain rounded-lg bg-white border border-gray-200" />
+                      <a href={p.bukti_pembayaran.startsWith('http') ? p.bukti_pembayaran : `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${p.bukti_pembayaran}`} target="_blank" rel="noreferrer">
+                        <img src={p.bukti_pembayaran.startsWith('http') ? p.bukti_pembayaran : `${import.meta.env.VITE_API_URL || 'http://localhost:3000'}${p.bukti_pembayaran}`} alt="Bukti" className="w-full h-32 object-contain rounded-lg bg-white border border-gray-200" />
                       </a>
                     </div>
                   ) : (
