@@ -1,7 +1,7 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { CalendarPlus, Search, Utensils, ShoppingBag, ShoppingCart, X } from 'lucide-react';
+import { Search, Utensils, ShoppingBag, ShoppingCart, X } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import { cetakStruk, cetakStrukThermal } from '../utils/printStruk'
@@ -20,8 +20,6 @@ export default function KasirPOS() {
   const [kategori, setKategori] = useState('')
   const [search, setSearch] = useState('')
   const [menuList, setMenuList] = useState([])
-  const [mejaList, setMejaList] = useState([])
-  
   const [order, setOrder] = useState([])
   const [metodeBayar, setMetodeBayar] = useState('Tunai')
   const [jumlahBayar, setJumlahBayar] = useState('')
@@ -29,11 +27,6 @@ export default function KasirPOS() {
   const [loadingBayar, setLoadingBayar] = useState(false)
   const [tipeOrder, setTipeOrder] = useState('dine-in')
   const [ppnRate, setPpnRate] = useState(2)
-  const [activeBill, setActiveBill] = useState(null)
-  const [showReservasiModal, setShowReservasiModal] = useState(false)
-  const [resNama, setResNama] = useState('')
-  const [resDp, setResDp] = useState('')
-  const [resMejaId, setResMejaId] = useState('')
   const [showOrderPanel, setShowOrderPanel] = useState(false)
 
   useEffect(() => { fetchKategori(); fetchData(); fetchPPN() }, [isOnline])
@@ -45,16 +38,6 @@ export default function KasirPOS() {
     socket.on('menuDeleted', (d) => { setMenuList(p => p.filter(x => x.id !== d.id)); setOrder(p => p.filter(o => o.menu_id !== d.id)) })
     return () => { socket.off('menuAdded'); socket.off('menuUpdated'); socket.off('menuDeleted') }
   }, [socket, isOnline])
-
-  const debouncedMejaFetch = useDebouncedCallback(async () => {
-    try { const res = await api.get('/meja'); setMejaList(res.data); saveMasterData('meja', res.data) } catch {}
-  }, 400)
-
-  useEffect(() => {
-    if (!socket || !isOnline) return
-    socket.on('status_meja', () => debouncedMejaFetch())
-    return () => { socket.off('status_meja') }
-  }, [socket, debouncedMejaFetch, isOnline])
 
   const fetchKategori = async () => {
     try { 
@@ -74,13 +57,12 @@ export default function KasirPOS() {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const [resMenu, resMeja] = await Promise.all([api.get('/menu'), api.get('/meja')])
-      setMenuList(resMenu.data); setMejaList(resMeja.data)
-      saveMasterData('menu', resMenu.data); saveMasterData('meja', resMeja.data)
+      const resMenu = await api.get('/menu')
+      setMenuList(resMenu.data)
+      saveMasterData('menu', resMenu.data)
     } catch {
       const offlineMenu = await getMasterData('menu') || []
-      const offlineMeja = await getMasterData('meja') || []
-      setMenuList(offlineMenu); setMejaList(offlineMeja)
+      setMenuList(offlineMenu)
     } finally { setLoading(false) }
   }
   
@@ -95,24 +77,7 @@ export default function KasirPOS() {
     } 
   }
 
-  useEffect(() => {
-    setActiveBill(null)
-  }, [tipeOrder])
 
-  const fetchActiveBill = async (mejaId) => {
-    try { const res = await api.get('/pesanan'); setActiveBill(res.data.find(p => p.meja_id === mejaId && p.is_open_bill === 1) || null) } catch {}
-  }
-
-  const handleBuatReservasi = async (e) => {
-    e.preventDefault()
-    if (!isOnline) return showAlert('Reservasi tidak bisa dilakukan saat offline', 'Oops!')
-    if (!resMejaId || !resNama) return showAlert('Pilih meja dan isi nama pelanggan', 'Perhatian')
-    try {
-      await api.post('/pesanan/reservasi', { meja_id: parseInt(resMejaId), nama_pelanggan: resNama, dp_amount: parseInt(resDp.replace(/\D/g, '') || 0) })
-      showAlert('Reservasi berhasil dibuat', 'Sukses')
-      setShowReservasiModal(false); setResNama(''); setResDp(''); setResMejaId(''); fetchData()
-    } catch (err) { showAlert(err?.response?.data?.message || 'Gagal membuat reservasi', 'Gagal') }
-  }
 
   const filteredMenu = menuList.filter(m => {
     const mk = m.kategori_nama || m.kategori || ''
@@ -243,12 +208,7 @@ export default function KasirPOS() {
                 <button onClick={() => setTipeOrder('take-away')} className="px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm font-medium transition-all"
                   style={{ backgroundColor: tipeOrder === 'take-away' ? '#634930' : '#EDE0CC', color: tipeOrder === 'take-away' ? '#fff' : '#634930' }}><span className="flex items-center gap-1.5"><ShoppingBag size={14} /> TA</span></button>
               </div>
-              {userCanEdit('pos') && (
-                <button onClick={() => setShowReservasiModal(true)} className="flex items-center gap-1 px-3 md:px-4 py-2.5 md:py-3 rounded-full text-xs md:text-sm font-medium transition-all"
-                  style={{ backgroundColor: '#EDE0CC', color: '#634930', border: '1.5px solid #C4A882' }}>
-                  <CalendarPlus size={14} /> <span className="hidden sm:inline">Reservasi</span>
-                </button>
-              )}
+
             </div>
 
             {/* Kategori */}
@@ -317,12 +277,7 @@ export default function KasirPOS() {
               <button onClick={() => setShowOrderPanel(false)} className="lg:hidden text-[#8B6F47] text-xl"><X size={20} /></button>
             </div>
 
-            {activeBill && (
-              <div className="p-3 mx-4 mb-2 rounded-xl flex justify-between items-center text-xs" style={{ backgroundColor: '#DFECDF', border: '1px solid #A4C5A4' }}>
-                <div><p className="font-bold text-green-800">OPEN BILL</p><p className="text-green-900 font-medium">{activeBill.nama_pelanggan}</p></div>
-                <div className="text-right"><p className="font-bold text-green-800">DP</p><p className="font-bold text-green-900">Rp {Number(activeBill.dp_amount).toLocaleString('id-ID')}</p></div>
-              </div>
-            )}
+
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {order.length === 0 ? (
@@ -383,36 +338,7 @@ export default function KasirPOS() {
         </div>
       )}
 
-      {/* Modal Reservasi */}
-      {showReservasiModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="px-6 py-4" style={{ backgroundColor: '#634930' }}><h3 className="text-lg font-bold text-white">Buat Reservasi / Open Bill</h3></div>
-            <form onSubmit={handleBuatReservasi} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-bold mb-1" style={{ color: '#634930' }}>Nama Pelanggan</label>
-                <input type="text" required value={resNama} onChange={e => setResNama(e.target.value)} className="w-full px-4 py-2 border rounded-xl focus:outline-none" style={{ borderColor: '#C4A882' }} placeholder="Misal: Bukber Budi" />
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-1" style={{ color: '#634930' }}>Pilih Meja</label>
-                <select required value={resMejaId} onChange={e => setResMejaId(e.target.value)} className="w-full px-4 py-2 border rounded-xl focus:outline-none" style={{ borderColor: '#C4A882' }}>
-                  <option value="">-- Pilih Meja --</option>
-                  {mejaList.filter(m => m.status === 'kosong').map(m => <option key={m.id} value={m.id}>Meja #{String(m.nomor).padStart(3, '0')}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-bold mb-1" style={{ color: '#634930' }}>Nominal DP</label>
-                <input type="text" required value={resDp} onChange={e => { const val = e.target.value.replace(/\D/g, ''); setResDp(val ? 'Rp ' + Number(val).toLocaleString('id-ID') : '') }}
-                  className="w-full px-4 py-2 border rounded-xl focus:outline-none text-xl font-bold" style={{ borderColor: '#C4A882', color: '#634930' }} placeholder="Rp 0" />
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setShowReservasiModal(false)} className="flex-1 py-2 rounded-xl font-bold" style={{ backgroundColor: '#e0e0e0', color: '#333' }}>Batal</button>
-                <button type="submit" className="flex-1 py-2 rounded-xl font-bold text-white" style={{ backgroundColor: '#634930' }}>Simpan</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+
     </MobileLayout>
   )
 }

@@ -11,7 +11,6 @@ const allMenuItems = [
   { icon: <Tag size={20} />, label: 'Manajemen Promo', path: '/kasir/promo', module: 'manajemen_promo' },
   { icon: <MessageCircle size={20} />, label: 'CRM (Pelanggan)', path: '/kasir/crm', module: 'crm' },
   { icon: <Package size={20} />, label: 'Manajemen Stock', path: '/kasir/stock', module: 'manajemen_stock' },
-  { icon: <Grid2X2 size={20} />, label: 'Manajemen Meja', path: '/kasir/meja', module: 'manajemen_meja' },
   { icon: <MonitorPlay size={20} />, label: 'KDS', path: '/kasir/kds', module: 'kds' },
   { icon: <BarChart3 size={20} />, label: 'Laporan', path: '/kasir/laporan', module: 'laporan' },
   { icon: <Users size={20} />, label: 'User Manage', path: '/kasir/user-manage', module: 'user_manage' },
