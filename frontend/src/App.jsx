@@ -16,7 +16,6 @@ import KDS from './pages/KDS.jsx'
 import MenuPublik from './pages/MenuPublik.jsx'
 import RoleManage from './pages/RoleManage'
 import BonusKaryawan from './pages/BonusKaryawan'
-import ManajemenStock from './pages/ManajemenStock'
 
 /**
  * ProtectedRoute now uses dynamic permissions from the roles table.
@@ -46,8 +45,7 @@ const ProtectedRoute = ({ children, module }) => {
       kds: '/kasir/kds',
       laporan: '/kasir/laporan',
       user_manage: '/kasir/user-manage',
-      bonus_karyawan: '/kasir/bonus',
-      manajemen_stock: '/kasir/stock'
+      bonus_karyawan: '/kasir/bonus'
     }
     
     for (const [mod, path] of Object.entries(moduleRouteMap)) {
@@ -99,7 +97,6 @@ function AppRoutes() {
       <Route path="/kasir/laporan" element={<ProtectedRoute module="laporan"><Laporan /></ProtectedRoute>} />
       <Route path="/kasir/user-manage" element={<ProtectedRoute module="user_manage"><UserManage /></ProtectedRoute>} />
       <Route path="/kasir/bonus" element={<ProtectedRoute module="bonus_karyawan"><BonusKaryawan /></ProtectedRoute>} />
-      <Route path="/kasir/stock" element={<ProtectedRoute module="manajemen_stock"><ManajemenStock /></ProtectedRoute>} />
       <Route path="/kasir/role-manage" element={<RoleManage />} />
       {/* Public customer web order - no auth required */}
       <Route path="/menu" element={<MenuPublik />} />
