@@ -7,7 +7,6 @@ import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarCh
 const allMenuItems = [
   { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/kasir', module: 'dashboard' },
   { icon: <ReceiptText size={20} />, label: 'Kasir (POS)', path: '/kasir/pos', module: 'pos' },
-  { icon: <CreditCard size={20} />, label: 'Konfirmasi Pembayaran', path: '/kasir/pembayaran', module: 'pos' },
   { icon: <ShoppingCart size={20} />, label: 'Manajemen Menu', path: '/kasir/menu', module: 'manajemen_menu' },
   { icon: <Tag size={20} />, label: 'Manajemen Promo', path: '/kasir/promo', module: 'manajemen_promo' },
   { icon: <MessageCircle size={20} />, label: 'CRM (Pelanggan)', path: '/kasir/crm', module: 'crm' },
