@@ -11,7 +11,6 @@ import UserManage from './pages/UserManage'
 import ManajemenMenu from './pages/ManajemenMenu'
 import ManajemenPromo from './pages/ManajemenPromo'
 import CRM from './pages/CRM'
-import ManajemenMeja from './pages/ManajemenMeja'
 import Laporan from './pages/Laporan'
 import KDS from './pages/KDS.jsx'
 import MenuPublik from './pages/MenuPublik.jsx'
@@ -96,7 +95,6 @@ function AppRoutes() {
       <Route path="/kasir/menu" element={<ProtectedRoute module="manajemen_menu"><ManajemenMenu /></ProtectedRoute>} />
       <Route path="/kasir/promo" element={<ProtectedRoute module="manajemen_promo"><ManajemenPromo /></ProtectedRoute>} />
       <Route path="/kasir/crm" element={<ProtectedRoute module="crm"><CRM /></ProtectedRoute>} />
-      <Route path="/kasir/meja" element={<ProtectedRoute module="manajemen_meja"><ManajemenMeja /></ProtectedRoute>} />
       <Route path="/kasir/kds" element={<ProtectedRoute module="kds"><KDS /></ProtectedRoute>} />
       <Route path="/kasir/laporan" element={<ProtectedRoute module="laporan"><Laporan /></ProtectedRoute>} />
       <Route path="/kasir/user-manage" element={<ProtectedRoute module="user_manage"><UserManage /></ProtectedRoute>} />

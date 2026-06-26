@@ -1,7 +1,7 @@
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { Users, Settings, Trash2 } from 'lucide-react';
+import { Users, Settings, Trash2, QrCode, Download } from 'lucide-react';
 import api from '../api/auth'
 import MobileLayout from '../components/MobileLayout'
 import { useAlert } from '../context/AlertContext'
@@ -39,6 +39,37 @@ export default function UserManage() {
   const [showHapus, setShowHapus] = useState(false)
   const [hapusTarget, setHapusTarget] = useState(null)
   const [loadingHapus, setLoadingHapus] = useState(false)
+
+  // QR Code States & Functions
+  const [showQR, setShowQR] = useState(false)
+  const [qrUrl, setQrUrl] = useState('')
+
+  const handleShowPublicMenuQR = () => {
+    const baseUrl = window.location.origin
+    setQrUrl(`${baseUrl}/menu`)
+    setShowQR(true)
+  }
+
+  const handleDownloadQR = async () => {
+    if (!qrUrl) return
+    try {
+      const imageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(qrUrl)}`
+      const response = await fetch(imageUrl)
+      const blob = await response.blob()
+      const objectUrl = window.URL.createObjectURL(blob)
+      
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = `QR-Menu-Publik.png`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(objectUrl)
+    } catch (err) {
+      console.error('Gagal download QR:', err)
+      showAlert('Gagal mengunduh QR Code', 'Gagal', 'error')
+    }
+  }
 
   useEffect(() => { 
     fetchUser()
@@ -240,23 +271,35 @@ export default function UserManage() {
                 </div>
               </div>
 
-              {/* Stats & Add Button */}
-              <div className="lg:col-span-3 flex gap-4">
-                <div className="flex-1 rounded-2xl p-4 shadow-sm flex flex-col justify-center border relative overflow-hidden group" style={{ backgroundColor: '#fff', borderColor: '#EDE0CC' }}>
+              {/* Stats, QR Code & Add Button */}
+              <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                <div className="rounded-2xl p-4 shadow-sm flex flex-col justify-center border relative overflow-hidden group bg-white border-[#EDE0CC]">
                   <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-amber-50 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 relative z-10">Total Anggota</p>
                   <p className="text-3xl font-black text-[#634930] relative z-10">{userList.length}</p>
                 </div>
-                <div className="flex-1 rounded-2xl p-4 shadow-sm flex flex-col justify-center border relative overflow-hidden group" style={{ backgroundColor: '#fff', borderColor: '#EDE0CC' }}>
+                <div className="rounded-2xl p-4 shadow-sm flex flex-col justify-center border relative overflow-hidden group bg-white border-[#EDE0CC]">
                   <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-emerald-50 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 relative z-10">Total Admin</p>
                   <p className="text-3xl font-black text-emerald-700 relative z-10">{totalAdmin}</p>
                 </div>
+                {/* QR Code Menu Publik */}
+                <div 
+                  onClick={handleShowPublicMenuQR}
+                  className="rounded-2xl p-4 shadow-sm border flex flex-col justify-center cursor-pointer relative overflow-hidden group hover:-translate-y-1 hover:shadow-md transition-all bg-indigo-50/40 border-indigo-200"
+                >
+                  <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-indigo-100 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
+                  <div className="flex items-center gap-2 mb-1 relative z-10">
+                    <QrCode size={18} className="text-indigo-600" />
+                    <span className="text-xs font-bold text-indigo-800">QR Code Menu</span>
+                  </div>
+                  <p className="text-[10px] text-indigo-500 mb-2 leading-tight relative z-10">Unduh/Lihat QR E-Menu Publik</p>
+                  <p className="text-xs font-black text-indigo-600 relative z-10 hover:underline">Tampilkan QR &rarr;</p>
+                </div>
                 {userCanEdit('user_manage') && (
                   <button
                     onClick={() => setShowTambah(true)}
-                    className="flex-1 rounded-2xl p-4 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md flex flex-col items-center justify-center gap-1.5 relative overflow-hidden group"
-                    style={{ backgroundColor: '#634930' }}
+                    className="rounded-2xl p-4 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md flex flex-col items-center justify-center gap-1.5 relative overflow-hidden group text-white bg-[#634930]"
                   >
                     <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white text-xl font-light">
@@ -504,6 +547,43 @@ export default function UserManage() {
         </div>
       )}
 
+      {/* Modal QR Code */}
+      {showQR && (
+        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-center">
+            <h2 className="text-2xl font-bold text-stone-800 mb-2">QR Code Menu Publik</h2>
+            <p className="text-sm text-stone-500 mb-6">Scan QR code untuk membuka e-Menu (Read-Only)</p>
+            
+            {qrUrl && (
+              <div className="mb-6 p-4 bg-stone-50 rounded-2xl border border-stone-100 flex flex-col items-center justify-center gap-3">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrUrl)}`}
+                  alt="QR Code"
+                  className="w-48 h-48 rounded-lg mix-blend-multiply"
+                />
+                <a href={qrUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-indigo-600 hover:text-indigo-800 break-all text-center hover:underline px-2">
+                  {qrUrl}
+                </a>
+              </div>
+            )}
+            
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowQR(false)}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-stone-600 bg-stone-100 hover:bg-stone-200 transition-all duration-200 active:scale-95"
+              >
+                Tutup
+              </button>
+              <button
+                onClick={handleDownloadQR}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-white bg-indigo-500 hover:bg-indigo-600 transition-all duration-200 shadow-md shadow-indigo-500/20 active:scale-95 flex items-center justify-center gap-2"
+              >
+                <Download size={18} /> Download
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </MobileLayout>
   )

@@ -74,41 +74,7 @@ export default function Kasir() {
     setShowDetail(true)
   }
 
-  const handleConfirmPayment = async (status) => {
-    try {
-      await api.put(`/pesanan/${detailPesanan.id}/pembayaran`, { status });
-      
-      if (status === 'paid') {
-        const p = detailPesanan;
-        const strukData = {
-          pesananId: p.id,
-          meja: p.nomor_meja || p.meja_id,
-          tipe: p.tipe,
-          kasir: user?.username,
-          tanggal: p.created_at,
-          items: p.items,
-          total: p.total,
-          subtotal: p.total, // approx for older orders
-          ppn: 0,
-          ppnRate: 0,
-          metodeBayar: 'QRIS/Transfer',
-          jumlahBayar: p.total,
-          kembali: 0
-        };
-        const printTypes = ['kasir', 'pelanggan', 'bar'];
-        if (p.tipe === 'dine-in') printTypes.push('meja');
-        
-        const thermalOk = await cetakStrukThermal(strukData, printTypes).catch(() => false);
-        if (!thermalOk) cetakStruk(strukData, printTypes);
-      }
 
-      setShowDetail(false);
-      fetchDashboard();
-    } catch (err) {
-      console.error(err);
-      alert('Gagal konfirmasi pembayaran');
-    }
-  }
 
   const mejaTersedia = meja.filter(m => m.status === 'kosong').length
   const pesananDiproses = pesanan.filter(p => p.status === 'diproses' || p.status === 'pending')
@@ -168,10 +134,10 @@ export default function Kasir() {
             </div>
 
             {/* Stat Cards Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
               
               {/* Card 1: Pendapatan */}
-              <div className="rounded-3xl p-5 md:p-6 shadow-lg shadow-amber-900/10 hover:-translate-y-1 transition-transform duration-300 bg-gradient-to-br from-[#634930] to-[#8B6F47] text-white relative overflow-hidden group sm:col-span-2 md:col-span-1">
+              <div className="rounded-3xl p-5 md:p-6 shadow-lg shadow-amber-900/10 hover:-translate-y-1 transition-transform duration-300 bg-gradient-to-br from-[#634930] to-[#8B6F47] text-white relative overflow-hidden group">
                 <div className="absolute -right-6 -top-6 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
                 <div className="flex justify-between items-start relative z-10">
                   <div>
@@ -212,29 +178,11 @@ export default function Kasir() {
                 </div>
               </div>
 
-              {/* Card 3: Meja Tersedia */}
-              <div className="rounded-3xl p-5 md:p-6 shadow-lg shadow-emerald-900/5 hover:-translate-y-1 transition-transform duration-300 bg-gradient-to-br from-emerald-500 to-teal-600 text-white relative overflow-hidden group">
-                <div className="absolute -left-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-700"></div>
-                <div className="flex justify-between items-start relative z-10">
-                  <div>
-                    <p className="text-emerald-50 text-sm font-semibold mb-1">Meja Kosong</p>
-                    <p className="text-2xl md:text-3xl font-black">{mejaTersedia}</p>
-                  </div>
-                  <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
-                    <Coffee size={28} className="text-white" />
-                  </div>
-                </div>
-                <div className="mt-4 md:mt-6 flex items-center gap-2 text-sm text-emerald-50">
-                  <span className="opacity-90">Dari total {meja.length} meja</span>
-                </div>
               </div>
 
-            </div>
-
             {/* Shortcuts Row */}
-            {(canView('pos') || canView('manajemen_meja')) && (
-              <div className="flex flex-col sm:flex-row gap-4">
-              {canView('pos') && (
+            {canView('pos') && (
+              <div className="flex gap-4">
                 <button 
                   onClick={() => navigate('/kasir/pos')}
                   className="flex-1 bg-white border border-[#EDE0CC] hover:border-[#634930] hover:shadow-md p-4 rounded-2xl flex items-center justify-between group transition-all"
@@ -250,24 +198,6 @@ export default function Kasir() {
                   </div>
                   <ArrowRight className="text-[#634930] opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
                 </button>
-              )}
-              {canView('manajemen_meja') && (
-                <button 
-                  onClick={() => navigate('/kasir/meja')}
-                  className="flex-1 bg-white border border-[#EDE0CC] hover:border-[#634930] hover:shadow-md p-4 rounded-2xl flex items-center justify-between group transition-all"
-                >
-                  <div className="flex items-center gap-3 md:gap-4">
-                    <div className="p-3 bg-amber-50 text-[#634930] rounded-xl group-hover:bg-[#634930] group-hover:text-white transition-colors">
-                      <Grid2X2 size={24} />
-                    </div>
-                    <div className="text-left">
-                      <p className="font-bold text-[#634930] text-base md:text-lg">Kelola Meja</p>
-                      <p className="text-xs text-gray-500">Pantau pelanggan dine-in</p>
-                    </div>
-                  </div>
-                  <ArrowRight className="text-[#634930] opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
-                </button>
-              )}
               </div>
             )}
 
@@ -293,15 +223,8 @@ export default function Kasir() {
                     pesananDiproses.map((p) => (
                       <div key={p.id} className="group flex items-center justify-between p-3 md:p-4 rounded-2xl border border-gray-100 hover:border-amber-200 hover:shadow-md hover:bg-amber-50/30 transition-all">
                         <div className="flex items-center gap-3 md:gap-4">
-                          <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-amber-50 text-[#634930] flex flex-col items-center justify-center font-bold">
-                            {p.nomor_meja ? (
-                              <>
-                                <span className="text-[10px] uppercase tracking-wider opacity-70 leading-none mb-0.5">Meja</span>
-                                <span className="text-base md:text-lg leading-none">{String(p.nomor_meja).padStart(2, '0')}</span>
-                              </>
-                            ) : (
-                              <span className="text-sm">TA</span>
-                            )}
+                          <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl flex flex-col items-center justify-center font-black ${p.tipe === 'take-away' ? 'bg-blue-50 text-blue-700' : 'bg-pink-50 text-pink-700'}`}>
+                            {p.tipe === 'take-away' ? 'TA' : 'DI'}
                           </div>
                           <div>
                             <p className="font-bold text-gray-800 text-sm md:text-base flex items-center gap-2">
@@ -354,10 +277,10 @@ export default function Kasir() {
                         <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors group cursor-pointer" onClick={() => openDetail(p)}>
                           <td className="py-3 md:py-3.5 font-bold text-[#634930]">#{String(p.id).padStart(3, '0')}</td>
                           <td className="py-3 md:py-3.5">
-                            {p.nomor_meja ? (
-                              <span className="bg-amber-50 text-amber-800 px-2 py-1 rounded-md text-xs font-semibold border border-amber-100">M{p.nomor_meja}</span>
-                            ) : (
+                            {p.tipe === 'take-away' ? (
                               <span className="bg-blue-50 text-blue-800 px-2 py-1 rounded-md text-xs font-semibold border border-blue-100">TA</span>
+                            ) : (
+                              <span className="bg-pink-50 text-pink-800 px-2 py-1 rounded-md text-xs font-semibold border border-pink-100">Dine In</span>
                             )}
                           </td>
                           <td className="py-3 md:py-3.5 text-right font-bold text-gray-800">Rp {Number(p.total).toLocaleString('id-ID')}</td>
@@ -413,11 +336,6 @@ export default function Kasir() {
                     <span>{detailPesanan.tipe === 'take-away' ? 'Take Away' : 'Dine-in'}</span>
                   </div>
                 </span>
-                {detailPesanan.nomor_meja && (
-                  <span className="bg-blue-50 text-blue-800 px-3 py-1 rounded-lg text-xs font-bold border border-blue-100">
-                    Meja {detailPesanan.nomor_meja}
-                  </span>
-                )}
                 <span className={`px-3 py-1 rounded-lg text-xs font-bold border ${detailPesanan.status === 'selesai' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : detailPesanan.status === 'diproses' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-orange-50 text-orange-700 border-orange-100'}`}>
                   {detailPesanan.status.toUpperCase()}
                 </span>
@@ -433,16 +351,7 @@ export default function Kasir() {
                 </div>
               )}
 
-              {/* Payment Verification */}
-              {userCanEdit('dashboard') && (detailPesanan.payment_status === 'unpaid' || detailPesanan.payment_status === 'pending_verification') && (
-                <div className="bg-pink-50 rounded-2xl p-4 mb-4 border border-pink-100">
-                  <h4 className="text-xs font-bold text-pink-800 uppercase tracking-wider mb-3">Konfirmasi Pembayaran (QRIS / Tunai)</h4>
-                  <p className="text-xs text-gray-600 mb-3">Pastikan uang sudah diterima/masuk sebelum konfirmasi lunas.</p>
-                  <div className="flex gap-2">
-                    <button onClick={() => handleConfirmPayment('paid')} className="flex-1 py-2 rounded-lg font-bold text-sm bg-pink-600 text-white hover:bg-pink-700 transition">Tandai Lunas</button>
-                  </div>
-                </div>
-              )}
+
 
               {/* Items */}
               <div className="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-100">
