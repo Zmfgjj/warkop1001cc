@@ -87,20 +87,11 @@ export default function ManajemenMeja() {
     }
   }
 
-  const handleGenerateQR = async (meja) => {
-    setQRTarget(meja)
-    try {
-      const res = await api.put(`/meja/${meja.id}/qr`)
-      if (res.data && res.data.qr_url) {
-        setQrUrl(res.data.qr_url)
-        setShowQR(true)
-      } else {
-        showAlert('Response QR code tidak valid', 'Gagal', 'error')
-      }
-    } catch (err) {
-      console.error('Gagal generate QR:', err.response?.data || err.message)
-      showAlert(err.response?.data?.message || 'Gagal generate QR code', 'Gagal', 'error')
-    }
+  const handleShowPublicMenuQR = () => {
+    setQRTarget({ nomor: 'Publik' })
+    const baseUrl = window.location.origin
+    setQrUrl(`${baseUrl}/menu`)
+    setShowQR(true)
   }
 
   const handleHapusMeja = async () => {
@@ -138,7 +129,7 @@ export default function ManajemenMeja() {
       
       const link = document.createElement('a')
       link.href = objectUrl
-      link.download = `QR-Meja${String(qrTarget.nomor).padStart(3, '0')}.png`
+      link.download = qrTarget.nomor === 'Publik' ? 'QR-Menu-Publik.png' : `QR-Meja${String(qrTarget.nomor).padStart(3, '0')}.png`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -154,16 +145,22 @@ export default function ManajemenMeja() {
       {/* Content Area */}
       <div className="flex-1 p-4 md:p-6 xl:p-10 overflow-auto scroll-smooth">
         {/* Action Bar */}
-        {canEdit && (
-          <div className="flex justify-end mb-8">
+        <div className="flex justify-end gap-3 mb-8">
+          <button
+            onClick={handleShowPublicMenuQR}
+            className="flex items-center gap-2 px-6 py-3 rounded-2xl font-medium text-[#634930] bg-[#634930]/10 hover:bg-[#634930]/20 transition-all duration-300 shadow-sm hover:-translate-y-0.5 active:scale-95"
+          >
+            <QrCode size={18} /> Lihat QR Code Menu
+          </button>
+          {canEdit && (
             <button
               onClick={() => setShowTambah(true)}
               className="flex items-center gap-2 px-6 py-3 rounded-2xl font-medium text-amber-50 bg-[#634930] hover:bg-[#4A3320] transition-all duration-300 shadow-lg shadow-[#634930]/20 hover:shadow-[#634930]/30 hover:-translate-y-0.5 active:scale-95"
             >
               <Plus size={18} /> Tambah Meja Baru
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -242,12 +239,7 @@ export default function ManajemenMeja() {
                               <RefreshCcw size={18} /> {meja.status === 'kosong' ? 'Tandai Terisi' : 'Tandai Kosong'}
                             </button>
                           )}
-                          <button
-                            onClick={() => handleGenerateQR(meja)}
-                            className="px-4 py-2.5 rounded-xl text-sm font-semibold transition-all hover:-translate-y-0.5 shadow-sm bg-indigo-50 text-indigo-700 hover:bg-indigo-100 flex items-center gap-2"
-                          >
-                            <QrCode size={18} /> QR Code
-                          </button>
+                          {/* QR Code button removed as public menu has single QR */}
                           {canEdit && (
                             <button
                               onClick={() => {
@@ -316,8 +308,10 @@ export default function ManajemenMeja() {
       {showQR && qrTarget && (
         <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-center">
-            <h2 className="text-2xl font-bold text-stone-800 mb-2">QR Meja #{String(qrTarget.nomor).padStart(2, '0')}</h2>
-            <p className="text-sm text-stone-500 mb-6">Scan QR code untuk membuka menu e-Menu</p>
+            <h2 className="text-2xl font-bold text-stone-800 mb-2">
+              {qrTarget.nomor === 'Publik' ? 'QR Code Menu Publik' : `QR Meja #${String(qrTarget.nomor).padStart(2, '0')}`}
+            </h2>
+            <p className="text-sm text-stone-500 mb-6">Scan QR code untuk membuka e-Menu</p>
             
             {qrUrl && (
               <div className="mb-6 p-4 bg-stone-50 rounded-2xl border border-stone-100 flex flex-col items-center justify-center gap-3">

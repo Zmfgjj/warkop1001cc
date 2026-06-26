@@ -106,6 +106,7 @@ function AppRoutes() {
       <Route path="/kasir/stock" element={<ProtectedRoute module="manajemen_stock"><ManajemenStock /></ProtectedRoute>} />
       <Route path="/kasir/role-manage" element={<RoleManage />} />
       {/* Public customer web order - no auth required */}
+      <Route path="/menu" element={<MenuPublik />} />
       <Route path="/menu/:meja_id" element={<MenuPublik />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
