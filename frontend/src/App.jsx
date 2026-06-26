@@ -16,7 +16,6 @@ import Laporan from './pages/Laporan'
 import KDS from './pages/KDS.jsx'
 import MenuPublik from './pages/MenuPublik.jsx'
 import RoleManage from './pages/RoleManage'
-import KonfirmasiPembayaran from './pages/KonfirmasiPembayaran.jsx'
 import BonusKaryawan from './pages/BonusKaryawan'
 import ManajemenStock from './pages/ManajemenStock'
 
@@ -94,7 +93,6 @@ function AppRoutes() {
       <Route path="/login" element={<AuthRoute><Login /></AuthRoute>} />
       <Route path="/kasir" element={<ProtectedRoute module="dashboard"><Kasir /></ProtectedRoute>} />
       <Route path="/kasir/pos" element={<ProtectedRoute module="pos"><KasirPOS /></ProtectedRoute>} />
-      <Route path="/kasir/pembayaran" element={<ProtectedRoute module="pos"><KonfirmasiPembayaran /></ProtectedRoute>} />
       <Route path="/kasir/menu" element={<ProtectedRoute module="manajemen_menu"><ManajemenMenu /></ProtectedRoute>} />
       <Route path="/kasir/promo" element={<ProtectedRoute module="manajemen_promo"><ManajemenPromo /></ProtectedRoute>} />
       <Route path="/kasir/crm" element={<ProtectedRoute module="crm"><CRM /></ProtectedRoute>} />
