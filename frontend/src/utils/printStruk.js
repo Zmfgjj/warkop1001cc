@@ -48,7 +48,7 @@ function generateStrukHTML({ pesananId, items, subtotal, ppn, ppnRate, total, me
           <p style="margin:2px 0">${timeStr}</p>
         </div>
         <div style="text-align:right">
-          <p style="margin:2px 0">Meja ${tipe === 'take-away' ? 'TA' : `(${meja || '?'}/1)`}</p>
+          <p style="margin:2px 0">Tipe: ${tipe === 'take-away' ? 'Take Away' : 'Dine In'}</p>
           <p style="margin:2px 0">Kasir : Warkop</p>
           <p style="margin:2px 0">${kasir || 'kasir'}</p>
         </div>
@@ -197,7 +197,7 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
       receipt += LEFT + dashed
       
       const noStr = padRight(`No.0-${String(data.pesananId)}`, 16);
-      const mejaStr = padLeft(`Meja ${data.tipe === 'take-away' ? 'TA' : `(${data.meja || '?'}/1)`}`, 16);
+      const mejaStr = padLeft(`${data.tipe === 'take-away' ? 'Take Away' : 'Dine In'}`, 16);
       receipt += noStr + mejaStr + LF;
       
       const t = new Date(data.tanggal || Date.now());
