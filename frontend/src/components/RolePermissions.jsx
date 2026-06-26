@@ -11,7 +11,6 @@ const MODULE_LABELS = {
   kds: 'KDS (Dapur)',
   laporan: 'Laporan',
   user_manage: 'User Manage',
-  bonus_karyawan: 'Bonus Karyawan',
   crm: 'CRM (Pelanggan)'
 }
 
