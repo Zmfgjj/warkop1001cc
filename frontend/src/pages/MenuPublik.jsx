@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
-import { Coffee, Utensils, Search, Info } from 'lucide-react'
+import { Utensils, Search, Info } from 'lucide-react'
 import ImageLoader from '../components/ImageLoader'
 
 function formatRupiah(n) {
@@ -9,10 +8,7 @@ function formatRupiah(n) {
 }
 
 export default function MenuPublik() {
-  const { meja_id: mejaNomor } = useParams()
   const { socket } = useSocket()
-  const [mejaInfo, setMejaInfo] = useState(null)
-  const [mejaError, setMejaError] = useState('')
 
   const [kategoriList, setKategoriList] = useState([])
   const [menuList, setMenuList] = useState([])
@@ -21,21 +17,6 @@ export default function MenuPublik() {
   const [selectedFlavors, setSelectedFlavors] = useState({}) // { menu_id: 'rasa' }
   const [loadingData, setLoadingData] = useState(true)
   const [error, setError] = useState('')
-
-  // Fetch meja info by nomor
-  useEffect(() => {
-    if (!mejaNomor) {
-      setMejaError('QR Code tidak valid. Silakan scan ulang.')
-      return
-    }
-    fetch(`/api/publik/meja/${encodeURIComponent(mejaNomor)}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.message && !d.id) setMejaError(d.message)
-        else setMejaInfo(d)
-      })
-      .catch(() => setMejaError('Tidak dapat terhubung ke server'))
-  }, [mejaNomor])
 
   // Fetch menu + kategori in parallel
   const fetchData = useCallback(async () => {
@@ -86,18 +67,6 @@ export default function MenuPublik() {
     return matchKat && matchSearch;
   })
 
-  if (mejaError) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FFFAF1]">
-        <div className="text-center px-6">
-          <div className="flex justify-center mb-4 text-[#8B6F47]"><Coffee size={64} /></div>
-          <h2 className="text-2xl font-bold text-[#442D1D] mb-2">Oops!</h2>
-          <p className="text-[#8B6F47]">{mejaError}</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="h-full bg-[#FFFAF1] flex flex-col overflow-hidden">
       {/* Header */}
@@ -108,9 +77,6 @@ export default function MenuPublik() {
           </div>
           <div>
             <h1 className="text-lg font-bold text-[#442D1D] leading-tight">Warkop 1001 CC</h1>
-            {mejaInfo && (
-              <p className="text-xs text-[#8B6F47]">Meja {mejaInfo.nomor}</p>
-            )}
           </div>
         </div>
       </header>
