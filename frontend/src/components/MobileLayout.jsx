@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
-import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut, Menu, X, Shield, CreditCard, Tag, MessageCircle, Package } from 'lucide-react'
+import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut, Menu, X, Shield, CreditCard, Tag, MessageCircle } from 'lucide-react'
 
 // Map of menu items with their permission module keys
 const allMenuItems = [
@@ -10,7 +10,6 @@ const allMenuItems = [
   { icon: <ShoppingCart size={20} />, label: 'Manajemen Menu', path: '/kasir/menu', module: 'manajemen_menu' },
   { icon: <Tag size={20} />, label: 'Manajemen Promo', path: '/kasir/promo', module: 'manajemen_promo' },
   { icon: <MessageCircle size={20} />, label: 'CRM (Pelanggan)', path: '/kasir/crm', module: 'crm' },
-  { icon: <Package size={20} />, label: 'Manajemen Stock', path: '/kasir/stock', module: 'manajemen_stock' },
   { icon: <MonitorPlay size={20} />, label: 'KDS', path: '/kasir/kds', module: 'kds' },
   { icon: <BarChart3 size={20} />, label: 'Laporan', path: '/kasir/laporan', module: 'laporan' },
   { icon: <Users size={20} />, label: 'User Manage', path: '/kasir/user-manage', module: 'user_manage' },

@@ -12,8 +12,7 @@ const MODULE_LABELS = {
   laporan: 'Laporan',
   user_manage: 'User Manage',
   bonus_karyawan: 'Bonus Karyawan',
-  crm: 'CRM (Pelanggan)',
-  manajemen_stock: 'Manajemen Stock'
+  crm: 'CRM (Pelanggan)'
 }
 
 export default function RolePermissions() {
