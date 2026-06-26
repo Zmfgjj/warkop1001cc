@@ -281,7 +281,7 @@ export default function Laporan() {
         rows.push([
           idx === 0 ? `#${String(p.id).padStart(4, '0')}` : '',
           idx === 0 ? new Date(p.created_at).toLocaleString('id-ID') : '',
-          idx === 0 ? (p.tipe === 'take-away' ? 'Take Away' : `Meja #${String(p.nomor_meja || '?').padStart(3, '0')}`) : '',
+          idx === 0 ? (p.tipe === 'take-away' ? 'Take Away' : 'Dine In') : '',
           idx === 0 ? (p.nama_kasir || 'Web Order') : '',
           item.nama_menu,
           createCell(item.qty, styleCenter),
@@ -616,7 +616,7 @@ export default function Laporan() {
                               <td className="px-6 py-4 text-gray-600 font-medium">{new Date(p.created_at).toLocaleString('id-ID', {dateStyle: 'medium', timeStyle: 'short'})}</td>
                               <td className="px-6 py-4">
                                 <span className={`px-3 py-1 rounded-lg text-xs font-bold ${p.tipe === 'take-away' ? 'bg-blue-50 text-blue-700 border border-blue-100' : 'bg-amber-50 text-amber-700 border border-amber-100'}`}>
-                                  {p.tipe === 'take-away' ? 'Take Away' : `Meja ${String(p.nomor_meja || '?').padStart(2, '0')}`}
+                                  {p.tipe === 'take-away' ? 'Take Away' : 'Dine In'}
                                 </span>
                               </td>
                               <td className="px-6 py-4 text-gray-600 font-medium">{p.nama_kasir || 'Web Order'}</td>

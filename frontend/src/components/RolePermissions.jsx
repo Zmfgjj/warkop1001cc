@@ -8,7 +8,6 @@ const MODULE_LABELS = {
   pos: 'Kasir (POS)',
   manajemen_menu: 'Manajemen Menu',
   manajemen_promo: 'Manajemen Promo',
-  manajemen_meja: 'Manajemen Meja',
   kds: 'KDS (Dapur)',
   laporan: 'Laporan',
   user_manage: 'User Manage',
