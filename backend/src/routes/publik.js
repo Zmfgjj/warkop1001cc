@@ -11,5 +11,6 @@ router.get('/meja/:nomor', publikController.getMejaPublik);
 router.get('/ppn', publikController.getPPNPublik);
 router.post('/pesanan', upload.single('bukti_pembayaran'), publikController.buatPesananPublik);
 router.post('/pesanan/:id/bukti', upload.single('bukti_pembayaran'), publikController.uploadBukti);
+router.post('/visit', publikController.recordVisit);
 
 module.exports = router;

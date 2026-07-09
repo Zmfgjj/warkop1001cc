@@ -98,6 +98,8 @@ const publikRoutes = require('./routes/publik');
 app.use('/api/publik', strictLimiter, publikRoutes);
 const crmRoutes = require('./routes/crm');
 app.use('/api/crm', crmRoutes);
+const logRoutes = require('./routes/logs');
+app.use('/api/logs', logRoutes);
 
 // Test route
 app.get('/', (req, res) => {

@@ -32,6 +32,25 @@ exports.getMenu = async (req, res) => {
       });
     }
 
+    const [promos] = await db.query(`
+      SELECT pm.menu_id, p.id, p.nama, p.tipe_promo, p.nilai_promo, p.mulai_jam, p.selesai_jam, p.hari
+      FROM promosi_menu pm
+      JOIN promosi p ON pm.promosi_id = p.id
+    `);
+    const promoMap = {};
+    for (const p of promos) {
+      if (!promoMap[p.menu_id]) promoMap[p.menu_id] = [];
+      promoMap[p.menu_id].push({
+        id: p.id,
+        nama: p.nama,
+        tipe_promo: p.tipe_promo,
+        nilai_promo: Number(p.nilai_promo),
+        mulai_jam: p.mulai_jam,
+        selesai_jam: p.selesai_jam,
+        hari: p.hari
+      });
+    }
+
     const result = rows.map(m => {
       let mappedVariants = variantMap[m.id] || [];
       // Keep legacy for backward compatibility during transition
@@ -44,7 +63,8 @@ exports.getMenu = async (req, res) => {
       }
       return {
         ...m,
-        variants: mappedVariants
+        variants: mappedVariants,
+        promosi: promoMap[m.id] || []
       };
     });
 
@@ -236,27 +256,30 @@ exports.hapusMenu = async (req, res) => {
 
 exports.updateBulkPromo = async (req, res) => {
   try {
-    const { action, menu_ids, value, type } = req.body;
+    const { action, menu_ids, value, type, promo_mulai_jam, promo_selesai_jam } = req.body;
     
     if (!Array.isArray(menu_ids) || menu_ids.length === 0) {
       return res.status(400).json({ message: 'Tidak ada menu yang dipilih' });
     }
 
     if (action === 'clear') {
-      // Set harga_diskon = 0 for all selected
-      await db.query(`UPDATE menu SET harga_diskon = 0 WHERE id IN (?)`, [menu_ids]);
+      // Set harga_diskon = 0 and clear times
+      await db.query(`UPDATE menu SET harga_diskon = 0, promo_mulai_jam = NULL, promo_selesai_jam = NULL WHERE id IN (?)`, [menu_ids]);
     } else if (action === 'set') {
       if (!value || Number(value) < 0) {
         return res.status(400).json({ message: 'Nilai diskon tidak valid' });
       }
 
+      const startJam = promo_mulai_jam && promo_mulai_jam.trim() !== '' ? promo_mulai_jam.trim() : null;
+      const endJam = promo_selesai_jam && promo_selesai_jam.trim() !== '' ? promo_selesai_jam.trim() : null;
+
       if (type === 'fixed') {
-        await db.query(`UPDATE menu SET harga_diskon = ? WHERE id IN (?)`, [Number(value), menu_ids]);
+        await db.query(`UPDATE menu SET harga_diskon = ?, promo_mulai_jam = ?, promo_selesai_jam = ? WHERE id IN (?)`, [Number(value), startJam, endJam, menu_ids]);
       } else if (type === 'nominal') {
-        await db.query(`UPDATE menu SET harga_diskon = GREATEST(harga - ?, 0) WHERE id IN (?)`, [Number(value), menu_ids]);
+        await db.query(`UPDATE menu SET harga_diskon = GREATEST(harga - ?, 0), promo_mulai_jam = ?, promo_selesai_jam = ? WHERE id IN (?)`, [Number(value), startJam, endJam, menu_ids]);
       } else if (type === 'percent') {
         const percent = Number(value) / 100;
-        await db.query(`UPDATE menu SET harga_diskon = GREATEST(harga - (harga * ?), 0) WHERE id IN (?)`, [percent, menu_ids]);
+        await db.query(`UPDATE menu SET harga_diskon = GREATEST(harga - (harga * ?), 0), promo_mulai_jam = ?, promo_selesai_jam = ? WHERE id IN (?)`, [percent, startJam, endJam, menu_ids]);
       } else {
         return res.status(400).json({ message: 'Tipe diskon tidak valid' });
       }
@@ -275,6 +298,139 @@ exports.updateBulkPromo = async (req, res) => {
     res.json({ message: 'Promo berhasil diperbarui' });
   } catch (err) {
     console.error('❌ Error update bulk promo:', err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.createCampaignPromo = async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    const { nama, type, value, mulai_jam, selesai_jam, hari, menu_ids } = req.body;
+
+    if (!nama || !type || value === undefined || !Array.isArray(menu_ids) || menu_ids.length === 0) {
+      await conn.rollback();
+      return res.status(400).json({ message: 'Input data tidak lengkap atau tidak valid' });
+    }
+
+    const [result] = await conn.query(
+      `INSERT INTO promosi (nama, tipe_promo, nilai_promo, mulai_jam, selesai_jam, hari) VALUES (?, ?, ?, ?, ?, ?)`,
+      [nama, type, Number(value), mulai_jam || null, selesai_jam || null, hari || 'all']
+    );
+    const promosiId = result.insertId;
+
+    for (const menuId of menu_ids) {
+      await conn.query(
+        `INSERT INTO promosi_menu (promosi_id, menu_id) VALUES (?, ?)`,
+        [promosiId, menuId]
+      );
+    }
+
+    await conn.commit();
+
+    const io = req.app.get('io');
+    if (io) {
+      const [updatedMenus] = await db.query(
+        `SELECT m.*, k.nama as kategori_nama FROM menu m LEFT JOIN kategori k ON m.kategori_id = k.id WHERE m.id IN (?)`,
+        [menu_ids]
+      );
+      const [allPromos] = await db.query(`
+        SELECT pm.menu_id, p.id, p.nama, p.tipe_promo, p.nilai_promo, p.mulai_jam, p.selesai_jam, p.hari
+        FROM promosi_menu pm
+        JOIN promosi p ON pm.promosi_id = p.id
+        WHERE pm.menu_id IN (?)
+      `, [menu_ids]);
+
+      const promoMap = {};
+      allPromos.forEach(p => {
+        if (!promoMap[p.menu_id]) promoMap[p.menu_id] = [];
+        promoMap[p.menu_id].push(p);
+      });
+
+      updatedMenus.forEach(menu => {
+        io.emit('menuUpdated', {
+          ...menu,
+          promosi: promoMap[menu.id] || []
+        });
+      });
+    }
+
+    res.status(201).json({ message: 'Promosi berhasil ditambahkan', promosi_id: promosiId });
+  } catch (err) {
+    await conn.rollback();
+    console.error('Error createCampaignPromo:', err);
+    res.status(500).json({ message: 'Server error' });
+  } finally {
+    conn.release();
+  }
+};
+
+exports.getCampaignPromos = async (req, res) => {
+  try {
+    const [promos] = await db.query(`
+      SELECT p.*, COUNT(pm.menu_id) as total_menu
+      FROM promosi p
+      LEFT JOIN promosi_menu pm ON p.id = pm.promosi_id
+      GROUP BY p.id
+      ORDER BY p.created_at DESC
+    `);
+
+    for (const p of promos) {
+      const [menus] = await db.query(`
+        SELECT m.id, m.nama
+        FROM promosi_menu pm
+        JOIN menu m ON pm.menu_id = m.id
+        WHERE pm.promosi_id = ?
+      `, [p.id]);
+      p.menus = menus;
+    }
+
+    res.json(promos);
+  } catch (err) {
+    console.error('Error getCampaignPromos:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.deleteCampaignPromo = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [menus] = await db.query(`SELECT menu_id FROM promosi_menu WHERE promosi_id = ?`, [id]);
+    const menuIds = menus.map(m => m.menu_id);
+
+    await db.query(`DELETE FROM promosi WHERE id = ?`, [id]);
+
+    const io = req.app.get('io');
+    if (io && menuIds.length > 0) {
+      const [updatedMenus] = await db.query(
+        `SELECT m.*, k.nama as kategori_nama FROM menu m LEFT JOIN kategori k ON m.kategori_id = k.id WHERE m.id IN (?)`,
+        [menuIds]
+      );
+      const [allPromos] = await db.query(`
+        SELECT pm.menu_id, p.id, p.nama, p.tipe_promo, p.nilai_promo, p.mulai_jam, p.selesai_jam, p.hari
+        FROM promosi_menu pm
+        JOIN promosi p ON pm.promosi_id = p.id
+        WHERE pm.menu_id IN (?)
+      `, [menuIds]);
+
+      const promoMap = {};
+      allPromos.forEach(p => {
+        if (!promoMap[p.menu_id]) promoMap[p.menu_id] = [];
+        promoMap[p.menu_id].push(p);
+      });
+
+      updatedMenus.forEach(menu => {
+        io.emit('menuUpdated', {
+          ...menu,
+          promosi: promoMap[menu.id] || []
+        });
+      });
+    }
+
+    res.json({ message: 'Promosi berhasil dihapus' });
+  } catch (err) {
+    console.error('Error deleteCampaignPromo:', err);
     res.status(500).json({ message: 'Server error' });
   }
 };

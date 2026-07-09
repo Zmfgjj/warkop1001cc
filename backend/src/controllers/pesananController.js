@@ -38,7 +38,7 @@ exports.buatPesanan = async (req, res) => {
   try {
     await conn.beginTransaction();
     
-    const { meja_id, tipe, catatan, items, is_offline_sync, pembayaran } = req.body;
+    const { meja_id, tipe, catatan, items, is_offline_sync, pembayaran, nama_pelanggan, no_telepon, discount_name, discount_value } = req.body;
     const kasir_id = req.user?.id || null;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -48,19 +48,94 @@ exports.buatPesanan = async (req, res) => {
     // Hitung total dari DB dan ambil nama menu + kategori untuk keperluan print struk dapur di KDS
     let totalBaru = 0;
     const validatedItems = [];
+    
+    const getActivePrice = (menu) => {
+      // Check if menu has any linked promotions
+      if (menu.promosi && menu.promosi.length > 0) {
+         const now = new Date();
+         const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+         const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+         
+         const activePromos = menu.promosi.filter(p => {
+           // Day check
+           if (p.hari && p.hari !== 'all') {
+             const activeDays = p.hari.split(',').map(d => parseInt(d, 10));
+             if (!activeDays.includes(currentDay)) return false;
+           }
+           
+           // Time check
+           if (p.mulai_jam && p.selesai_jam) {
+             if (p.mulai_jam <= p.selesai_jam) {
+               return currentHHMM >= p.mulai_jam && currentHHMM <= p.selesai_jam;
+             } else {
+               return currentHHMM >= p.mulai_jam || currentHHMM <= p.selesai_jam;
+             }
+           }
+           return true; // No time limit
+         });
+         
+         if (activePromos.length > 0) {
+           let lowestPrice = Number(menu.harga);
+           for (const p of activePromos) {
+             let promoPrice = Number(menu.harga);
+             if (p.tipe_promo === 'fixed') {
+               promoPrice = Number(p.nilai_promo);
+             } else if (p.tipe_promo === 'nominal') {
+               promoPrice = Math.max(0, Number(menu.harga) - Number(p.nilai_promo));
+             } else if (p.tipe_promo === 'percent') {
+               promoPrice = Math.max(0, Number(menu.harga) - (Number(menu.harga) * (Number(p.nilai_promo) / 100)));
+             }
+             if (promoPrice < lowestPrice) {
+               lowestPrice = promoPrice;
+             }
+           }
+           return lowestPrice;
+         }
+      }
+
+      if (Number(menu.harga_diskon) > 0) {
+        if (menu.promo_mulai_jam && menu.promo_selesai_jam) {
+          const now = new Date();
+          const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+          const { promo_mulai_jam, promo_selesai_jam } = menu;
+          if (promo_mulai_jam <= promo_selesai_jam) {
+            if (currentHHMM >= promo_mulai_jam && currentHHMM <= promo_selesai_jam) {
+              return Number(menu.harga_diskon);
+            }
+          } else {
+            if (currentHHMM >= promo_mulai_jam || currentHHMM <= promo_selesai_jam) {
+              return Number(menu.harga_diskon);
+            }
+          }
+        } else {
+          return Number(menu.harga_diskon);
+        }
+      }
+      return Number(menu.harga);
+    };
+
     for (const item of items) {
       const [menu] = await conn.query(
-        `SELECT m.harga, m.nama, k.nama as kategori_nama 
+        `SELECT m.harga, m.harga_diskon, m.promo_mulai_jam, m.promo_selesai_jam, m.nama, k.nama as kategori_nama 
          FROM menu m 
          LEFT JOIN kategori k ON m.kategori_id = k.id 
          WHERE m.id = ?`,
-        [item.menu_id]
+         [item.menu_id]
       );
       if (menu.length > 0) {
-        totalBaru += menu[0].harga * item.qty;
+        const [promos] = await conn.query(
+          `SELECT p.id, p.nama, p.tipe_promo, p.nilai_promo, p.mulai_jam, p.selesai_jam, p.hari
+           FROM promosi_menu pm
+           JOIN promosi p ON pm.promosi_id = p.id
+           WHERE pm.menu_id = ?`,
+           [item.menu_id]
+        );
+        menu[0].promosi = promos;
+        const itemHarga = getActivePrice(menu[0]);
+        totalBaru += itemHarga * item.qty;
         validatedItems.push({ 
           ...item, 
-          harga: menu[0].harga,
+          harga: itemHarga,
           nama_menu: menu[0].nama,
           kategori_nama: menu[0].kategori_nama
         });
@@ -69,6 +144,7 @@ exports.buatPesanan = async (req, res) => {
 
     let pesanan_id;
     let total = 0;
+    let nomor_antrean = null;
 
     // Lock meja row to prevent race condition
     if (meja_id) {
@@ -83,9 +159,12 @@ exports.buatPesanan = async (req, res) => {
 
     if (openBill.length > 0) {
       pesanan_id = openBill[0].id;
-      total = parseFloat(openBill[0].total) + totalBaru;
+      total = Math.max(0, parseFloat(openBill[0].total) + totalBaru - (Number(discount_value) || 0));
       
-      await conn.query('UPDATE pesanan SET total = ? WHERE id = ?', [total, pesanan_id]);
+      await conn.query(
+        'UPDATE pesanan SET total = ?, nama_pelanggan = COALESCE(nama_pelanggan, ?), no_telepon = COALESCE(no_telepon, ?), discount_name = COALESCE(discount_name, ?), discount_value = COALESCE(discount_value, ?) WHERE id = ?', 
+        [total, nama_pelanggan || null, no_telepon || null, discount_name || null, Number(discount_value) || 0, pesanan_id]
+      );
       
       for (const item of validatedItems) {
         await conn.query(
@@ -94,17 +173,17 @@ exports.buatPesanan = async (req, res) => {
         );
       }
     } else {
-      total = totalBaru;
+      total = Math.max(0, totalBaru - (Number(discount_value) || 0));
       const isOffline = kasir_id !== null;
-      const nomor_antrean = await getNomorAntrean(conn, isOffline);
+      nomor_antrean = await getNomorAntrean(conn, isOffline);
 
       // Jika sync offline, status langsung 'selesai' dan payment_status 'paid'
       const statusValue = is_offline_sync ? 'selesai' : 'pending';
       const paymentStatusValue = is_offline_sync ? 'paid' : 'unpaid';
 
       const [result] = await conn.query(
-        'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total, nomor_antrean, status, payment_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [meja_id, kasir_id, tipe, catatan, total, nomor_antrean, statusValue, paymentStatusValue]
+        'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total, nomor_antrean, status, payment_status, nama_pelanggan, no_telepon, discount_name, discount_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [meja_id, kasir_id, tipe, catatan, total, nomor_antrean, statusValue, paymentStatusValue, nama_pelanggan || null, no_telepon || null, discount_name || null, Number(discount_value) || 0]
       );
       pesanan_id = result.insertId;
 
@@ -270,7 +349,19 @@ exports.updateStatus = async (req, res) => {
 
     const io = req.app.get('io');
 
-    // (Fitur otomatis mengosongkan meja dihapus berdasarkan request agar tidak bertabrakan dengan realitas lapangan)
+    // Jika pesanan selesai atau batal, kosongkan kembali meja yang dipakai
+    const [pesananRows] = await db.query('SELECT meja_id FROM pesanan WHERE id = ?', [id]);
+    if (pesananRows.length > 0 && pesananRows[0].meja_id) {
+      const meja_id = pesananRows[0].meja_id;
+      if (status === 'selesai' || status === 'batal') {
+        await db.query('UPDATE meja SET status = "kosong" WHERE id = ?', [meja_id]);
+        if (io) {
+          io.emit('status_meja', { meja_id, status: 'kosong' });
+          io.emit('mejaUpdated');
+        }
+      }
+    }
+
     // Emit socket
     if (io) {
       io.emit('status_pesanan', { pesanan_id: id, status });
@@ -391,11 +482,39 @@ exports.hapusPesanan = async (req, res) => {
     const { id } = req.params;
     await conn.beginTransaction();
 
-    const [pesanan] = await conn.query('SELECT meja_id FROM pesanan WHERE id = ?', [id]);
-    if (pesanan.length > 0 && pesanan[0].meja_id) {
-      await conn.query("UPDATE meja SET status = 'tersedia' WHERE id = ?", [pesanan[0].meja_id]);
+    const [pesanan] = await conn.query('SELECT * FROM pesanan WHERE id = ?', [id]);
+    if (pesanan.length === 0) {
+      await conn.rollback();
+      return res.status(404).json({ message: 'Pesanan tidak ditemukan' });
     }
 
+    const pesananData = pesanan[0];
+    if (pesananData.meja_id) {
+      await conn.query("UPDATE meja SET status = 'tersedia' WHERE id = ?", [pesananData.meja_id]);
+    }
+
+    // Fetch detail & pembayaran for backup log
+    const [detailRows] = await conn.query('SELECT * FROM detail_pesanan WHERE pesanan_id = ?', [id]);
+    const [pembayaranRows] = await conn.query('SELECT * FROM pembayaran WHERE pesanan_id = ?', [id]);
+
+    const backupObj = {
+      pesanan: pesananData,
+      detail_pesanan: detailRows,
+      pembayaran: pembayaranRows
+    };
+
+    // Save delete log and backup to activity_logs table
+    const userId = req.user ? req.user.id : null;
+    const username = req.user ? (req.user.username || req.user.nama || 'USER') : 'SYSTEM';
+    const description = `Menghapus Transaksi #${id} atas nama ${pesananData.nama_pelanggan || 'Pelanggan Umum'} - Total Rp ${Number(pesananData.total).toLocaleString('id-ID')}`;
+
+    await conn.query(
+      `INSERT INTO activity_logs (user_id, username, action_type, table_name, description, backup_data) 
+       VALUES (?, ?, 'DELETE', 'pesanan', ?, ?)`,
+      [userId, username, description, JSON.stringify(backupObj)]
+    );
+
+    // Delete records
     await conn.query('DELETE FROM detail_pesanan WHERE pesanan_id = ?', [id]);
     await conn.query('DELETE FROM pembayaran WHERE pesanan_id = ?', [id]);
     await conn.query('DELETE FROM pesanan WHERE id = ?', [id]);

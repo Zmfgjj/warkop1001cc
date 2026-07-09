@@ -378,31 +378,17 @@ export default function ManajemenMenu() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-stone-600 mb-1.5">Harga Diskon (Opsional)</label>
+                  <label className="block text-sm font-medium text-stone-600 mb-1.5">Harga Modal / HPP (Opsional)</label>
                   <div className="relative">
                     <span className="absolute left-4 top-3 text-stone-400 text-sm font-medium">Rp</span>
                     <input
                       type="number"
-                      placeholder="0 (Kosongkan jika tidak ada)"
-                      value={formTambah.harga_diskon}
-                      onChange={(e) => setFormTambah({ ...formTambah, harga_diskon: e.target.value })}
+                      placeholder="0"
+                      value={formTambah.hpp}
+                      onChange={(e) => setFormTambah({ ...formTambah, hpp: e.target.value })}
                       className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
                     />
                   </div>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-stone-600 mb-1.5">HPP (Opsional)</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-3 text-stone-400 text-sm font-medium">Rp</span>
-                  <input
-                    type="number"
-                    placeholder="0"
-                    value={formTambah.hpp}
-                    onChange={(e) => setFormTambah({ ...formTambah, hpp: e.target.value })}
-                    className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
-                  />
                 </div>
               </div>
               
@@ -552,29 +538,16 @@ export default function ManajemenMenu() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-stone-600 mb-1.5">Harga Diskon (Opsional)</label>
+                  <label className="block text-sm font-medium text-stone-600 mb-1.5">Harga Modal / HPP (Opsional)</label>
                   <div className="relative">
                     <span className="absolute left-4 top-3 text-stone-400 text-sm font-medium">Rp</span>
                     <input
                       type="number"
-                      value={formEdit.harga_diskon}
-                      onChange={(e) => setFormEdit({ ...formEdit, harga_diskon: e.target.value })}
+                      value={formEdit.hpp}
+                      onChange={(e) => setFormEdit({ ...formEdit, hpp: e.target.value })}
                       className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
                     />
                   </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-stone-600 mb-1.5">HPP (Opsional)</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-3 text-stone-400 text-sm font-medium">Rp</span>
-                  <input
-                    type="number"
-                    value={formEdit.hpp}
-                    onChange={(e) => setFormEdit({ ...formEdit, hpp: e.target.value })}
-                    className="w-full pl-11 pr-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm"
-                  />
                 </div>
               </div>
               

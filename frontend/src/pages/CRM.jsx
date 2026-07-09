@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import MobileLayout from '../components/MobileLayout'
 import api from '../api/auth'
-import { Users, Search, MessageCircle, Calendar, Star, CheckSquare, Square, Send, Info, Smartphone, RefreshCw, LogOut } from 'lucide-react'
+import { Users, Search, MessageCircle, Calendar, Star, CheckSquare, Square, Send, Info, Smartphone, RefreshCw, LogOut, Trophy } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { io } from 'socket.io-client'
 import { useAlert } from '../context/AlertContext'
@@ -24,6 +24,7 @@ export default function CRM() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterVisit, setFilterVisit] = useState(0) // 0: all, 5: >5, 10: >10
+  const [viewMode, setViewMode] = useState('bulanan') // 'bulanan' or 'total'
   
   // Selection for Broadcast
   const [selectedPhones, setSelectedPhones] = useState([])
@@ -84,12 +85,24 @@ export default function CRM() {
     }
   }
 
-  const filteredCustomers = customers.filter(c => {
-    const matchSearch = (c.nama_pelanggan || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
-                        (c.no_telepon || '').includes(searchQuery);
-    const matchVisit = Number(c.total_kunjungan) >= filterVisit;
-    return matchSearch && matchVisit;
-  })
+  const filteredCustomers = customers
+    .filter(c => {
+      const matchSearch = (c.nama_pelanggan || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          (c.no_telepon || '').includes(searchQuery);
+      if (viewMode === 'bulanan') {
+        const minVisit = filterVisit === 0 ? 1 : filterVisit;
+        return matchSearch && Number(c.kunjungan_bulan_ini) >= minVisit;
+      } else {
+        return matchSearch;
+      }
+    })
+    .sort((a, b) => {
+      if (viewMode === 'bulanan') {
+        return Number(b.belanja_bulan_ini) - Number(a.belanja_bulan_ini);
+      } else {
+        return Number(b.total_belanja) - Number(a.total_belanja);
+      }
+    });
 
   const toggleSelect = (phone) => {
     setSelectedPhones(prev => 
@@ -199,28 +212,58 @@ export default function CRM() {
           </div>
         )}
 
+        {/* Tab Switcher */}
+        <div className="flex border-b border-stone-200 mb-6 bg-white rounded-xl p-1 shadow-sm border">
+          <button
+            onClick={() => { setViewMode('bulanan'); setSelectedPhones([]) }}
+            className={`flex-1 py-3 px-6 font-bold text-sm rounded-lg transition-all flex items-center justify-center gap-2 ${
+              viewMode === 'bulanan'
+                ? 'bg-[#634930] text-white shadow-sm'
+                : 'text-[#8B6F47] hover:bg-stone-50'
+            }`}
+          >
+            <Calendar size={16} /> Riwayat Bulanan (Reset Otomatis)
+          </button>
+          <button
+            onClick={() => { setViewMode('total'); setSelectedPhones([]) }}
+            className={`flex-1 py-3 px-6 font-bold text-sm rounded-lg transition-all flex items-center justify-center gap-2 ${
+              viewMode === 'total'
+                ? 'bg-[#634930] text-white shadow-sm'
+                : 'text-[#8B6F47] hover:bg-stone-50'
+            }`}
+          >
+            <Trophy size={16} /> Riwayat Total (Akumulasi)
+          </button>
+        </div>
+
         {/* Filters and Search */}
         <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-start md:items-center">
-          <div className="flex gap-2 bg-white p-1 rounded-full border border-stone-200 shadow-sm overflow-x-auto scrollbar-hide">
-            {[
-              { val: 0, label: 'Semua' },
-              { val: 3, label: '≥ 3 Kali' },
-              { val: 5, label: '≥ 5 Kali' },
-              { val: 10, label: 'Loyal (≥ 10 Kali)' },
-            ].map(f => (
-              <button
-                key={f.val}
-                onClick={() => { setFilterVisit(f.val); setSelectedPhones([]) }}
-                className={`px-5 py-2 rounded-full font-bold text-xs whitespace-nowrap transition-all ${
-                  filterVisit === f.val 
-                    ? 'bg-[#634930] text-white shadow-md' 
-                    : 'text-[#8B6F47] hover:bg-stone-100'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+          {viewMode === 'bulanan' ? (
+            <div className="flex gap-2 bg-white p-1 rounded-full border border-stone-200 shadow-sm overflow-x-auto scrollbar-hide">
+              {[
+                { val: 0, label: 'Semua' },
+                { val: 5, label: '≥ 5 Kali' },
+                { val: 10, label: '≥ 10 Kali' },
+                { val: 15, label: '≥ 15 Kali' },
+              ].map(f => (
+                <button
+                  key={f.val}
+                  onClick={() => { setFilterVisit(f.val); setSelectedPhones([]) }}
+                  className={`px-5 py-2 rounded-full font-bold text-xs whitespace-nowrap transition-all ${
+                    filterVisit === f.val 
+                      ? 'bg-[#634930] text-white shadow-md' 
+                      : 'text-[#8B6F47] hover:bg-stone-100'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="text-xs font-bold text-[#8B6F47] bg-[#FFF5E5] px-4 py-2 rounded-full border border-[#EDE0CC]">
+              🏆 Akumulasi Kunjungan Sepanjang Masa
+            </div>
+          )}
           
           <div className="relative w-full md:w-64">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"><Search size={16} /></span>
@@ -265,8 +308,17 @@ export default function CRM() {
                       </th>
                     )}
                     <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider">Nama & Kontak</th>
-                    <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-center">Kunjungan</th>
-                    <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-right">Total Belanja</th>
+                    {viewMode === 'bulanan' ? (
+                      <>
+                        <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-center">Kunjungan (Bulan Ini)</th>
+                        <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-right">Belanja (Bulan Ini)</th>
+                      </>
+                    ) : (
+                      <>
+                        <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-center">Total Kunjungan</th>
+                        <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-right">Total Belanja</th>
+                      </>
+                    )}
                     <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-right">Kunjungan Terakhir</th>
                   </tr>
                 </thead>
@@ -308,12 +360,12 @@ export default function CRM() {
                           <span className={`px-3 py-1 rounded-full text-xs font-bold ${
                             isLoyal ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-600'
                           }`}>
-                            {cust.total_kunjungan}x
+                            {viewMode === 'bulanan' ? `${cust.kunjungan_bulan_ini || 0}x` : `${cust.total_kunjungan || 0}x`}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right">
                           <span className="text-sm font-bold text-[#21B214]">
-                            {formatRupiah(cust.total_belanja)}
+                            {formatRupiah(viewMode === 'bulanan' ? (cust.belanja_bulan_ini || 0) : (cust.total_belanja || 0))}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right">

@@ -54,6 +54,25 @@ exports.getMenuPublik = async (req, res) => {
       });
     }
 
+    const [promos] = await db.query(`
+      SELECT pm.menu_id, p.id, p.nama, p.tipe_promo, p.nilai_promo, p.mulai_jam, p.selesai_jam, p.hari
+      FROM promosi_menu pm
+      JOIN promosi p ON pm.promosi_id = p.id
+    `);
+    const promoMap = {};
+    for (const p of promos) {
+      if (!promoMap[p.menu_id]) promoMap[p.menu_id] = [];
+      promoMap[p.menu_id].push({
+        id: p.id,
+        nama: p.nama,
+        tipe_promo: p.tipe_promo,
+        nilai_promo: Number(p.nilai_promo),
+        mulai_jam: p.mulai_jam,
+        selesai_jam: p.selesai_jam,
+        hari: p.hari
+      });
+    }
+
     const result = rows.map(m => {
       // Map legacy pilihan_rasa to variant format if no DB variants exist
       let mappedVariants = variantMap[m.id] || [];
@@ -66,7 +85,8 @@ exports.getMenuPublik = async (req, res) => {
       }
       return {
         ...m,
-        variants: mappedVariants
+        variants: mappedVariants,
+        promosi: promoMap[m.id] || []
       };
     });
 
@@ -302,5 +322,24 @@ exports.uploadBukti = async (req, res) => {
   } catch (err) {
     console.error(err); 
     res.status(500).json({ message: 'Server error saat upload bukti' });
+  }
+};
+
+exports.recordVisit = async (req, res) => {
+  try {
+    const ip = req.ip || req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Log visit to public_menu_visits
+    await db.query(
+      'INSERT INTO public_menu_visits (tanggal, ip_address) VALUES (?, ?)',
+      [today, ip]
+    );
+    
+    return res.status(200).json({ success: true, message: 'Visit recorded' });
+  } catch (err) {
+    console.error('Error logging visit:', err);
+    // Return 200 anyway so client logic doesn't crash on DB issues
+    return res.status(200).json({ success: false, message: err.message });
   }
 };

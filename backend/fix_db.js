@@ -30,6 +30,22 @@ async function fixDB() {
     }
 
     try {
+      await db.query("ALTER TABLE menu ADD COLUMN promo_mulai_jam VARCHAR(5) NULL AFTER harga_diskon;");
+      console.log("✅ Kolom 'promo_mulai_jam' berhasil ditambahkan ke tabel menu.");
+    } catch (e) {
+      if (e.code === 'ER_DUP_FIELDNAME') console.log("ℹ️ Kolom 'promo_mulai_jam' sudah ada.");
+      else throw e;
+    }
+
+    try {
+      await db.query("ALTER TABLE menu ADD COLUMN promo_selesai_jam VARCHAR(5) NULL AFTER promo_mulai_jam;");
+      console.log("✅ Kolom 'promo_selesai_jam' berhasil ditambahkan ke tabel menu.");
+    } catch (e) {
+      if (e.code === 'ER_DUP_FIELDNAME') console.log("ℹ️ Kolom 'promo_selesai_jam' sudah ada.");
+      else throw e;
+    }
+
+    try {
       await db.query(`
         CREATE TABLE IF NOT EXISTS menu_varian (
           id INT AUTO_INCREMENT PRIMARY KEY,
@@ -42,6 +58,69 @@ async function fixDB() {
       console.log("✅ Tabel 'menu_varian' berhasil dipastikan ada.");
     } catch (e) {
       console.log("⚠️ Gagal membuat tabel menu_varian:", e.message);
+    }
+
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS promosi (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          nama VARCHAR(100) NOT NULL,
+          tipe_promo VARCHAR(20) NOT NULL,
+          nilai_promo DECIMAL(10,2) NOT NULL,
+          mulai_jam VARCHAR(5) NULL,
+          selesai_jam VARCHAR(5) NULL,
+          hari VARCHAR(50) NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log("✅ Tabel 'promosi' berhasil dipastikan ada.");
+    } catch (e) {
+      console.log("⚠️ Gagal membuat tabel promosi:", e.message);
+    }
+
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS promosi_menu (
+          promosi_id INT NOT NULL,
+          menu_id INT NOT NULL,
+          PRIMARY KEY (promosi_id, menu_id),
+          FOREIGN KEY (promosi_id) REFERENCES promosi(id) ON DELETE CASCADE,
+          FOREIGN KEY (menu_id) REFERENCES menu(id) ON DELETE CASCADE
+        );
+      `);
+      console.log("✅ Tabel 'promosi_menu' berhasil dipastikan ada.");
+    } catch (e) {
+      console.log("⚠️ Gagal membuat tabel promosi_menu:", e.message);
+    }
+
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS public_menu_visits (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          tanggal DATE NOT NULL,
+          ip_address VARCHAR(45) NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log("✅ Tabel 'public_menu_visits' berhasil dipastikan ada.");
+    } catch (e) {
+      console.log("⚠️ Gagal membuat tabel public_menu_visits:", e.message);
+    }
+
+    try {
+      await db.query("ALTER TABLE pesanan ADD COLUMN discount_name VARCHAR(100) NULL;");
+      console.log("✅ Kolom 'discount_name' berhasil ditambahkan ke tabel pesanan.");
+    } catch (e) {
+      if (e.code === 'ER_DUP_FIELDNAME') console.log("ℹ️ Kolom 'discount_name' sudah ada.");
+      else throw e;
+    }
+
+    try {
+      await db.query("ALTER TABLE pesanan ADD COLUMN discount_value DECIMAL(10,2) DEFAULT 0;");
+      console.log("✅ Kolom 'discount_value' berhasil ditambahkan ke tabel pesanan.");
+    } catch (e) {
+      if (e.code === 'ER_DUP_FIELDNAME') console.log("ℹ️ Kolom 'discount_value' sudah ada.");
+      else throw e;
     }
 
     console.log("🎉 Perbaikan selesai!");

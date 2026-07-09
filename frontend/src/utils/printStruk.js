@@ -12,8 +12,8 @@ function formatTanggal(date) {
   })
 }
 
-// Generate HTML struk untuk window.print()
-function generateStrukHTML({ pesananId, items, subtotal, ppn, ppnRate, total, metodeBayar, jumlahBayar, kembali, meja, tipe, kasir, tanggal, copyLabel, type }) {
+// // Generate HTML struk untuk window.print()
+function generateStrukHTML({ pesananId, items, subtotal, ppn, ppnRate, total, metodeBayar, jumlahBayar, kembali, meja, tipe, kasir, tanggal, copyLabel, type, nama_pelanggan, no_telepon, discount_name, discount_value }) {
   const isDapurOrBar = type === 'dapur' || type === 'bar';
   const isMeja = type === 'meja';
   
@@ -21,15 +21,56 @@ function generateStrukHTML({ pesananId, items, subtotal, ppn, ppnRate, total, me
   const dateStr = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
   const timeStr = `${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`;
 
-  const itemRows = items.map((o, idx) => `
-    <div style="margin-bottom:4px">
-      <p style="margin:0">${idx + 1}. ${o.nama || o.nama_menu || 'Item'} ${o.catatan ? `( ${o.catatan} )` : ''}</p>
-      <div style="display:flex;justify-content:space-between;padding-left:12px">
-        <span>${o.qty} X ${isDapurOrBar ? '' : (isMeja ? `<del>${formatRupiah(o.harga)}</del>` : formatRupiah(o.harga))}</span>
-        <span>${isDapurOrBar ? '' : (isMeja ? `<del>${formatRupiah(o.harga * o.qty)}</del>` : formatRupiah(o.harga * o.qty))}</span>
+  const itemRows = items.map((o, idx) => {
+    if (isDapurOrBar) {
+      return `
+        <div style="margin-bottom:4px; font-weight:bold; font-size:13px;">
+          ${o.qty}x ${o.nama || o.nama_menu || 'Item'} ${o.catatan ? `<span style="font-weight:normal;font-style:italic;">(${o.catatan})</span>` : ''}
+        </div>
+      `;
+    }
+    return `
+      <div style="margin-bottom:4px">
+        <p style="margin:0">${idx + 1}. ${o.nama || o.nama_menu || 'Item'} ${o.catatan ? `( ${o.catatan} )` : ''}</p>
+        <div style="display:flex;justify-content:space-between;padding-left:12px">
+          <span>${o.qty} X ${isMeja ? `<del>${formatRupiah(o.harga)}</del>` : formatRupiah(o.harga)}</span>
+          <span>${isMeja ? `<del>${formatRupiah(o.harga * o.qty)}</del>` : formatRupiah(o.harga * o.qty)}</span>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
+
+  if (isDapurOrBar) {
+    return `
+      <div style="width:280px;font-family:'Courier New',monospace;padding:4px;margin:0 auto;box-sizing:border-box;line-height:1.2;">
+        <div style="text-align:center;margin-bottom:2px">
+          <h3 style="margin:0;font-size:16px;font-weight:black;letter-spacing:1px;">${copyLabel}</h3>
+        </div>
+        <hr style="border:none;border-top:2px dashed #000;margin:4px 0">
+        
+        <div style="font-size:11px;display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <p style="margin:0 0 2px 0;font-weight:bold;">No.0-${String(pesananId)}</p>
+            <p style="margin:0 0 2px 0;">${dateStr} ${timeStr}</p>
+            ${nama_pelanggan ? `<p style="margin:0;font-weight:bold;">Pelanggan: ${nama_pelanggan}</p>` : ''}
+          </div>
+          <div style="text-align:right">
+            <p style="margin:0;font-weight:black;font-size:13px;background:#000;color:#fff;padding:2px 6px;border-radius:4px;display:inline-block;">${tipe === 'take-away' ? 'Take Away' : `Meja: ${meja || '?'}`}</p>
+          </div>
+        </div>
+        
+        <hr style="border:none;border-top:1px dashed #000;margin:4px 0">
+        
+        <div style="font-size:12px;margin:4px 0;font-weight:bold;">
+          ${itemRows}
+        </div>
+        
+        <div style="text-align:center;margin-top:12px;padding-top:4px;border-top:2px dashed #000;font-size:9px;font-weight:bold;color:#333;">
+          ✂️ SOBEK DI SINI ✂️
+        </div>
+      </div>
+    `;
+  }
 
   return `
     <div style="width:280px;font-family:'Courier New',monospace;padding:8px;margin:0 auto">
@@ -46,9 +87,11 @@ function generateStrukHTML({ pesananId, items, subtotal, ppn, ppnRate, total, me
           <p style="margin:2px 0">No.0-${String(pesananId)}</p>
           <p style="margin:2px 0">${dateStr}</p>
           <p style="margin:2px 0">${timeStr}</p>
+          ${nama_pelanggan ? `<p style="margin:2px 0;font-weight:medium;">Pelanggan: ${nama_pelanggan}</p>` : ''}
+          ${no_telepon ? `<p style="margin:2px 0">No HP: ${no_telepon}</p>` : ''}
         </div>
         <div style="text-align:right">
-          <p style="margin:2px 0">Tipe: ${tipe === 'take-away' ? 'Take Away' : 'Dine In'}</p>
+          <p style="margin:2px 0">Tipe: ${tipe === 'take-away' ? 'Take Away' : `Meja: ${meja || '?'}`}</p>
           <p style="margin:2px 0">Kasir : Warkop</p>
           <p style="margin:2px 0">${kasir || 'kasir'}</p>
         </div>
@@ -59,20 +102,20 @@ function generateStrukHTML({ pesananId, items, subtotal, ppn, ppnRate, total, me
       <div style="font-size:12px;margin:8px 0">
         ${itemRows}
       </div>
-
+ 
       <hr style="border:none;border-top:1px dashed #000;margin:8px 0">
       
-      ${!isDapurOrBar ? `
       <div style="font-size:12px">
         <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Subtotal</span><span>${isMeja ? `<del>${formatRupiah(subtotal)}</del>` : formatRupiah(subtotal)}</span></div>
-        <div style="display:flex;justify-content:space-between;margin:2px 0"><span>PPN ${ppnRate || 11}% (Inc)</span><span><del>${formatRupiah(Math.round(subtotal * (ppnRate || 11) / 100))}</del></span></div>
+        ${(!isMeja && discount_value > 0) ? `<div style="display:flex;justify-content:space-between;margin:2px 0;color:#c0392b;font-weight:bold;"><span>${discount_name || 'Promo'}</span><span>-${formatRupiah(discount_value)}</span></div>` : ''}
+        ${(!isMeja && !discount_value && (subtotal - total) > 0) ? `<div style="display:flex;justify-content:space-between;margin:2px 0;color:#c0392b;font-weight:bold;"><span>Diskon CAKRA</span><span>-${formatRupiah(subtotal - total)}</span></div>` : ''}
+        <div style="display:flex;justify-content:space-between;margin:2px 0"><span>PPN ${ppnRate || 11}% (Inc)</span><span><del>${formatRupiah(Math.round((isMeja ? 0 : total) * (ppnRate || 11) / 100))}</del></span></div>
         <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Total Tagihan</span><span style="font-weight:bold;">${isMeja ? `<del>${formatRupiah(total)}</del>` : formatRupiah(total)}</span></div>
         <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Bayar (${metodeBayar === 'Tunai' ? 'Cash' : metodeBayar})</span><span>${isMeja ? `<del>${formatRupiah(metodeBayar === 'Tunai' ? jumlahBayar : total)}</del>` : formatRupiah(metodeBayar === 'Tunai' ? jumlahBayar : total)}</span></div>
         ${metodeBayar === 'Tunai' ? `<div style="display:flex;justify-content:space-between;margin:2px 0"><span>Kembali</span><span>${isMeja ? `<del>${formatRupiah(kembali)}</del>` : formatRupiah(kembali)}</span></div>` : ''}
       </div>
       <div style="text-align:right;font-size:10px;font-style:italic;margin-top:2px;">Harga sudah termasuk PPN (Termasuk)</div>
       <hr style="border:none;border-top:1px dashed #000;margin:8px 0">
-      ` : ''}
       
       <div style="text-align:center;font-size:12px;margin-top:8px">
         <p style="margin:2px 0">Good Vibes In Every Cup</p>
@@ -81,7 +124,10 @@ function generateStrukHTML({ pesananId, items, subtotal, ppn, ppnRate, total, me
         <br>
         <p style="margin:2px 0">Bantu kami jadi lebih baik!</p>
         <p style="margin:2px 0">Beri ulasan di Google Maps:</p>
-        <p style="margin:2px 0;font-weight:bold;">s.id/warkop1001cc-maps</p>
+        <p style="margin:2px 0;font-weight:bold;margin-bottom:8px;">s.id/warkop1001cc-maps</p>
+        <p style="margin:2px 0">Instagram: @warkop1001cc</p>
+        <p style="margin:2px 0">TikTok: @warkop1001cc</p>
+        <p style="margin:2px 0">YouTube: @warkop1001cc</p>
       </div>
     </div>
   `
@@ -125,8 +171,10 @@ export function cetakStruk(data, printTypes = ['kasir', 'pelanggan']) {
           body { margin: 0; padding: 0; }
           .page-break { page-break-after: always; }
           @page { size: 80mm auto; margin: 0; }
+          del { text-decoration: line-through !important; -webkit-text-decoration: line-through !important; }
         }
         body { margin: 0; padding: 0; }
+        del { text-decoration: line-through !important; -webkit-text-decoration: line-through !important; }
       </style>
     </head>
     <body>
@@ -140,6 +188,49 @@ export function cetakStruk(data, printTypes = ['kasir', 'pelanggan']) {
   printWindow.document.close()
 }
 
+// Cache port reference in memory
+let cachedPort = null;
+
+// Helper to get or request serial port
+async function getSerialPort() {
+  if (cachedPort) return cachedPort;
+  
+  // Cek apakah ada port yang sudah dipasangkan sebelumnya
+  const ports = await navigator.serial.getPorts();
+  if (ports.length > 0) {
+    cachedPort = ports[0];
+    return cachedPort;
+  }
+  
+  // Jika tidak ada, minta user memilih port baru
+  cachedPort = await navigator.serial.requestPort();
+  return cachedPort;
+}
+
+// Fungsi manual untuk pairing printer agar user bisa klik tombol "Hubungkan Printer"
+export async function requestPrinterPermission() {
+  try {
+    if (!('serial' in navigator)) {
+      globalAlert('Browser tidak mendukung Web Serial API.', 'Perhatian', 'error');
+      return false;
+    }
+    const port = await navigator.serial.requestPort();
+    cachedPort = port;
+    
+    // Buka koneksi langsung biar persistent
+    if (!port.writable) {
+      await port.open({ baudRate: 9600 });
+    }
+    
+    globalAlert('Printer thermal berhasil terhubung dan siap digunakan!', 'Sukses', 'success');
+    return true;
+  } catch (err) {
+    console.error('Failed to pair printer:', err);
+    globalAlert('Gagal menghubungkan printer. Pastikan printer menyala dan tidak dipakai aplikasi lain.', 'Error', 'error');
+    return false;
+  }
+}
+
 // Cetak struk via Web Serial API (thermal printer ESC/POS)
 export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
   if (!('serial' in navigator)) {
@@ -148,8 +239,12 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
   }
 
   try {
-    const port = await navigator.serial.requestPort()
-    await port.open({ baudRate: 9600 })
+    const port = await getSerialPort()
+    
+    // Buka port jika belum terbuka (persistent connection)
+    if (!port.writable) {
+      await port.open({ baudRate: 9600 })
+    }
 
     const writer = port.writable.getWriter()
     const encoder = new TextEncoder()
@@ -188,51 +283,93 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
       const isDapurOrBar = type === 'dapur' || type === 'bar';
       const isMeja = type === 'meja';
 
-      receipt += CENTER + DOUBLE
-      receipt += 'Warkop 1001cc' + LF
-      receipt += NORMAL
-      receipt += 'Jl. Raya Bojonggede - Kemang' + LF
-      receipt += 'Warkop1001CC' + LF
-      receipt += '244238220260604152544' + LF
-      receipt += LEFT + dashed
-      
-      const noStr = padRight(`No.0-${String(data.pesananId)}`, 16);
-      const mejaStr = padLeft(`${data.tipe === 'take-away' ? 'Take Away' : 'Dine In'}`, 16);
-      receipt += noStr + mejaStr + LF;
-      
-      const t = new Date(data.tanggal || Date.now());
-      const dateStr = padRight(`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`, 16);
-      const kasirT1 = padLeft('Kasir : Warkop', 16);
-      receipt += dateStr + kasirT1 + LF;
+      if (isDapurOrBar) {
+        // Kitchen / Bar Copy (Paper-saving, straight forward)
+        receipt += CENTER + DOUBLE
+        receipt += label + LF
+        receipt += NORMAL
+        receipt += LEFT + dashed
+        
+        const noStr = padRight(`No.0-${String(data.pesananId)}`, 16);
+        const mejaStr = padLeft(`${data.tipe === 'take-away' ? 'Take Away' : `Meja: ${data.meja || '?'}`}`, 16);
+        receipt += noStr + mejaStr + LF;
+        
+        const t = new Date(data.tanggal || Date.now());
+        const timeStr = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+        receipt += padRight(timeStr, 32) + LF;
+        
+        if (data.nama_pelanggan) {
+          receipt += `Pelanggan: ${data.nama_pelanggan}` + LF;
+        }
+        
+        receipt += dashed
 
-      const timeStr = padRight(`${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`, 16);
-      const kasirT2 = padLeft(data.kasir || 'kasir', 16);
-      receipt += timeStr + kasirT2 + LF;
+        for (const item of filteredItems) {
+          receipt += `${item.qty}x ${item.nama || item.nama_menu || 'Item'}${item.catatan ? ` (${item.catatan})` : ''}` + LF;
+        }
+        receipt += dashed
+        // Add manual tear off spacing/lines for paper roll tearing
+        receipt += CENTER + NORMAL + '--------------------------------' + LF
+        receipt += '     [ SOBEK DI SINI - CUT ]    ' + LF
+        receipt += '--------------------------------' + LF + LF + LF
+        receipt += CUT
+      } else {
+        // Cashier / Customer Copy (Full Detail)
+        receipt += CENTER + DOUBLE
+        receipt += 'Warkop 1001cc' + LF
+        receipt += NORMAL
+        receipt += 'Jl. Raya Bojonggede - Kemang' + LF
+        receipt += 'Warkop1001CC' + LF
+        receipt += '244238220260604152544' + LF
+        receipt += LEFT + dashed
+        
+        const noStr = padRight(`No.0-${String(data.pesananId)}`, 16);
+        const mejaStr = padLeft(`${data.tipe === 'take-away' ? 'Take Away' : `Meja: ${data.meja || '?'}`}`, 16);
+        receipt += noStr + mejaStr + LF;
+        
+        const t = new Date(data.tanggal || Date.now());
+        const dateStr = padRight(`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`, 16);
+        const kasirT1 = padLeft('Kasir : Warkop', 16);
+        receipt += dateStr + kasirT1 + LF;
 
-      receipt += dashed
+        const timeStr = padRight(`${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}:${String(t.getSeconds()).padStart(2,'0')}`, 16);
+        const kasirT2 = padLeft(data.kasir || 'kasir', 16);
+        receipt += timeStr + kasirT2 + LF;
 
-      let idx = 1;
-      for (const item of filteredItems) {
-        receipt += `${idx}. ${item.nama || item.nama_menu || 'Item'} ${item.catatan ? `( ${item.catatan} )` : ''}` + LF
-        if (!isDapurOrBar) {
+        if (data.nama_pelanggan) {
+          receipt += `Plg: ${padRight(data.nama_pelanggan, 27)}` + LF;
+        }
+        if (data.no_telepon) {
+          receipt += `HP : ${padRight(data.no_telepon, 27)}` + LF;
+        }
+
+        receipt += dashed
+
+        let idx = 1;
+        for (const item of filteredItems) {
+          receipt += `${idx}. ${item.nama || item.nama_menu || 'Item'} ${item.catatan ? `( ${item.catatan} )` : ''}` + LF
           const priceStr = isMeja ? '------' : formatRupiah(item.harga);
           const totalStr = isMeja ? '------' : formatRupiah(item.harga * item.qty);
           receipt += `   ${item.qty}  X ${padRight(priceStr, 12)} ${padLeft(totalStr, 11)}` + LF
-        } else {
-          receipt += `   ${item.qty}  X` + LF
+          idx++;
         }
-        idx++;
-      }
 
-      receipt += dashed
-      if (!isDapurOrBar) {
+        receipt += dashed
         const subtotalStr = isMeja ? '------' : formatRupiah(data.subtotal);
         receipt += padRight('Subtotal', 16) + padLeft(subtotalStr, 16) + LF
 
+        if (!isMeja && data.discount_value > 0) {
+          const diskonStr = '-' + formatRupiah(data.discount_value);
+          receipt += padRight(data.discount_name || 'Promo', 16) + padLeft(diskonStr, 16) + LF
+        } else if (!isMeja && (data.subtotal - data.total) > 0) {
+          const diskonStr = '-' + formatRupiah(data.subtotal - data.total);
+          receipt += padRight('Diskon CAKRA', 16) + padLeft(diskonStr, 16) + LF
+        }
+
         const ppnRateNum = data.ppnRate || 11;
-        const ppnAmount = Math.round(data.subtotal * ppnRateNum / 100);
-        const ppnStr = isMeja ? '------' : '++ Termasuk ++';
-        receipt += padRight(`PPN ${ppnRateNum}%`, 16) + padLeft(ppnStr, 16) + LF
+        const ppnValue = Math.round((isMeja ? 0 : data.total) * ppnRateNum / 100);
+        const ppnStr = isMeja ? '------' : `--${formatRupiah(ppnValue)}--`;
+        receipt += padRight(`PPN ${ppnRateNum}% (Inc)`, 16) + padLeft(ppnStr, 16) + LF
 
         const totalStr = isMeja ? '------' : formatRupiah(data.total);
         receipt += padRight('Total Tagihan', 16) + padLeft(totalStr, 16) + LF
@@ -245,25 +382,39 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
         }
         receipt += padLeft('Harga sudah termasuk PPN', 32) + LF
         receipt += dashed
-      }
 
-      receipt += CENTER + 'Good Vibes In Every Cup' + LF
-      receipt += 'Password Wifi :' + LF
-      receipt += 'warkopnaikkelaz' + LF + LF
-      receipt += 'Bantu kami jadi lebih baik!' + LF
-      receipt += 'Beri ulasan di Google Maps:' + LF
-      receipt += 's.id/warkop1001cc-maps' + LF
-      
-      receipt += LF + LF
-      receipt += CUT
+        receipt += CENTER + 'Good Vibes In Every Cup' + LF
+        receipt += 'Password Wifi :' + LF
+        receipt += 'warkopnaikkelaz' + LF + LF
+        receipt += 'Bantu kami jadi lebih baik!' + LF
+        receipt += 'Beri ulasan di Google Maps:' + LF
+        receipt += 's.id/warkop1001cc-maps' + LF + LF
+        receipt += 'Instagram : @warkop1001cc' + LF
+        receipt += 'TikTok    : @warkop1001cc' + LF
+        receipt += 'YouTube   : @warkop1001cc' + LF
+        
+        receipt += LF + LF
+        receipt += CUT
+      }
     }
 
-    await writer.write(encoder.encode(receipt))
+    // Kirim data secara bertahap (chunked) untuk mencegah buffer overflow pada printer Bluetooth/Serial
+    const chunkSize = 64
+    const delayMs = 30
+    const bytes = encoder.encode(receipt)
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      const chunk = bytes.slice(i, i + chunkSize)
+      await writer.write(chunk)
+      await new Promise(resolve => setTimeout(resolve, delayMs))
+    }
+    
     writer.releaseLock()
-    await port.close()
+    // Koneksi dibiarkan tetap terbuka agar tidak perlu inisialisasi ulang
     return true
   } catch (err) {
     console.error('Thermal printer error:', err)
+    // Hapus cache port agar bisa coba reconnect/pilih ulang jika terjadi error
+    cachedPort = null
     return false
   }
 }

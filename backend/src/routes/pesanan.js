@@ -10,6 +10,6 @@ router.put('/:id/status', auth(['kasir', 'owner', 'dapur']), pesananController.u
 router.put('/detail/:id/status', auth(['dapur', 'kasir', 'owner']), pesananController.updateStatusDetail);
 router.put('/detail/:id/catatan', auth(['dapur', 'kasir', 'owner']), pesananController.updateDetailCatatan);
 router.put('/:id/pembayaran', auth(['kasir', 'owner']), pesananController.konfirmasiPembayaran);
-router.delete('/:id', auth(['owner']), pesananController.hapusPesanan);
+router.delete('/:id', auth({ module: 'laporan', action: 'edit' }), pesananController.hapusPesanan);
 
 module.exports = router;

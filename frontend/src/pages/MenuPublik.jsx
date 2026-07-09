@@ -38,7 +38,11 @@ export default function MenuPublik() {
     }
   }, [])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { 
+    fetchData() 
+    // Log visit in background
+    fetch('/api/publik/visit', { method: 'POST' }).catch(err => console.error('Visit log error:', err))
+  }, [fetchData])
 
   // Debounced refetch for socket events
   const debouncedFetch = useDebouncedCallback(fetchData, 500)
@@ -69,7 +73,6 @@ export default function MenuPublik() {
 
   return (
     <div className="h-full bg-[#FFFAF1] flex flex-col overflow-hidden">
-      {/* Header */}
       <header className="bg-[#ECD7B1] h-[70px] flex items-center px-4 shadow-sm sticky top-0 z-30">
         <div className="flex-1 flex items-center gap-3">
           <div className="w-10 h-10 rounded-full border-2 flex items-center justify-center bg-black overflow-hidden" style={{ borderColor: '#634930' }}>
@@ -78,6 +81,26 @@ export default function MenuPublik() {
           <div>
             <h1 className="text-lg font-bold text-[#442D1D] leading-tight">Warkop 1001 CC</h1>
           </div>
+        </div>
+        <div className="flex items-center gap-4 text-[#634930]">
+          <a href="https://www.instagram.com/warkop1001cc?igsh=aGF6dnZsNDlhM2dl" target="_blank" rel="noopener noreferrer" className="hover:opacity-85 transition-opacity" title="Instagram">
+            <svg className="w-6 h-6 hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+              <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+            </svg>
+          </a>
+          <a href="https://www.tiktok.com/@warkop1001cc" target="_blank" rel="noopener noreferrer" className="hover:opacity-85 transition-opacity" title="TikTok">
+            <svg className="w-6 h-6 hover:scale-110 transition-transform" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12.53.02c1.98-.03 3.96-.02 5.95-.02.04 1.13.34 2.22.94 3.18.66.85 1.57 1.48 2.59 1.83.01.82 0 1.63 0 2.44-.99-.07-1.96-.39-2.81-.92a6.39 6.39 0 01-1.72-1.74V13.8c0 1.25-.26 2.47-.79 3.58a7.27 7.27 0 01-3.66 3.86 7.42 7.42 0 01-4.21.36c-1.34-.23-2.61-.83-3.64-1.74a7.48 7.48 0 01-2.45-4.47 7.42 7.42 0 01.37-4.14 7.27 7.27 0 014.2-4c1.17-.46 2.43-.59 3.66-.36v2.53a4.91 4.91 0 00-2.3.6 4.79 4.79 0 00-2.52 3.87 4.93 4.93 0 002.57 4.9 4.79 4.79 0 004.88-.13 4.91 4.91 0 002.26-4.15V0l-.01.02z" />
+            </svg>
+          </a>
+          <a href="https://youtube.com/@warkop1001cc?si=TSD54UWgSvZejUcH" target="_blank" rel="noopener noreferrer" className="hover:opacity-85 transition-opacity" title="YouTube">
+            <svg className="w-6 h-6 hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2.5 17a24.12 24.12 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.56 49.56 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.12 24.12 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.55 49.55 0 0 1-16.2 0A2 2 0 0 1 2.5 17" />
+              <polygon points="10 15 15 12 10 9" />
+            </svg>
+          </a>
         </div>
       </header>
 
@@ -158,11 +181,74 @@ export default function MenuPublik() {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-6 gap-3">
                 {filteredMenu.map((menu, index) => {
+                  const getActivePromo = (m) => {
+                    if (m.promosi && m.promosi.length > 0) {
+                      const now = new Date();
+                      const currentDay = now.getDay();
+                      const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                      
+                      const active = m.promosi.filter(p => {
+                        if (p.hari && p.hari !== 'all') {
+                          const activeDays = p.hari.split(',').map(d => parseInt(d, 10));
+                          if (!activeDays.includes(currentDay)) return false;
+                        }
+                        if (p.mulai_jam && p.selesai_jam) {
+                          if (p.mulai_jam <= p.selesai_jam) {
+                            return currentHHMM >= p.mulai_jam && currentHHMM <= p.selesai_jam;
+                          } else {
+                            return currentHHMM >= p.mulai_jam || currentHHMM <= p.selesai_jam;
+                          }
+                        }
+                        return true;
+                      });
+                      
+                      if (active.length > 0) {
+                        let bestPromo = null;
+                        let lowestPrice = Number(m.harga);
+                        for (const p of active) {
+                          let promoPrice = Number(m.harga);
+                          if (p.tipe_promo === 'fixed') {
+                            promoPrice = Number(p.nilai_promo);
+                          } else if (p.tipe_promo === 'nominal') {
+                            promoPrice = Math.max(0, Number(m.harga) - Number(p.nilai_promo));
+                          } else if (p.tipe_promo === 'percent') {
+                            promoPrice = Math.max(0, Number(m.harga) - (Number(m.harga) * (Number(p.nilai_promo) / 100)));
+                          }
+                          if (promoPrice < lowestPrice) {
+                            lowestPrice = promoPrice;
+                            bestPromo = { ...p, calculatedPrice: promoPrice };
+                          }
+                        }
+                        return bestPromo;
+                      }
+                    }
+                    if (Number(m.harga_diskon) > 0) {
+                      if (m.promo_mulai_jam && m.promo_selesai_jam) {
+                        const now = new Date();
+                        const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                        const start = m.promo_mulai_jam;
+                        const end = m.promo_selesai_jam;
+                        const isTimeActive = start <= end
+                          ? currentHHMM >= start && currentHHMM <= end
+                          : currentHHMM >= start || currentHHMM <= end;
+                        if (isTimeActive) {
+                          return { nama: 'Promo', calculatedPrice: Number(m.harga_diskon), mulai_jam: start, selesai_jam: end };
+                        }
+                      } else {
+                        return { nama: 'Promo', calculatedPrice: Number(m.harga_diskon) };
+                      }
+                    }
+                    return null;
+                  };
+
                   const variants = menu.variants || []
                   const selectedVariantNama = selectedFlavors[menu.id] || (variants.length > 0 ? variants[0].nama : '')
                   const selectedVariant = variants.find(v => v.nama === selectedVariantNama)
                   const hargaTambahan = selectedVariant ? Number(selectedVariant.harga_tambahan) : 0
-                  const baseHarga = Number(menu.harga_diskon) > 0 ? Number(menu.harga_diskon) : menu.harga;
+                  
+                  const activePromo = getActivePromo(menu)
+                  const promoActive = !!activePromo
+                  const baseHarga = promoActive ? activePromo.calculatedPrice : menu.harga;
                   const displayHarga = baseHarga + hargaTambahan
 
                   return (
@@ -190,7 +276,37 @@ export default function MenuPublik() {
                           <p className="text-sm text-center text-[#442D1D] font-bold leading-tight line-clamp-2 min-h-[2.5rem]">
                             {menu.nama}
                           </p>
-                          {Number(menu.harga_diskon) > 0 ? (
+                          {activePromo ? (
+                            <div className="flex flex-col items-center gap-1 mb-1">
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-pink-100 text-pink-700">
+                                🏷️ {activePromo.nama}
+                              </span>
+                              {activePromo.mulai_jam && activePromo.selesai_jam && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 bg-amber-100 text-amber-700">
+                                  ⏰ {activePromo.mulai_jam}-{activePromo.selesai_jam}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            menu.promosi && menu.promosi.length > 0 ? (
+                              <div className="flex flex-col items-center gap-1 mb-1">
+                                {menu.promosi.map((p, i) => (
+                                  <span key={i} className="text-[8px] font-semibold px-1.5 py-0.5 rounded-full bg-stone-100 text-stone-500">
+                                    ⏰ {p.nama} ({p.mulai_jam}-{p.selesai_jam})
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              menu.promo_mulai_jam && menu.promo_selesai_jam && (
+                                <div className="flex justify-center mb-1">
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 bg-stone-100 text-stone-500">
+                                    ⏰ {menu.promo_mulai_jam}-{menu.promo_selesai_jam}
+                                  </span>
+                                </div>
+                              )
+                            )
+                          )}
+                          {promoActive ? (
                             <div className="flex flex-col mt-1 mb-2">
                               <p className="text-xs text-center text-stone-400 line-through leading-none">
                                 {formatRupiah(menu.harga + hargaTambahan)}

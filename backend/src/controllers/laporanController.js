@@ -90,6 +90,13 @@ exports.ringkasan = async (req, res) => {
       ORDER BY total_terjual DESC
     `, [startDate, endDate]);
 
+    // Kunjungan menu publik hari ini
+    const [kunjungan] = await db.query(`
+      SELECT COUNT(*) as total_kunjungan, COUNT(DISTINCT ip_address) as unik_kunjungan
+      FROM public_menu_visits
+      WHERE tanggal = ?
+    `, [filter]);
+
     res.json({
       tanggal: filter,
       pendapatan: grossRevenue,
@@ -97,6 +104,8 @@ exports.ringkasan = async (req, res) => {
       ppn_amount: ppnAmount,
       net_revenue: netRevenue,
       total_pesanan: pesanan[0].total,
+      total_kunjungan: kunjungan[0].total_kunjungan || 0,
+      unik_kunjungan: kunjungan[0].unik_kunjungan || 0,
       aov,
       menu_terlaris: terlaris,
       pendapatan_per_jam: perJam,
@@ -147,39 +156,57 @@ exports.laporanBulanan = async (req, res) => {
       ORDER BY tanggal
     `, [startOfMonth, endOfMonth]);
 
-    // Gabungkan data harian
+    // Kunjungan menu publik harian bulan ini
+    const [harianKunjungan] = await db.query(`
+      SELECT 
+        tanggal,
+        COUNT(*) as total_kunjungan,
+        COUNT(DISTINCT ip_address) as unik_kunjungan
+      FROM public_menu_visits
+      WHERE tanggal >= DATE(?) AND tanggal <= DATE(?)
+      GROUP BY tanggal
+      ORDER BY tanggal
+    `, [startOfMonth, endOfMonth]);
+
+    // Gabungkan data harian (petakan per tanggal)
     const pesananMap = {};
     harianPesanan.forEach(h => {
       const tgl = new Date(h.tanggal).toISOString().split('T')[0];
       pesananMap[tgl] = h.total_pesanan;
     });
 
-    const harian = harianPendapatan.map(h => {
+    const pendapatanMap = {};
+    harianPendapatan.forEach(h => {
       const tgl = new Date(h.tanggal).toISOString().split('T')[0];
-      return {
-        tanggal: h.tanggal,
-        pendapatan: h.pendapatan,
-        total_pesanan: pesananMap[tgl] || 0,
+      pendapatanMap[tgl] = h.pendapatan;
+    });
+
+    const kunjunganMap = {};
+    harianKunjungan.forEach(h => {
+      const tgl = new Date(h.tanggal).toISOString().split('T')[0];
+      kunjunganMap[tgl] = {
+        total: h.total_kunjungan,
+        unik: h.unik_kunjungan
       };
     });
 
-    // Tambahkan tanggal yang ada pesanan tapi belum ada pembayaran (kalau ada)
-    harianPesanan.forEach(h => {
-      const tgl = new Date(h.tanggal).toISOString().split('T')[0];
-      if (!harian.find(d => new Date(d.tanggal).toISOString().split('T')[0] === tgl)) {
-        harian.push({
-          tanggal: h.tanggal,
-          pendapatan: 0,
-          total_pesanan: h.total_pesanan,
-        });
-      }
-    });
-
-    // Sort by tanggal
-    harian.sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
+    // Buat data lengkap dari hari ke-1 sampai hari terakhir bulan ini
+    const harian = [];
+    for (let d = 1; d <= lastDay; d++) {
+      const dStr = String(d).padStart(2, '0');
+      const dateStr = `${thn}-${blnStr}-${dStr}`;
+      harian.push({
+        tanggal: dateStr,
+        pendapatan: Number(pendapatanMap[dateStr] || 0),
+        total_pesanan: Number(pesananMap[dateStr] || 0),
+        total_kunjungan: Number(kunjunganMap[dateStr]?.total || 0),
+        unik_kunjungan: Number(kunjunganMap[dateStr]?.unik || 0),
+      });
+    }
 
     const totalBulan = harian.reduce((sum, h) => sum + parseInt(h.pendapatan || 0), 0);
     const totalPesananBulan = harian.reduce((sum, h) => sum + parseInt(h.total_pesanan || 0), 0);
+    const totalKunjunganBulan = harian.reduce((sum, h) => sum + parseInt(h.total_kunjungan || 0), 0);
 
     // Metode pembayaran breakdown bulan ini
     const [metodePembayaran] = await db.query(`
@@ -224,12 +251,140 @@ exports.laporanBulanan = async (req, res) => {
       tahun: parseInt(thn),
       total_pendapatan: totalBulan,
       total_pesanan: totalPesananBulan,
+      total_kunjungan: totalKunjunganBulan,
       ppn_rate: ppnRate,
       ppn_amount: ppnAmount,
       net_revenue: netRevenue,
       metode_pembayaran: metodePembayaran,
       menu_detail: menuDetail,
       harian
+    });
+
+  } catch (err) {
+    console.error(err); res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.laporanTahunan = async (req, res) => {
+  try {
+    const { tahun } = req.query;
+    const thn = tahun || new Date().getFullYear();
+
+    const startOfYear = `${thn}-01-01 00:00:00`;
+    const endOfYear = `${thn}-12-31 23:59:59`;
+
+    // Total pendapatan tahun ini
+    const [pendapatanTahunan] = await db.query(`
+      SELECT COALESCE(SUM(pb.jumlah), 0) as total
+      FROM pembayaran pb
+      WHERE pb.status = 'sukses'
+      AND pb.created_at >= ? AND pb.created_at <= ?
+    `, [startOfYear, endOfYear]);
+
+    // Total pesanan tahun ini
+    const [pesananTahunan] = await db.query(`
+      SELECT COUNT(*) as total
+      FROM pesanan p
+      WHERE p.status = 'selesai'
+      AND p.created_at >= ? AND p.created_at <= ?
+    `, [startOfYear, endOfYear]);
+
+    // Pendapatan bulanan
+    const [bulananPendapatan] = await db.query(`
+      SELECT 
+        MONTH(pb.created_at) as bulan,
+        SUM(pb.jumlah) as pendapatan
+      FROM pembayaran pb
+      WHERE pb.status = 'sukses'
+      AND pb.created_at >= ? AND pb.created_at <= ?
+      GROUP BY MONTH(pb.created_at)
+      ORDER BY bulan
+    `, [startOfYear, endOfYear]);
+
+    // Total pesanan bulanan
+    const [bulananPesanan] = await db.query(`
+      SELECT 
+        MONTH(p.created_at) as bulan,
+        COUNT(*) as total_pesanan
+      FROM pesanan p
+      WHERE p.status = 'selesai'
+      AND p.created_at >= ? AND p.created_at <= ?
+      GROUP BY MONTH(p.created_at)
+      ORDER BY bulan
+    `, [startOfYear, endOfYear]);
+
+    // Gabungkan data bulanan (1-12)
+    const pesananMap = {};
+    bulananPesanan.forEach(b => {
+      pesananMap[b.bulan] = b.total_pesanan;
+    });
+
+    const bulananMap = {};
+    bulananPendapatan.forEach(b => {
+      bulananMap[b.bulan] = b.pendapatan;
+    });
+
+    const bulanan = [];
+    for (let m = 1; m <= 12; m++) {
+      bulanan.push({
+        bulan: m,
+        pendapatan: Number(bulananMap[m] || 0),
+        total_pesanan: Number(pesananMap[m] || 0)
+      });
+    }
+
+    // Metode pembayaran breakdown
+    const [metodePembayaran] = await db.query(`
+      SELECT 
+        pb.metode,
+        COUNT(*) as jumlah_transaksi,
+        COALESCE(SUM(pb.jumlah), 0) as total
+      FROM pembayaran pb
+      WHERE pb.status = 'sukses'
+      AND pb.created_at >= ? AND pb.created_at <= ?
+      GROUP BY pb.metode
+    `, [startOfYear, endOfYear]);
+
+    // PPN rate
+    const [ppnRows] = await db.query("SELECT nilai FROM settings WHERE `key` = 'ppn' LIMIT 1");
+    const ppnRate = ppnRows.length > 0 ? parseFloat(ppnRows[0].nilai) : 11;
+    
+    const grossRevenue = Number(pendapatanTahunan[0].total);
+    const ppnAmount = Math.round(grossRevenue * (ppnRate / 100));
+    const netRevenue = grossRevenue - ppnAmount;
+    const aov = pesananTahunan[0].total > 0 ? Math.round(grossRevenue / pesananTahunan[0].total) : 0;
+
+    // Penjualan per menu tahun ini
+    const [menuDetail] = await db.query(`
+      SELECT 
+        m.nama,
+        k.nama as kategori,
+        m.harga as harga_jual,
+        COALESCE(m.hpp, 0) as hpp,
+        SUM(dp.qty) as total_terjual,
+        SUM(dp.qty * dp.harga) as total_pendapatan,
+        SUM(dp.qty * COALESCE(m.hpp, 0)) as total_hpp
+      FROM detail_pesanan dp
+      LEFT JOIN menu m ON dp.menu_id = m.id
+      LEFT JOIN kategori k ON m.kategori_id = k.id
+      LEFT JOIN pesanan p ON dp.pesanan_id = p.id
+      WHERE p.status = 'selesai'
+      AND p.created_at >= ? AND p.created_at <= ?
+      GROUP BY dp.menu_id
+      ORDER BY total_terjual DESC
+    `, [startOfYear, endOfYear]);
+
+    res.json({
+      tahun: parseInt(thn),
+      total_pendapatan: grossRevenue,
+      total_pesanan: pesananTahunan[0].total,
+      aov,
+      ppn_rate: ppnRate,
+      ppn_amount: ppnAmount,
+      net_revenue: netRevenue,
+      metode_pembayaran: metodePembayaran,
+      menu_detail: menuDetail,
+      bulanan
     });
 
   } catch (err) {
@@ -309,26 +464,63 @@ exports.historiPembelian = async (req, res) => {
       queryParamsData.push(searchParam, searchParam);
     }
 
-    // Count total dengan filter dinamis
-    const [countRows] = await db.query(`
-      SELECT COUNT(DISTINCT p.id) as total 
+    // 1. Hitung total summary statistik (Pendapatan, Keuntungan, dll) untuk date range
+    const [summaryRows] = await db.query(`
+      SELECT 
+        COUNT(DISTINCT p.id) as total_pesanan,
+        COALESCE(SUM(p.total), 0) as total_pendapatan,
+        COALESCE(SUM(
+          (SELECT SUM(dp.qty * COALESCE(mn.hpp, 0)) 
+           FROM detail_pesanan dp 
+           LEFT JOIN menu mn ON dp.menu_id = mn.id 
+           WHERE dp.pesanan_id = p.id)
+        ), 0) as total_hpp
       FROM pesanan p
       LEFT JOIN users u ON p.kasir_id = u.id
       LEFT JOIN pembayaran pb ON pb.pesanan_id = p.id AND pb.status = 'sukses'
       WHERE p.status = 'selesai'
       AND p.created_at >= ? AND p.created_at <= ?
       ${filterQuery}
-    `, queryParamsCount);
+    `, [startDate, endDate, ...filterQuery ? (metode && metode !== 'semua' ? [metode] : []).concat(search ? [searchParam, searchParam] : []) : []]);
+
+    const total_pesanan = summaryRows[0]?.total_pesanan || 0;
+    const total_pendapatan = Number(summaryRows[0]?.total_pendapatan || 0);
+    const total_keuntungan = Math.max(0, total_pendapatan - Number(summaryRows[0]?.total_hpp || 0));
+
+    // 2. Hitung chart data harian untuk date range
+    const [chartRows] = await db.query(`
+      SELECT 
+        DATE(p.created_at) as tanggal,
+        COALESCE(SUM(p.total), 0) as pendapatan,
+        COUNT(*) as total_pesanan
+      FROM pesanan p
+      LEFT JOIN users u ON p.kasir_id = u.id
+      LEFT JOIN pembayaran pb ON pb.pesanan_id = p.id AND pb.status = 'sukses'
+      WHERE p.status = 'selesai'
+      AND p.created_at >= ? AND p.created_at <= ?
+      ${filterQuery}
+      GROUP BY DATE(p.created_at)
+      ORDER BY tanggal
+    `, [startDate, endDate, ...filterQuery ? (metode && metode !== 'semua' ? [metode] : []).concat(search ? [searchParam, searchParam] : []) : []]);
 
     queryParamsData.push(parseInt(limit), offset);
 
-    // Get pesanan with details and dynamic filters
+    // 3. Get list pesanan dengan HPP per pesanan
     const [rows] = await db.query(`
       SELECT DISTINCT p.id, p.meja_id, p.tipe, p.catatan, p.total, p.status, p.created_at,
         m.nomor as nomor_meja,
         u.nama as nama_kasir,
         pb.metode as metode_bayar,
-        pb.status as status_bayar
+        pb.status as status_bayar,
+        p.nama_pelanggan,
+        p.no_telepon,
+        COALESCE(
+          (SELECT SUM(dp.qty * COALESCE(mn.hpp, 0)) 
+           FROM detail_pesanan dp 
+           LEFT JOIN menu mn ON dp.menu_id = mn.id 
+           WHERE dp.pesanan_id = p.id), 
+          0
+        ) as total_hpp
       FROM pesanan p
       LEFT JOIN meja m ON p.meja_id = m.id
       LEFT JOIN users u ON p.kasir_id = u.id
@@ -363,10 +555,16 @@ exports.historiPembelian = async (req, res) => {
     res.json({
       dari: dari_filter,
       sampai: sampai_filter,
-      total: countRows[0].total,
-      totalPages: Math.ceil(countRows[0].total / limit),
+      total: total_pesanan,
+      totalPages: Math.ceil(total_pesanan / limit),
       page: parseInt(page),
       limit: parseInt(limit),
+      summary: {
+        total_pesanan,
+        total_pendapatan,
+        total_keuntungan
+      },
+      chart: chartRows,
       data: rows
     });
 
