@@ -14,7 +14,7 @@ export default function ManajemenPromo() {
   
   const [menus, setMenus] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('normal') // 'normal' | 'promo'
+  const [activeTab, setActiveTab] = useState('normal') // 'normal' | 'promo' | 'campaigns'
   const [searchQuery, setSearchQuery] = useState('')
   
   // Selection
@@ -22,8 +22,14 @@ export default function ManajemenPromo() {
   
   // Modal Promo
   const [showModal, setShowModal] = useState(false)
+  const [promoNama, setPromoNama] = useState('')
   const [promoType, setPromoType] = useState('percent') // 'fixed' | 'nominal' | 'percent'
   const [promoValue, setPromoValue] = useState('')
+  const [promoMulaiJam, setPromoMulaiJam] = useState('')
+  const [promoSelesaiJam, setPromoSelesaiJam] = useState('')
+  const [promoHari, setPromoHari] = useState('all') // 'all' | 'workdays' | 'weekends' | 'custom'
+  const [customHari, setCustomHari] = useState([1, 2, 3, 4, 5]) // Mon-Fri by default for custom
+  const [promosList, setPromosList] = useState([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
@@ -31,8 +37,17 @@ export default function ManajemenPromo() {
   }, [])
 
   useEffect(() => {
+    if (activeTab === 'campaigns') {
+      fetchCampaigns()
+    }
+  }, [activeTab])
+
+  useEffect(() => {
     if (!socket) return
-    const handleUpdate = () => fetchMenus()
+    const handleUpdate = () => {
+      fetchMenus()
+      if (activeTab === 'campaigns') fetchCampaigns()
+    }
     socket.on('menuAdded', handleUpdate)
     socket.on('menuUpdated', handleUpdate)
     socket.on('menuDeleted', handleUpdate)
@@ -41,18 +56,42 @@ export default function ManajemenPromo() {
       socket.off('menuUpdated', handleUpdate)
       socket.off('menuDeleted', handleUpdate)
     }
-  }, [socket])
+  }, [socket, activeTab])
 
   const fetchMenus = async () => {
     try {
       setLoading(true)
       const res = await api.get('/menu')
       setMenus(res.data)
-      // Filter out invalid selections when data changes
       setSelectedIds(prev => prev.filter(id => res.data.some(m => m.id === id)))
     } catch (err) {
       showAlert('Gagal memuat data menu', 'Error')
     } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchCampaigns = async () => {
+    try {
+      setLoading(true)
+      const res = await api.get('/menu/promo/campaign')
+      setPromosList(res.data)
+    } catch (err) {
+      showAlert('Gagal memuat daftar promosi', 'Error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteCampaign = async (id) => {
+    if (!window.confirm('Yakin ingin menghapus promosi ini? Semua menu yang tergabung dalam promosi ini akan kembali ke harga normal.')) return
+    try {
+      setLoading(true)
+      await api.delete(`/menu/promo/campaign/${id}`)
+      showAlert('Promosi berhasil dihapus', 'Sukses')
+      fetchCampaigns()
+    } catch (err) {
+      showAlert(err.response?.data?.message || 'Gagal menghapus promosi', 'Error')
       setLoading(false)
     }
   }
@@ -105,18 +144,42 @@ export default function ManajemenPromo() {
   const handleApplyPromo = async (e) => {
     e.preventDefault()
     if (selectedIds.length === 0) return
+    if (!promoNama.trim()) {
+      showAlert('Nama promo wajib diisi', 'Gagal')
+      return
+    }
+
+    let activeDaysStr = 'all';
+    if (promoHari === 'workdays') {
+      activeDaysStr = '1,2,3,4,5';
+    } else if (promoHari === 'weekends') {
+      activeDaysStr = '6,0';
+    } else if (promoHari === 'custom') {
+      activeDaysStr = customHari.sort().join(',');
+      if (!activeDaysStr) {
+        showAlert('Pilih minimal satu hari aktif', 'Gagal')
+        return;
+      }
+    }
     
     try {
       setIsSubmitting(true)
-      await api.put('/menu/promo/bulk', {
-        action: 'set',
-        menu_ids: selectedIds,
+      await api.post('/menu/promo/campaign', {
+        nama: promoNama.trim(),
         type: promoType,
-        value: Number(promoValue)
+        value: Number(promoValue),
+        mulai_jam: promoMulaiJam || null,
+        selesai_jam: promoSelesaiJam || null,
+        hari: activeDaysStr,
+        menu_ids: selectedIds
       })
-      showAlert(`Promo berhasil dipasang ke ${selectedIds.length} menu`, 'Sukses')
+      showAlert(`Promo "${promoNama}" berhasil dipasang ke ${selectedIds.length} menu`, 'Sukses')
       setShowModal(false)
+      setPromoNama('')
       setPromoValue('')
+      setPromoMulaiJam('')
+      setPromoSelesaiJam('')
+      setPromoHari('all')
       setSelectedIds([])
       fetchMenus()
     } catch (err) {
@@ -165,7 +228,7 @@ export default function ManajemenPromo() {
 
         {/* Tabs and Search */}
         <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-start md:items-center">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => { setActiveTab('normal'); setSelectedIds([]) }}
               className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all shadow-sm ${
@@ -186,18 +249,30 @@ export default function ManajemenPromo() {
             >
               <Tag size={16} /> Sedang Promo ({promoMenus.length})
             </button>
+            <button
+              onClick={() => { setActiveTab('campaigns'); setSelectedIds([]) }}
+              className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all shadow-sm flex items-center gap-2 ${
+                activeTab === 'campaigns' 
+                  ? 'bg-amber-600 text-white shadow-amber-200' 
+                  : 'bg-white text-[#8B6F47] border border-stone-200 hover:bg-stone-50'
+              }`}
+            >
+              🏷️ Kampanye Promo ({promosList.length})
+            </button>
           </div>
           
           {/* Search Bar */}
-          <div className="w-full md:w-64 relative">
-            <input
-              type="text"
-              placeholder="Cari nama menu..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-4 pr-4 py-2 bg-white border border-stone-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#634930]/20 focus:border-[#634930] text-sm text-[#442D1D]"
-            />
-          </div>
+          {activeTab !== 'campaigns' && (
+            <div className="w-full md:w-64 relative">
+              <input
+                type="text"
+                placeholder="Cari nama menu..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-4 pr-4 py-2 bg-white border border-stone-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[#634930]/20 focus:border-[#634930] text-sm text-[#442D1D]"
+              />
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -205,6 +280,76 @@ export default function ManajemenPromo() {
           {loading ? (
             <div className="flex justify-center py-20 text-[#8B6F47]">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#634930]"></div>
+            </div>
+          ) : activeTab === 'campaigns' ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-stone-50 border-b border-stone-200">
+                    <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider">Nama Kampanye</th>
+                    <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider">Hari Aktif</th>
+                    <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider">Jam Aktif</th>
+                    <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider">Besaran Diskon</th>
+                    <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider">Menu Terkait</th>
+                    {canEdit('manajemen_promo') && (
+                      <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-center">Aksi</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-100">
+                  {promosList.length === 0 ? (
+                    <tr>
+                      <td colSpan={canEdit('manajemen_promo') ? 6 : 5} className="py-10 text-center text-stone-500 text-sm">
+                        Belum ada kampanye promo terjadwal.
+                      </td>
+                    </tr>
+                  ) : (
+                    promosList.map(p => (
+                      <tr key={p.id} className="hover:bg-stone-50/50 transition-colors">
+                        <td className="py-4 px-4 font-black text-sm text-[#442D1D]">
+                          {p.nama}
+                        </td>
+                        <td className="py-4 px-4 text-xs font-semibold text-stone-600">
+                          {(() => {
+                            if (!p.hari || p.hari === 'all') return 'Setiap Hari'
+                            if (p.hari === '1,2,3,4,5') return 'Hari Kerja (Senin - Jumat)'
+                            if (p.hari === '6,0' || p.hari === '0,6') return 'Akhir Pekan (Sabtu - Minggu)'
+                            const dayNames = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
+                            return p.hari.split(',').map(d => dayNames[parseInt(d, 10)]).join(', ')
+                          })()}
+                        </td>
+                        <td className="py-4 px-4 text-xs font-bold text-pink-600">
+                          {p.mulai_jam && p.selesai_jam ? `⏰ ${p.mulai_jam} - ${p.selesai_jam}` : '⏰ 24 Jam'}
+                        </td>
+                        <td className="py-4 px-4 text-sm font-black text-[#0B8500]">
+                          {(() => {
+                            if (p.tipe_promo === 'percent') return `${p.nilai_promo}%`
+                            if (p.tipe_promo === 'nominal') return `Potongan Rp ${Number(p.nilai_promo).toLocaleString('id-ID')}`
+                            if (p.tipe_promo === 'fixed') return `Harga Rp ${Number(p.nilai_promo).toLocaleString('id-ID')}`
+                            return p.nilai_promo
+                          })()}
+                        </td>
+                        <td className="py-4 px-4 text-xs text-stone-500 max-w-xs truncate">
+                          {p.menus && p.menus.length > 0 
+                            ? p.menus.map(m => m.nama).join(', ') 
+                            : 'Tidak ada menu'}
+                        </td>
+                        {canEdit('manajemen_promo') && (
+                          <td className="py-4 px-4 text-center">
+                            <button
+                              onClick={() => handleDeleteCampaign(p.id)}
+                              className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-all animate-pulse"
+                              title="Hapus Promosi"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           ) : filteredList.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center px-4">
@@ -263,7 +408,14 @@ export default function ManajemenPromo() {
                                 <div className="w-full h-full bg-stone-200" />
                               )}
                             </div>
-                            <span className="font-bold text-sm text-stone-700">{menu.nama}</span>
+                            <div>
+                              <span className="font-bold text-sm text-stone-700">{menu.nama}</span>
+                              {menu.promo_mulai_jam && menu.promo_selesai_jam && (
+                                <p className="text-[10px] text-pink-600 font-extrabold flex items-center gap-1 mt-0.5">
+                                  ⏰ {menu.promo_mulai_jam} - {menu.promo_selesai_jam}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="py-3 px-4">
@@ -312,6 +464,68 @@ export default function ManajemenPromo() {
               </div>
 
               <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-stone-700 mb-2">Nama Promo / Kampanye</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: Promo WFA Siang, Paket Malam"
+                    value={promoNama}
+                    onChange={(e) => setPromoNama(e.target.value)}
+                    className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E91E63]/20 focus:border-[#E91E63] font-bold text-stone-700 text-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-stone-700 mb-2">Hari Aktif</label>
+                  <select
+                    value={promoHari}
+                    onChange={(e) => setPromoHari(e.target.value)}
+                    className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E91E63]/20 focus:border-[#E91E63] font-bold text-stone-700 text-sm"
+                  >
+                    <option value="all">Setiap Hari (7/7)</option>
+                    <option value="workdays">Hari Kerja (Senin - Jumat)</option>
+                    <option value="weekends">Akhir Pekan (Sabtu - Minggu)</option>
+                    <option value="custom">Pilih Hari Kustom...</option>
+                  </select>
+
+                  {promoHari === 'custom' && (
+                    <div className="mt-3 flex flex-wrap gap-1.5 justify-center bg-stone-50 p-2.5 rounded-xl border border-stone-200">
+                      {[
+                        { val: 1, name: 'Sen' },
+                        { val: 2, name: 'Sel' },
+                        { val: 3, name: 'Rab' },
+                        { val: 4, name: 'Kam' },
+                        { val: 5, name: 'Jum' },
+                        { val: 6, name: 'Sab' },
+                        { val: 0, name: 'Min' }
+                      ].map(d => {
+                        const active = customHari.includes(d.val);
+                        return (
+                          <button
+                            key={d.val}
+                            type="button"
+                            onClick={() => {
+                              setCustomHari(prev => 
+                                prev.includes(d.val) 
+                                  ? prev.filter(v => v !== d.val) 
+                                  : [...prev, d.val]
+                              );
+                            }}
+                            className={`w-10 h-10 rounded-full font-bold text-xs border transition-all ${
+                              active 
+                                ? 'bg-[#E91E63] border-[#E91E63] text-white' 
+                                : 'bg-white border-stone-200 text-stone-600 hover:bg-stone-50'
+                            }`}
+                          >
+                            {d.name}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-sm font-bold text-stone-700 mb-2">Tipe Diskon</label>
                   <div className="grid grid-cols-3 gap-2">
@@ -365,6 +579,27 @@ export default function ManajemenPromo() {
                     {promoType === 'percent' && (
                       <span className="absolute right-4 top-3.5 text-stone-400 text-sm font-medium">%</span>
                     )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Jam Mulai (Opsional)</label>
+                    <input
+                      type="time"
+                      value={promoMulaiJam}
+                      onChange={(e) => setPromoMulaiJam(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E91E63]/20 focus:border-[#E91E63] font-bold text-stone-700 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Jam Selesai (Opsional)</label>
+                    <input
+                      type="time"
+                      value={promoSelesaiJam}
+                      onChange={(e) => setPromoSelesaiJam(e.target.value)}
+                      className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E91E63]/20 focus:border-[#E91E63] font-bold text-stone-700 text-sm"
+                    />
                   </div>
                 </div>
               </div>

@@ -5,7 +5,7 @@ import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
 import { useAlert } from '../context/AlertContext'
-import { cetakStruk, cetakStrukThermal } from '../utils/printStruk'
+import { cetakStruk, cetakStrukThermal, requestPrinterPermission } from '../utils/printStruk'
 
 export default function KDS() {
   const { user, canEdit: userCanEdit } = useAuth()
@@ -15,11 +15,55 @@ export default function KDS() {
   const [loading, setLoading] = useState(true)
   const [selectedNote, setSelectedNote] = useState(null)
   const [confirmModal, setConfirmModal] = useState(null)
-  const [kdsMode, setKdsMode] = useState('dapur') // 'dapur', 'bar', 'semua'
-  const [audioEnabled, setAudioEnabled] = useState(false)
+  const [kdsMode, setKdsModeState] = useState(() => localStorage.getItem('kds_mode') || 'dapur')
+  const [audioEnabled, setAudioEnabledState] = useState(() => localStorage.getItem('kds_audio') === 'true')
   const [expandedOrders, setExpandedOrders] = useState([])
   const audioObjRef = useRef(new Audio('/sounds/order-alert.mp3'))
   const previousIdsRef = useRef(new Set())
+  
+  const [alarmEnabled, setAlarmEnabledState] = useState(() => localStorage.getItem('kds_alarm_enabled') !== 'false')
+
+  const setAlarmEnabled = (val) => {
+    setAlarmEnabledState(val)
+    localStorage.setItem('kds_alarm_enabled', String(val))
+  }
+
+  const playLateAlarmSound = () => {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const playTone = (freq, time, duration) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, time);
+        gain.gain.setValueAtTime(0, time);
+        gain.gain.linearRampToValueAtTime(0.12, time + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(time);
+        osc.stop(time + duration);
+      };
+      const now = ctx.currentTime;
+      playTone(880, now, 0.15);
+      playTone(880, now + 0.2, 0.15);
+    } catch (e) {
+      console.log('Late alarm audio failed:', e);
+    }
+  }
+
+  // Persist kdsMode & audio to localStorage per-device
+  const setKdsMode = (mode) => {
+    setKdsModeState(mode)
+    localStorage.setItem('kds_mode', mode)
+  }
+  const setAudioEnabled = (val) => {
+    const v = typeof val === 'function' ? val(audioEnabled) : val
+    setAudioEnabledState(v)
+    localStorage.setItem('kds_audio', String(v))
+  }
+
+  const KDS_MODE_LABELS = { dapur: '🍳 Dapur', bar: '🍸 Bar', semua: '📋 Semua' }
 
   const toggleOrder = (id) => {
     setExpandedOrders(prev => 
@@ -70,8 +114,10 @@ export default function KDS() {
           tanggal: data.created_at || new Date(),
           items: relevantItems,
         }
-        const thermalOk = await cetakStrukThermal(strukData, targetPrint).catch(() => false)
-        if (!thermalOk) cetakStruk(strukData, targetPrint)
+        // Cetak struk secara background agar tidak memblokir antrean
+        cetakStrukThermal(strukData, targetPrint).catch(err => {
+          console.error('[KDS] Gagal cetak background thermal:', err);
+        });
       }
       debouncedFetch()
     }
@@ -135,7 +181,8 @@ export default function KDS() {
       }
       
       if (shouldAlert) {
-        showAlert('Ada Pesanan Baru Masuk!', 'Info KDS', 'success');
+        const modeLabel = KDS_MODE_LABELS[kdsMode] || 'KDS';
+        showAlert(`Pesanan Baru Masuk! [${modeLabel}]`, `Notifikasi ${modeLabel}`, 'success');
         if (audioEnabled) {
           audioObjRef.current.currentTime = 0;
           audioObjRef.current.play().catch(e => console.log('Audio error:', e));
@@ -145,6 +192,47 @@ export default function KDS() {
     
     previousIdsRef.current = currentIds;
   }, [pesananList, kdsMode, audioEnabled, showAlert]);
+
+  // Filter pesanan based on kdsMode
+  const filteredPesanan = pesananList.map(p => {
+    if (kdsMode === 'semua') return p;
+    const filteredItems = p.items.filter(i => {
+      const k = (i.kategori_nama || i.kategori || '').toLowerCase();
+      if (kdsMode === 'dapur') return k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie');
+      if (kdsMode === 'bar') return k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew');
+      return true;
+    });
+    return { ...p, items: filteredItems };
+  }).filter(p => p.items.length > 0);
+
+  // Late order alarm (orders pending/processing for >= 10 minutes)
+  useEffect(() => {
+    if (!userCanEdit('kds') || !alarmEnabled) return;
+
+    const checkLateOrders = () => {
+      let hasLate = false;
+      const now = Date.now();
+
+      for (const p of filteredPesanan) {
+        const createdTime = new Date(p.created_at).getTime();
+        const elapsedMinutes = (now - createdTime) / 60000;
+        const hasActiveItems = p.items.some(i => i.status !== 'selesai');
+
+        if (hasActiveItems && elapsedMinutes >= 10) {
+          hasLate = true;
+          break;
+        }
+      }
+
+      if (hasLate) {
+        playLateAlarmSound();
+      }
+    };
+
+    checkLateOrders();
+    const interval = setInterval(checkLateOrders, 15000); // Check every 15 seconds
+    return () => clearInterval(interval);
+  }, [filteredPesanan, alarmEnabled, userCanEdit]);
 
   const updateStatusItem = async (detailId, pesananId, status) => {
     // Optimistic UI update
@@ -191,8 +279,10 @@ export default function KDS() {
           tanggal: p.created_at,
           items: p.items,
         }
-        const thermalOk = await cetakStrukThermal(strukData, ['dapur']).catch(() => false)
-        if (!thermalOk) cetakStruk(strukData, ['dapur'])
+        // Cetak struk secara background agar tidak memblokir KDS
+        cetakStrukThermal(strukData, ['dapur']).catch(err => {
+          console.error('[KDS] Gagal cetak background thermal:', err);
+        });
       }
     }
 
@@ -205,20 +295,17 @@ export default function KDS() {
     setConfirmModal(null)
   }
 
-  // Filter pesanan based on kdsMode
-  const filteredPesanan = pesananList.map(p => {
-    if (kdsMode === 'semua') return p;
-    const filteredItems = p.items.filter(i => {
-      const k = (i.kategori_nama || i.kategori || '').toLowerCase();
-      if (kdsMode === 'dapur') return k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie');
-      if (kdsMode === 'bar') return k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew');
-      return true;
-    });
-    return { ...p, items: filteredItems };
-  }).filter(p => p.items.length > 0);
-
   return (
     <MobileLayout activeMenu="KDS">
+      <style>{`
+        @keyframes pulse-red-border {
+          0%, 100% { border-color: #EDE0CC; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+          50% { border-color: #EF4444; box-shadow: 0 0 15px rgba(239, 68, 68, 0.4); }
+        }
+        .kds-card-late {
+          animation: pulse-red-border 2s infinite !important;
+        }
+      `}</style>
 
       {/* Top Header - desktop only */}
       <div className="hidden lg:flex justify-between items-center px-6 xl:px-10 py-5 bg-white/80 backdrop-blur-md sticky top-0 z-10 border-b border-amber-100/50 shadow-sm">
@@ -236,6 +323,12 @@ export default function KDS() {
 
         <div className="flex items-center gap-4">
           <button
+            onClick={requestPrinterPermission}
+            className="px-3 md:px-4 py-2 rounded-full font-bold text-xs md:text-sm bg-[#634930] hover:bg-[#4d3925] text-white transition-all shadow-sm flex items-center gap-1"
+          >
+            🔌 Printer
+          </button>
+          <button
             onClick={() => {
               setAudioEnabled(!audioEnabled);
               if (!audioEnabled) {
@@ -246,6 +339,14 @@ export default function KDS() {
           >
             {audioEnabled ? '🔊 Suara Nyala' : '🔇 Suara Mati'}
           </button>
+          {(user?.role === 'owner' || user?.role === 'manager' || user?.role === 'admin') && (
+            <button
+              onClick={() => setAlarmEnabled(!alarmEnabled)}
+              className={`px-3 md:px-4 py-2 rounded-full font-bold text-xs md:text-sm transition-all shadow-sm flex items-center gap-1 ${alarmEnabled ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-gray-200 text-gray-500 hover:bg-gray-300'}`}
+            >
+              {alarmEnabled ? '🔔 Alarm Aktif' : '🔕 Alarm Mati'}
+            </button>
+          )}
           <div className="text-right">
             <p className="text-sm font-bold" style={{ color: '#634930' }}>Halo, {user?.username}</p>
             <p className="text-xs uppercase" style={{ color: '#8B6F47' }}>{user?.role || 'Kasir'}</p>
@@ -277,40 +378,68 @@ export default function KDS() {
           </div>
         ) : (
           <div>
-            <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-              <button onClick={() => setKdsMode('semua')} className="px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all whitespace-nowrap" style={{ backgroundColor: kdsMode === 'semua' ? '#634930' : '#fff', color: kdsMode === 'semua' ? '#fff' : '#634930', border: '1px solid #634930' }}>Semua</button>
-              <button onClick={() => setKdsMode('dapur')} className="px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all whitespace-nowrap flex items-center gap-1" style={{ backgroundColor: kdsMode === 'dapur' ? '#634930' : '#fff', color: kdsMode === 'dapur' ? '#fff' : '#634930', border: '1px solid #634930' }}><Utensils size={14}/> Dapur</button>
-              <button onClick={() => setKdsMode('bar')} className="px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all whitespace-nowrap flex items-center gap-1" style={{ backgroundColor: kdsMode === 'bar' ? '#634930' : '#fff', color: kdsMode === 'bar' ? '#fff' : '#634930', border: '1px solid #634930' }}><Coffee size={14}/> Bar</button>
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                <button onClick={() => setKdsMode('semua')} className="px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all whitespace-nowrap" style={{ backgroundColor: kdsMode === 'semua' ? '#634930' : '#fff', color: kdsMode === 'semua' ? '#fff' : '#634930', border: '1px solid #634930' }}>Semua</button>
+                <button onClick={() => setKdsMode('dapur')} className="px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all whitespace-nowrap flex items-center gap-1" style={{ backgroundColor: kdsMode === 'dapur' ? '#634930' : '#fff', color: kdsMode === 'dapur' ? '#fff' : '#634930', border: '1px solid #634930' }}><Utensils size={14}/> Dapur</button>
+                <button onClick={() => setKdsMode('bar')} className="px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all whitespace-nowrap flex items-center gap-1" style={{ backgroundColor: kdsMode === 'bar' ? '#634930' : '#fff', color: kdsMode === 'bar' ? '#fff' : '#634930', border: '1px solid #634930' }}><Coffee size={14}/> Bar</button>
+              </div>
+              <div className="flex items-center gap-2">
+                {(user?.role === 'owner' || user?.role === 'manager' || user?.role === 'admin') && (
+                  <button
+                    onClick={() => setAlarmEnabled(!alarmEnabled)}
+                    className="lg:hidden px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full flex items-center gap-1 transition-all shadow-sm"
+                  >
+                    {alarmEnabled ? '🔔 Alarm' : '🔕 Alarm'}
+                  </button>
+                )}
+                <button onClick={requestPrinterPermission} className="lg:hidden px-3 py-2 bg-[#634930] hover:bg-[#4d3925] text-white text-xs font-bold rounded-full flex items-center gap-1 transition-all shadow-sm">
+                  🔌 Printer
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 md:gap-5 pb-8">
-            {filteredPesanan.map(pesanan => (
-              <div
-                key={pesanan.id}
-                className="rounded-2xl md:rounded-3xl overflow-hidden bg-white shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col"
-                style={{ border: '1px solid #EDE0CC' }}
-              >
-                {/* Card Header */}
-                <div 
-                  className="px-4 md:px-5 py-3 md:py-4 flex justify-between items-center bg-gradient-to-r from-[#F9F5F0] to-white border-b cursor-pointer hover:bg-stone-50" 
-                  style={{ borderColor: '#EDE0CC' }}
-                  onClick={() => toggleOrder(pesanan.id)}
+            {filteredPesanan.map(pesanan => {
+              const createdTime = new Date(pesanan.created_at).getTime();
+              const elapsedMinutes = Math.floor((Date.now() - createdTime) / 60000);
+              const hasActiveItems = pesanan.items.some(i => i.status !== 'selesai');
+              const isLate = hasActiveItems && elapsedMinutes >= 10;
+
+              return (
+                <div
+                  key={pesanan.id}
+                  className={`rounded-2xl md:rounded-3xl overflow-hidden bg-white shadow-lg hover:shadow-2xl transition-all duration-300 flex flex-col ${isLate ? 'kds-card-late' : ''}`}
+                  style={{ border: isLate ? '2px solid #EF4444' : '1px solid #EDE0CC' }}
                 >
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl md:rounded-2xl flex items-center justify-center bg-amber-100 text-amber-700 shadow-sm border border-amber-200 text-lg md:text-xl">
-                      {pesanan.tipe === 'take-away' ? <ShoppingBag size={20} /> : <Utensils size={20} />}
+                  {/* Card Header */}
+                  <div 
+                    className="px-4 md:px-5 py-3 md:py-4 flex justify-between items-center bg-gradient-to-r from-[#F9F5F0] to-white border-b cursor-pointer hover:bg-stone-50" 
+                    style={{ borderColor: '#EDE0CC' }}
+                    onClick={() => toggleOrder(pesanan.id)}
+                  >
+                    <div className="flex items-center gap-2 md:gap-3">
+                      <div className="w-9 h-9 md:w-10 md:h-10 rounded-xl md:rounded-2xl flex items-center justify-center bg-amber-100 text-amber-700 shadow-sm border border-amber-200 text-lg md:text-xl">
+                        {pesanan.tipe === 'take-away' ? <ShoppingBag size={20} /> : <Utensils size={20} />}
+                      </div>
+                      <div className="flex flex-col">
+                        <h2 className="text-base md:text-lg font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
+                          {pesanan.tipe === 'take-away'
+                            ? `TA #${String(pesanan.id).padStart(3, '0')}`
+                            : `Dine In #${String(pesanan.id).padStart(3, '0')}`
+                          }
+                        </h2>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                          {pesanan.nama_pelanggan && (
+                            <span className="text-xs font-bold text-gray-500">{pesanan.nama_pelanggan}</span>
+                          )}
+                          {isLate && (
+                            <span className="text-[10px] bg-red-100 text-red-600 font-bold px-1.5 py-0.5 rounded-md animate-pulse">
+                              ⚠️ TERLAMBAT {elapsedMinutes}m
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex flex-col">
-                      <h2 className="text-base md:text-lg font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
-                        {pesanan.tipe === 'take-away'
-                          ? `TA #${String(pesanan.id).padStart(3, '0')}`
-                          : `Dine In #${String(pesanan.id).padStart(3, '0')}`
-                        }
-                      </h2>
-                      {pesanan.nama_pelanggan && (
-                        <span className="text-xs font-bold text-gray-500">{pesanan.nama_pelanggan}</span>
-                      )}
-                    </div>
-                  </div>
                   <div className="flex items-center gap-3">
                     <span className="text-xs px-2 md:px-3 py-1 rounded-full font-bold shadow-sm border" style={{
                       backgroundColor: pesanan.status === 'pending' ? '#FFF9E6' : '#E6F4EA',
@@ -426,7 +555,8 @@ export default function KDS() {
                   </div>
                 )}
               </div>
-            ))}
+            );
+          })}
           </div>
           </div>
         )}

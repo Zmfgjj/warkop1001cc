@@ -15,6 +15,7 @@ import Laporan from './pages/Laporan'
 import KDS from './pages/KDS.jsx'
 import MenuPublik from './pages/MenuPublik.jsx'
 import RoleManage from './pages/RoleManage'
+import Monitoring from './pages/Monitoring'
 
 /**
  * ProtectedRoute now uses dynamic permissions from the roles table.
@@ -93,6 +94,7 @@ function AppRoutes() {
       <Route path="/kasir/kds" element={<ProtectedRoute module="kds"><KDS /></ProtectedRoute>} />
       <Route path="/kasir/laporan" element={<ProtectedRoute module="laporan"><Laporan /></ProtectedRoute>} />
       <Route path="/kasir/user-manage" element={<ProtectedRoute module="user_manage"><UserManage /></ProtectedRoute>} />
+      <Route path="/kasir/monitoring" element={<ProtectedRoute><Monitoring /></ProtectedRoute>} />
       <Route path="/kasir/role-manage" element={<RoleManage />} />
       {/* Public customer web order - no auth required */}
       <Route path="/menu" element={<MenuPublik />} />

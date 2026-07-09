@@ -10,7 +10,9 @@ exports.getPelanggan = async (req, res) => {
         email, 
         COUNT(id) as total_kunjungan, 
         SUM(total) as total_belanja,
-        MAX(created_at) as kunjungan_terakhir
+        MAX(created_at) as kunjungan_terakhir,
+        SUM(CASE WHEN MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE()) THEN 1 ELSE 0 END) as kunjungan_bulan_ini,
+        SUM(CASE WHEN MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE()) THEN total ELSE 0 END) as belanja_bulan_ini
       FROM pesanan 
       WHERE 
         status = 'selesai' 

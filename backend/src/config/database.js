@@ -14,8 +14,25 @@ const pool = mysql.createPool({
 
 // Test koneksi
 pool.getConnection()
-  .then(conn => {
+  .then(async conn => {
     console.log('✅ Database connected!');
+    try {
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS activity_logs (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          user_id INT NULL,
+          username VARCHAR(100) NULL,
+          action_type VARCHAR(50) NOT NULL,
+          table_name VARCHAR(50) NULL,
+          description TEXT NOT NULL,
+          backup_data LONGTEXT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log('✅ Table activity_logs is ready!');
+    } catch (e) {
+      console.error('⚠️ Failed to ensure activity_logs table:', e.message);
+    }
     conn.release();
   })
   .catch(err => {

@@ -5,6 +5,7 @@ const auth = require('../middleware/auth');
 
 router.get('/ringkasan', auth({ module: 'laporan', action: 'view' }), laporanController.ringkasan);
 router.get('/bulanan', auth({ module: 'laporan', action: 'view' }), laporanController.laporanBulanan);
+router.get('/tahunan', auth({ module: 'laporan', action: 'view' }), laporanController.laporanTahunan);
 router.get('/menu', auth({ module: 'laporan', action: 'view' }), laporanController.laporanMenu);
 router.get('/histori', auth({ module: 'laporan', action: 'view' }), laporanController.historiPembelian);
 

@@ -2,9 +2,10 @@ import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { Search, Utensils, ShoppingBag, ShoppingCart, X } from 'lucide-react';
+import ImageLoader from '../components/ImageLoader'
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
-import { cetakStruk, cetakStrukThermal } from '../utils/printStruk'
+import { cetakStruk, cetakStrukThermal, requestPrinterPermission } from '../utils/printStruk'
 import MobileLayout from '../components/MobileLayout'
 import { useNetwork } from '../hooks/useNetwork'
 import { saveMasterData, getMasterData, queueOfflineOrder } from '../utils/offlineStore'
@@ -17,7 +18,7 @@ export default function KasirPOS() {
   const { socket } = useSocket()
   const isOnline = useNetwork()
   const [kategoriList, setKategoriList] = useState([])
-  const [kategori, setKategori] = useState('')
+  const [kategori, setKategori] = useState('semua')
   const [search, setSearch] = useState('')
   const [menuList, setMenuList] = useState([])
   const [order, setOrder] = useState([])
@@ -28,8 +29,54 @@ export default function KasirPOS() {
   const [tipeOrder, setTipeOrder] = useState('dine-in')
   const [ppnRate, setPpnRate] = useState(2)
   const [showOrderPanel, setShowOrderPanel] = useState(false)
+  const [namaPelanggan, setNamaPelanggan] = useState('')
+  const [nomorHp, setNomorHp] = useState('')
+  const [mejaList, setMejaList] = useState([])
+  const [selectedMejaId, setSelectedMejaId] = useState('')
+  const [tipePelanggan, setTipePelanggan] = useState('Umum')
+  const [promoCampaigns, setPromoCampaigns] = useState([])
+  const [discountName, setDiscountName] = useState('')
+  const [discountValue, setDiscountValue] = useState('')
+  const [showPromoPanel, setShowPromoPanel] = useState(false)
+  const [showCustDetails, setShowCustDetails] = useState(false)
+  const [showMejaDropdown, setShowMejaDropdown] = useState(false)
+  const [printMethod, setPrintMethod] = useState(() => {
+    return localStorage.getItem('pos_print_method') || 'none'
+  })
 
-  useEffect(() => { fetchKategori(); fetchData(); fetchPPN() }, [isOnline])
+  const handlePrintMethodChange = (method) => {
+    setPrintMethod(method)
+    localStorage.setItem('pos_print_method', method)
+  }
+
+  const handleTipePelangganChange = (val) => {
+    setTipePelanggan(val)
+    if (val === 'CAKRA') {
+      setNamaPelanggan('CAKRA')
+      setJumlahBayar('0')
+      setShowCustDetails(true)
+    } else {
+      if (namaPelanggan === 'CAKRA') setNamaPelanggan('')
+      setJumlahBayar('')
+    }
+  }
+
+  const formatRibuan = (val) => {
+    const num = val.replace(/\D/g, '');
+    if (!num) return '';
+    return Number(num).toLocaleString('id-ID');
+  }
+
+  const fetchPromos = async () => {
+    try {
+      const res = await api.get('/menu/promo/campaign')
+      setPromoCampaigns(res.data)
+    } catch (err) {
+      console.error('Gagal fetch campaigns:', err)
+    }
+  }
+
+  useEffect(() => { fetchKategori(); fetchData(); fetchPPN(); fetchMeja(); fetchPromos() }, [isOnline])
 
   useEffect(() => {
     if (!socket || !isOnline) return
@@ -44,12 +91,10 @@ export default function KasirPOS() {
       const res = await api.get('/menu/kategori')
       setKategoriList(res.data)
       saveMasterData('kategori', res.data)
-      if (res.data.length > 0) setKategori(res.data[0].nama) 
     } catch {
       const data = await getMasterData('kategori')
       if (data) {
         setKategoriList(data)
-        if (data.length > 0) setKategori(data[0].nama) 
       }
     }
   }
@@ -76,19 +121,96 @@ export default function KasirPOS() {
       if (offlinePpn) setPpnRate(offlinePpn)
     } 
   }
+  
+  const fetchMeja = async () => { 
+    try { 
+      const res = await api.get('/meja')
+      setMejaList(res.data)
+      saveMasterData('mejaList', res.data) 
+    } catch {
+      const offlineMeja = await getMasterData('mejaList')
+      if (offlineMeja) setMejaList(offlineMeja)
+    } 
+  }
 
 
 
   const filteredMenu = menuList.filter(m => {
     const mk = m.kategori_nama || m.kategori || ''
-    return mk.toLowerCase() === kategori.toLowerCase() && m.nama?.toLowerCase().includes(search.toLowerCase())
+    const matchKat = kategori === 'semua' ? true : mk.toLowerCase() === kategori.toLowerCase()
+    return matchKat && m.nama?.toLowerCase().includes(search.toLowerCase())
   })
+
+  const getActivePromo = (m) => {
+    if (m.promosi && m.promosi.length > 0) {
+      const now = new Date();
+      const currentDay = now.getDay();
+      const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      
+      const active = m.promosi.filter(p => {
+        if (p.hari && p.hari !== 'all') {
+          const activeDays = p.hari.split(',').map(d => parseInt(d, 10));
+          if (!activeDays.includes(currentDay)) return false;
+        }
+        if (p.mulai_jam && p.selesai_jam) {
+          if (p.mulai_jam <= p.selesai_jam) {
+            return currentHHMM >= p.mulai_jam && currentHHMM <= p.selesai_jam;
+          } else {
+            return currentHHMM >= p.mulai_jam || currentHHMM <= p.selesai_jam;
+          }
+        }
+        return true;
+      });
+      
+      if (active.length > 0) {
+        let bestPromo = null;
+        let lowestPrice = Number(m.harga);
+        for (const p of active) {
+          let promoPrice = Number(m.harga);
+          if (p.tipe_promo === 'fixed') {
+            promoPrice = Number(p.nilai_promo);
+          } else if (p.tipe_promo === 'nominal') {
+            promoPrice = Math.max(0, Number(m.harga) - Number(p.nilai_promo));
+          } else if (p.tipe_promo === 'percent') {
+            promoPrice = Math.max(0, Number(m.harga) - (Number(m.harga) * (Number(p.nilai_promo) / 100)));
+          }
+          if (promoPrice < lowestPrice) {
+            lowestPrice = promoPrice;
+            bestPromo = { ...p, calculatedPrice: promoPrice };
+          }
+        }
+        return bestPromo;
+      }
+    }
+    if (Number(m.harga_diskon) > 0) {
+      if (m.promo_mulai_jam && m.promo_selesai_jam) {
+        const now = new Date();
+        const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const start = m.promo_mulai_jam;
+        const end = m.promo_selesai_jam;
+        const isTimeActive = start <= end
+          ? currentHHMM >= start && currentHHMM <= end
+          : currentHHMM >= start || currentHHMM <= end;
+        if (isTimeActive) {
+          return { nama: 'Promo', calculatedPrice: Number(m.harga_diskon), mulai_jam: start, selesai_jam: end };
+        }
+      } else {
+        return { nama: 'Promo', calculatedPrice: Number(m.harga_diskon) };
+      }
+    }
+    return null;
+  };
+
+  const isPromoActive = (menu) => {
+    return !!getActivePromo(menu);
+  }
 
   const tambahItem = (menu) => {
     setOrder(prev => {
       const ex = prev.find(o => o.menu_id === menu.id)
       if (ex) return prev.map(o => o.menu_id === menu.id ? { ...o, qty: o.qty + 1 } : o)
-      const baseHarga = Number(menu.harga_diskon) > 0 ? Number(menu.harga_diskon) : menu.harga;
+      const promo = getActivePromo(menu);
+      const baseHarga = promo ? promo.calculatedPrice : menu.harga;
       return [...prev, { menu_id: menu.id, nama: menu.nama, harga: baseHarga, qty: 1, catatan: '', gambar: menu.gambar, kategori: menu.kategori || menu.kategori_nama || '' }]
     })
   }
@@ -104,28 +226,41 @@ export default function KasirPOS() {
 
   const subtotal = order.reduce((sum, o) => sum + o.harga * o.qty, 0)
   const ppn = 0 // PPN sudah include di harga, tidak dihitung terpisah di kasir
-  const total = subtotal
+  const total = tipePelanggan === 'CAKRA' ? 0 : Math.max(0, subtotal - (Number(discountValue) || 0))
   const kembali = jumlahBayar ? Math.max(0, parseInt(jumlahBayar.replace(/\D/g, '') || 0) - total) : 0
   const totalItems = order.reduce((s, o) => s + o.qty, 0)
 
   const handleProsesBayar = async () => {
     if (order.length === 0) return showAlert('Tambah menu dulu!', 'Perhatian')
+    if (tipeOrder === 'dine-in' && !selectedMejaId) return showAlert('Pilih nomor meja terlebih dahulu!', 'Perhatian')
     if (metodeBayar === 'Tunai' && parseInt(jumlahBayar.replace(/\D/g, '') || 0) < total) return showAlert('Jumlah bayar kurang!', 'Perhatian')
     
     setLoadingBayar(true)
     try {
       const pesananData = {
-        meja_id: null,
+        meja_id: tipeOrder === 'dine-in' ? parseInt(selectedMejaId) : null,
         tipe: tipeOrder,
         items: order.map(o => ({ menu_id: o.menu_id, qty: o.qty, catatan: o.catatan, kategori: o.kategori })),
-        pembayaran: { metode: metodeBayar.toLowerCase(), jumlah: total } // payload offline
+        pembayaran: { metode: metodeBayar.toLowerCase(), jumlah: total }, // payload offline
+        nama_pelanggan: namaPelanggan.trim() || null,
+        no_telepon: nomorHp.trim() || null,
+        discount_name: discountName.trim() || null,
+        discount_value: Number(discountValue) || 0
       }
+
+      const tbl = mejaList.find(m => String(m.id) === String(selectedMejaId));
+      const nomorMeja = tbl ? tbl.nomor : null;
 
       const strukData = { 
         pesananId: 'TMP-' + Date.now(), 
         items: order, subtotal, ppn, ppnRate, total, metodeBayar, 
         jumlahBayar: parseInt(jumlahBayar.replace(/\D/g, '') || 0), kembali, 
-        meja: null, tipe: tipeOrder, kasir: user?.username, tanggal: new Date() 
+        meja: tipeOrder === 'dine-in' ? nomorMeja : null, 
+        tipe: tipeOrder, kasir: user?.username, tanggal: new Date(),
+        nama_pelanggan: namaPelanggan.trim() || null,
+        no_telepon: nomorHp.trim() || null,
+        discount_name: discountName.trim() || null,
+        discount_value: Number(discountValue) || 0
       }
 
       let successOffline = false;
@@ -142,7 +277,7 @@ export default function KasirPOS() {
             console.warn('[POS] Gagal menghubungi server. Menyimpan pesanan ke antrean offline...', err);
             await queueOfflineOrder(pesananData);
             successOffline = true;
-            showAlert('Gagal menghubungi server. Pesanan disimpan secara lokal dan akan disinkronkan nanti.', 'Mode Offline');
+            showAlert('Gagal menghubungi server. Pesanan disimpan secara lokal and akan disinkronkan nanti.', 'Mode Offline');
           } else {
             throw err;
           }
@@ -151,20 +286,24 @@ export default function KasirPOS() {
         // Offline flow
         await queueOfflineOrder(pesananData)
         successOffline = true
-        showAlert('Anda sedang offline. Pesanan disimpan secara lokal dan akan disinkronkan nanti.', 'Mode Offline')
+        showAlert('Anda sedang offline. Pesanan disimpan secara lokal and akan disinkronkan nanti.', 'Mode Offline')
       }
 
-      // Cetak struk baik online maupun offline (Kasir Printer)
+      // Cetak struk sesuai metode cetak yang dipilih
       const printTypes = ['kasir', 'pelanggan', 'bar'];
-      if (tipeOrder === 'dine-in') printTypes.push('meja');
-      
-      const thermalOk = await cetakStrukThermal(strukData, printTypes).catch(() => false)
-      if (!thermalOk) cetakStruk(strukData, printTypes)
+      if (printMethod === 'thermal') {
+        // Cetak secara background agar tidak memblokir kasir
+        cetakStrukThermal(strukData, printTypes).catch(err => {
+          console.error('[POS] Gagal cetak background thermal:', err);
+        });
+      } else if (printMethod === 'browser') {
+        cetakStruk(strukData, printTypes);
+      }
       
       if (!successOffline) {
         showAlert('Pesanan berhasil dibuat & pembayaran tercatat!', 'Sukses')
       }
-      setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); fetchData()
+      setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); setNamaPelanggan(''); setNomorHp(''); setSelectedMejaId(''); setTipePelanggan('Umum'); setDiscountName(''); setDiscountValue(''); fetchData()
     } catch (err) { 
       showAlert(err.response?.data?.message || 'Gagal memproses pembayaran', 'Gagal') 
     } finally { 
@@ -172,12 +311,31 @@ export default function KasirPOS() {
     }
   }
 
-  const handleCancel = () => { setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in') }
+  const handleCancel = () => { setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); setTipePelanggan('Umum'); setDiscountName(''); setDiscountValue('') }
 
   return (
     <MobileLayout activeMenu="Kasir (POS)" overflowClass="overflow-hidden flex flex-col">
       {/* Header desktop */}
-      <div className="hidden lg:flex justify-end items-center px-8 py-4 shadow-sm" style={{ backgroundColor: '#EDE0CC' }}>
+      <div className="hidden lg:flex justify-between items-center px-8 py-4 shadow-sm" style={{ backgroundColor: '#EDE0CC' }}>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-[#F5F0E8] px-3 py-1.5 rounded-xl border border-[#C4A882]/40 text-xs">
+            <span className="font-bold text-[#634930]">Metode Cetak:</span>
+            <select
+              value={printMethod}
+              onChange={e => handlePrintMethodChange(e.target.value)}
+              className="bg-transparent font-bold text-[#634930] focus:outline-none cursor-pointer"
+            >
+              <option value="none">❌ Tanpa Cetak Otomatis</option>
+              <option value="thermal">🖨️ Printer Thermal</option>
+              <option value="browser">🌐 Browser Print (Popup)</option>
+            </select>
+          </div>
+          {printMethod === 'thermal' && (
+            <button onClick={requestPrinterPermission} className="px-4 py-2 bg-[#634930] hover:bg-[#4d3925] text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+              🔌 Hubungkan Printer
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-3">
           <div className="text-right">
             <p className="text-sm font-bold" style={{ color: '#634930' }}>Kasir</p>
@@ -209,10 +367,29 @@ export default function KasirPOS() {
                   style={{ backgroundColor: tipeOrder === 'take-away' ? '#634930' : '#EDE0CC', color: tipeOrder === 'take-away' ? '#fff' : '#634930' }}><span className="flex items-center gap-1.5"><ShoppingBag size={14} /> TA</span></button>
               </div>
 
+              <div className="lg:hidden flex gap-1.5 items-center">
+                <select
+                  value={printMethod}
+                  onChange={e => handlePrintMethodChange(e.target.value)}
+                  className="px-3 py-2 rounded-full text-xs font-bold focus:outline-none border cursor-pointer"
+                  style={{ backgroundColor: '#EDE0CC', color: '#634930', borderColor: '#C4A882' }}
+                >
+                  <option value="none">❌ No Print</option>
+                  <option value="thermal">🖨️ Thermal</option>
+                  <option value="browser">🌐 Browser</option>
+                </select>
+                {printMethod === 'thermal' && (
+                  <button onClick={requestPrinterPermission} className="px-3 py-2 bg-[#634930] hover:bg-[#4d3925] text-white text-xs font-bold rounded-full flex items-center gap-1 transition-all">
+                    🔌 Pair
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Kategori */}
             <div className="flex gap-2 md:gap-3 mb-3 md:mb-5 overflow-x-auto pb-1">
+              <button onClick={() => setKategori('semua')} className="px-4 md:px-8 py-2 rounded-full font-medium text-xs md:text-sm transition-all whitespace-nowrap flex-shrink-0"
+                style={{ backgroundColor: kategori === 'semua' ? '#fff' : 'transparent', color: '#634930', border: kategori === 'semua' ? '2px solid #634930' : '2px solid #C4A882' }}>Semua</button>
               {kategoriList.map(k => (
                 <button key={k.id} onClick={() => setKategori(k.nama)} className="px-4 md:px-8 py-2 rounded-full font-medium text-xs md:text-sm transition-all whitespace-nowrap flex-shrink-0"
                   style={{ backgroundColor: kategori === k.nama ? '#fff' : 'transparent', color: '#634930', border: kategori === k.nama ? '2px solid #634930' : '2px solid #C4A882' }}>{k.nama}</button>
@@ -227,28 +404,76 @@ export default function KasirPOS() {
                 ) : filteredMenu.map(menu => {
                   const qty = getQty(menu.id)
                   return (
-                    <div key={menu.id} className="rounded-2xl p-2 md:p-3 flex flex-col items-center justify-center shadow-sm"
+                    <div key={menu.id} className="rounded-2xl overflow-hidden flex flex-col shadow-sm"
                       style={{ backgroundColor: '#EDE0CC', border: qty > 0 ? '2px solid #634930' : '2px solid transparent' }}>
-                      <p className="text-xs font-medium text-center mb-1 line-clamp-2" style={{ color: '#634930' }}>{menu.nama}</p>
-                      {Number(menu.harga_diskon) > 0 ? (
-                        <div className="flex flex-col items-center mb-2 md:mb-3">
-                          <p className="text-[10px] text-gray-500 line-through">Rp {Number(menu.harga).toLocaleString('id-ID')}</p>
-                          <p className="text-xs font-bold text-green-700">Rp {Number(menu.harga_diskon).toLocaleString('id-ID')}</p>
-                        </div>
-                      ) : (
-                        <p className="text-xs mb-2 md:mb-3" style={{ color: '#8B6F47' }}>Rp {Number(menu.harga).toLocaleString('id-ID')}</p>
-                      )}
-                      {userCanEdit('pos') && (
-                        qty === 0 ? (
-                          <button onClick={() => tambahItem(menu)} className="w-full py-1.5 rounded-full text-xs font-bold transition-all" style={{ backgroundColor: '#634930', color: '#fff' }}>+ Tambah</button>
+                      {/* Menu Image */}
+                      <div className="w-full aspect-square bg-[#F5F0E8] overflow-hidden">
+                        {menu.gambar ? (
+                          <ImageLoader src={menu.gambar} alt={menu.nama} className="w-full h-full" />
                         ) : (
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => kurangItem(menu.id)} className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-white" style={{ backgroundColor: '#c0392b' }}>−</button>
-                            <span className="font-bold text-sm" style={{ color: '#634930' }}>{qty}</span>
-                            <button onClick={() => tambahItem(menu)} className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-white" style={{ backgroundColor: '#27ae60' }}>+</button>
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Utensils size={28} className="text-[#C4A882]" />
                           </div>
-                        )
-                      )}
+                        )}
+                      </div>
+                      {/* Info + Actions */}
+                      <div className="p-2 md:p-3 flex flex-col items-center flex-1 justify-between w-full">
+                        <p className="text-xs font-bold text-center mb-1 line-clamp-2" style={{ color: '#634930' }}>{menu.nama}</p>
+                        {(() => {
+                          const activePromo = getActivePromo(menu);
+                          return (
+                            <>
+                              {activePromo ? (
+                                <div className="flex flex-col items-center gap-0.5 mb-1 w-full">
+                                  <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-md bg-pink-100 text-pink-700 max-w-full truncate">
+                                    🏷️ {activePromo.nama}
+                                  </span>
+                                  {activePromo.mulai_jam && activePromo.selesai_jam && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5 bg-amber-100 text-amber-700">
+                                      ⏰ {activePromo.mulai_jam}-{activePromo.selesai_jam}
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                menu.promosi && menu.promosi.length > 0 ? (
+                                  <div className="flex flex-col items-center gap-0.5 mb-1 w-full">
+                                    {menu.promosi.map((p, i) => (
+                                      <span key={i} className="text-[8px] font-semibold px-1.5 py-0.5 rounded-full bg-stone-200/60 text-stone-600 max-w-full truncate">
+                                        ⏰ {p.nama} ({p.mulai_jam}-{p.selesai_jam})
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  menu.promo_mulai_jam && menu.promo_selesai_jam && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full mb-1 flex items-center gap-0.5 bg-stone-200 text-stone-500">
+                                      ⏰ {menu.promo_mulai_jam}-{menu.promo_selesai_jam}
+                                    </span>
+                                  )
+                                )
+                              )}
+                              {activePromo ? (
+                                <div className="flex flex-col items-center mb-2">
+                                  <p className="text-[10px] text-gray-500 line-through">Rp {Number(menu.harga).toLocaleString('id-ID')}</p>
+                                  <p className="text-xs font-bold text-green-700">Rp {Number(activePromo.calculatedPrice).toLocaleString('id-ID')}</p>
+                                </div>
+                              ) : (
+                                <p className="text-xs mb-2" style={{ color: '#8B6F47' }}>Rp {Number(menu.harga).toLocaleString('id-ID')}</p>
+                              )}
+                            </>
+                          )
+                        })()}
+                        {userCanEdit('pos') && (
+                          qty === 0 ? (
+                            <button onClick={() => tambahItem(menu)} className="w-full py-1.5 rounded-full text-xs font-bold transition-all" style={{ backgroundColor: '#634930', color: '#fff' }}>+ Tambah</button>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => kurangItem(menu.id)} className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-white" style={{ backgroundColor: '#c0392b' }}>−</button>
+                              <span className="font-bold text-sm" style={{ color: '#634930' }}>{qty}</span>
+                              <button onClick={() => tambahItem(menu)} className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-white" style={{ backgroundColor: '#27ae60' }}>+</button>
+                            </div>
+                          )
+                        )}
+                      </div>
                     </div>
                   )
                 })}
@@ -280,6 +505,82 @@ export default function KasirPOS() {
 
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {/* Customer Info Card */}
+              <div className="p-2.5 rounded-xl space-y-2 border" style={{ backgroundColor: '#FDFBF7', borderColor: '#EDE0CC' }}>
+                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#8B6F47' }}>Informasi Pelanggan</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <select value={tipePelanggan} onChange={e => handleTipePelangganChange(e.target.value)}
+                      className="w-full text-[11px] px-2.5 py-1.5 rounded-lg font-bold focus:outline-none cursor-pointer" style={{ backgroundColor: '#F5F0E8', color: '#634930', border: '1px solid #C4A882' }}>
+                      <option value="Umum">👤 Umum</option>
+                      <option value="CAKRA">👑 Staff (CAKRA)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <input type="text" placeholder="No HP / WA" value={nomorHp} onChange={e => setNomorHp(e.target.value)}
+                      className="w-full text-[11px] px-2.5 py-1.5 rounded-lg focus:outline-none" style={{ backgroundColor: '#F5F0E8', color: '#634930', border: '1px solid #C4A882' }} />
+                  </div>
+                  <div className={tipeOrder === 'dine-in' ? 'col-span-1' : 'col-span-2'}>
+                    <input type="text" placeholder="Nama Pelanggan" value={namaPelanggan} onChange={e => setNamaPelanggan(e.target.value)}
+                      className="w-full text-[11px] px-2.5 py-1.5 rounded-lg focus:outline-none" style={{ backgroundColor: '#F5F0E8', color: '#634930', border: '1px solid #C4A882' }} />
+                  </div>
+                  {tipeOrder === 'dine-in' && (
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowMejaDropdown(!showMejaDropdown)}
+                        className="w-full text-left text-[11px] px-2.5 py-1.5 rounded-lg focus:outline-none flex justify-between items-center"
+                        style={{ backgroundColor: '#F5F0E8', color: '#634930', border: '1px solid #C4A882', fontWeight: 'bold' }}
+                      >
+                        <span className="truncate">
+                          {selectedMejaId 
+                            ? `Meja ${mejaList.find(m => String(m.id) === String(selectedMejaId))?.nomor || ''}` 
+                            : '-- Meja --'}
+                        </span>
+                        <span className="text-[8px] text-[#634930]/60 shrink-0 ml-1">▼</span>
+                      </button>
+                      
+                      {showMejaDropdown && (
+                        <>
+                          <div className="fixed inset-0 z-30" onClick={() => setShowMejaDropdown(false)} />
+                          <div 
+                            className="absolute right-0 mt-1 w-full max-h-48 overflow-y-auto rounded-lg shadow-xl border z-40 py-1"
+                            style={{ backgroundColor: '#FDFBF7', borderColor: '#C4A882' }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => { setSelectedMejaId(''); setShowMejaDropdown(false); }}
+                              className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-[#F5F0E8] transition-colors"
+                              style={{ color: '#634930' }}
+                            >
+                              -- Meja --
+                            </button>
+                            {mejaList.map(m => (
+                              <button
+                                key={m.id}
+                                type="button"
+                                onClick={() => { setSelectedMejaId(m.id); setShowMejaDropdown(false); }}
+                                className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-[#F5F0E8] transition-colors flex justify-between items-center"
+                                style={{ 
+                                  color: '#634930', 
+                                  backgroundColor: String(selectedMejaId) === String(m.id) ? '#EDE0CC' : 'transparent',
+                                  fontWeight: String(selectedMejaId) === String(m.id) ? 'bold' : 'normal'
+                                }}
+                              >
+                                <span>Meja {m.nomor}</span>
+                                {m.status === 'terisi' && (
+                                  <span className="text-[8px] bg-red-100 text-red-700 px-1 py-0.5 rounded font-bold uppercase tracking-wide">Terisi</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {order.length === 0 ? (
                 <p className="text-center text-sm py-8" style={{ color: '#8B6F47' }}>Belum ada item</p>
               ) : order.map(o => (
@@ -304,10 +605,105 @@ export default function KasirPOS() {
                 </div>
               ))}
             </div>
-
+            
             {/* Footer */}
             <div className="p-4 border-t" style={{ borderColor: '#EDE0CC' }}>
-              <div className="flex justify-between text-sm mb-3"><span className="font-bold" style={{ color: '#634930' }}>TOTAL Tagihan</span><span className="font-bold" style={{ color: '#634930' }}>Rp {total.toLocaleString('id-ID')}</span></div>
+              <div className="flex justify-between text-sm mb-2"><span className="font-bold" style={{ color: '#634930' }}>TOTAL Tagihan</span><span className="font-bold" style={{ color: '#634930' }}>Rp {total.toLocaleString('id-ID')}</span></div>
+              
+              {/* Promo Toggle Button */}
+              {!showPromoPanel ? (
+                <div className="mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowPromoPanel(true)}
+                    className="w-full text-xs font-bold text-[#8B6F47] hover:text-[#634930] flex items-center justify-between transition-colors bg-[#FDFBF7] hover:bg-[#F5F0E8] px-3 py-2 rounded-xl border border-[#C4A882]/20 shadow-sm"
+                  >
+                    <span className="flex items-center gap-1.5">🎁 Terapkan Promo / Potongan</span>
+                    {discountValue > 0 ? (
+                      <span className="bg-[#634930] text-white px-2 py-0.5 rounded text-[10px] font-black">
+                        -{Number(discountValue).toLocaleString('id-ID')}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-gray-400">Pilih / Input</span>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                /* Promo / Discount Input Panel */
+                <div className="bg-[#FDFBF7] p-2.5 rounded-xl mb-2 border border-[#C4A882]/40 relative space-y-2 animate-in fade-in duration-200">
+                  <div className="flex justify-between items-center pb-1 border-b border-[#EDE0CC]">
+                    <span className="text-xs font-bold text-[#634930] flex items-center gap-1">🎁 Promo & Potongan</span>
+                    <button 
+                      type="button" 
+                      onClick={() => setShowPromoPanel(false)} 
+                      className="text-[#634930] hover:text-red-500 font-bold text-sm p-0.5"
+                      title="Tutup Panel"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-2">
+                    {promoCampaigns.length > 0 && (
+                      <div className="col-span-2">
+                        <select 
+                          value={promoCampaigns.find(c => c.nama === discountName)?.id || ''}
+                          onChange={e => {
+                            const val = e.target.value;
+                            if (!val) {
+                              setDiscountName('');
+                              setDiscountValue('');
+                            } else {
+                              const p = promoCampaigns.find(c => String(c.id) === val);
+                              if (p) {
+                                setDiscountName(p.nama);
+                                let valDisc = 0;
+                                if (p.tipe_promo === 'fixed' || p.tipe_promo === 'nominal') {
+                                  valDisc = Number(p.nilai_promo);
+                                } else if (p.tipe_promo === 'percent') {
+                                  valDisc = Math.round(subtotal * (Number(p.nilai_promo) / 100));
+                                }
+                                setDiscountValue(valDisc.toString());
+                              }
+                            }
+                          }}
+                          className="w-full text-[11px] px-2.5 py-1.5 rounded-lg bg-white border border-[#C4A882] text-[#634930] focus:outline-none"
+                        >
+                          <option value="">-- Pilih Promo Campaign --</option>
+                          {promoCampaigns.map(c => (
+                            <option key={c.id} value={c.id}>{c.nama} ({c.tipe_promo === 'percent' ? `${c.nilai_promo}%` : `Rp ${Number(c.nilai_promo).toLocaleString('id-ID')}`})</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Nama Promo (Kustom)"
+                        value={discountName}
+                        onChange={e => setDiscountName(e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white text-[11px] focus:outline-none border border-[#C4A882]"
+                        style={{ color: '#634930' }}
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Potongan (Rp)"
+                        value={discountValue ? Number(discountValue).toLocaleString('id-ID') : ''}
+                        onChange={e => {
+                          const raw = e.target.value.replace(/\D/g, '');
+                          setDiscountValue(raw);
+                        }}
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-white text-[11px] text-right focus:outline-none border border-[#C4A882] font-bold"
+                        style={{ color: '#634930' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="text-right mt-1 mb-3">
                 <span className="text-[10px] text-gray-400 italic">Harga sudah termasuk PPN</span>
               </div>
@@ -317,7 +713,7 @@ export default function KasirPOS() {
                   <option>Tunai</option><option>QRIS</option><option>Transfer</option>
                 </select>
                 {metodeBayar === 'Tunai' && (
-                  <input type="text" placeholder="Jumlah bayar" value={jumlahBayar} onChange={e => setJumlahBayar(e.target.value)}
+                  <input type="text" placeholder="Jumlah bayar" value={jumlahBayar} onChange={e => setJumlahBayar(formatRibuan(e.target.value))}
                     className="flex-1 px-3 py-2 rounded-lg text-sm focus:outline-none" style={{ backgroundColor: '#F5F0E8', color: '#634930', border: '1px solid #C4A882' }} />
                 )}
               </div>
