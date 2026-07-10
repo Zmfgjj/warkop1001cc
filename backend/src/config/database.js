@@ -36,9 +36,18 @@ pool.getConnection()
         await conn.query('ALTER TABLE users ADD COLUMN is_logged_in BOOLEAN DEFAULT FALSE');
         console.log('✅ Added is_logged_in column to users table');
       } catch (err) {
-        // Kolom mungkin sudah ada
         if (err.code !== 'ER_DUP_FIELDNAME') {
           console.error('⚠️ Could not add is_logged_in column:', err.message);
+        }
+      }
+
+      // Pastikan tabel menu memiliki kolom deskripsi
+      try {
+        await conn.query('ALTER TABLE menu ADD COLUMN deskripsi TEXT NULL AFTER nama');
+        console.log('✅ Added deskripsi column to menu table');
+      } catch (err) {
+        if (err.code !== 'ER_DUP_FIELDNAME') {
+          console.error('⚠️ Could not add deskripsi column:', err.message);
         }
       }
     } catch (e) {
