@@ -17,6 +17,7 @@ export default function MenuPublik() {
   const [selectedFlavors, setSelectedFlavors] = useState({}) // { menu_id: 'rasa' }
   const [loadingData, setLoadingData] = useState(true)
   const [error, setError] = useState('')
+  const [expandedDescId, setExpandedDescId] = useState(null)
 
   // Fetch menu + kategori in parallel
   const fetchData = useCallback(async () => {
@@ -277,9 +278,20 @@ export default function MenuPublik() {
                             {menu.nama}
                           </p>
                           {menu.deskripsi && (
-                            <p className="text-[10px] text-center text-stone-500 mt-1 mb-2 line-clamp-2 leading-tight px-1">
-                              {menu.deskripsi}
-                            </p>
+                            <div 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedDescId(expandedDescId === menu.id ? null : menu.id);
+                              }}
+                              className="cursor-pointer mb-2 px-1"
+                            >
+                              <p className={`text-[10px] text-center text-stone-500 mt-1 leading-tight ${expandedDescId === menu.id ? '' : 'line-clamp-2'}`}>
+                                {menu.deskripsi}
+                              </p>
+                              {expandedDescId !== menu.id && menu.deskripsi.length > 40 && (
+                                <p className="text-[9px] text-center text-[#8B6F47] mt-0.5 font-bold hover:underline">Baca selengkapnya...</p>
+                              )}
+                            </div>
                           )}
                           {activePromo ? (
                             <div className="flex flex-col items-center gap-1 mb-1">
