@@ -118,8 +118,7 @@ app.get('/api/version', (req, res) => {
 // Socket.IO
 app.set('io', io);
 waGateway.setSocketIo(io);
-// WA Gateway dinonaktifkan sementara karena library puppeteer di VPS tidak lengkap
-// waGateway.initializeGateway();
+waGateway.initializeGateway();
 
 io.on('connection', (socket) => {
   console.log('🔌 Client connected:', socket.id);
