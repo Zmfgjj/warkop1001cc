@@ -171,6 +171,16 @@ export default function UserManage() {
     }
   }
 
+  const handleResetSesi = async (id) => {
+    try {
+      await api.post(`/user/${id}/reset-session`)
+      showAlert('Sesi berhasil direset.', 'Sukses')
+      fetchUser()
+    } catch (err) {
+      showAlert(err.response?.data?.message || 'Gagal reset sesi', 'Gagal', 'error')
+    }
+  }
+
   const totalAdmin = userList.filter(u => u.role === 'owner' || u.role === 'manager').length
 
   return (
@@ -186,7 +196,7 @@ export default function UserManage() {
             <h1 className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
               User Manage
             </h1>
-            <p className="text-sm text-gray-500 font-medium mt-0.5">Kelola akses, role, dan akun pengguna sistem</p>
+            <p className="text-sm text-gray-500 font-medium mt-0.5">Kelola akses, role, dan sesi login pengguna</p>
           </div>
         </div>
         
@@ -326,7 +336,7 @@ export default function UserManage() {
                         <th className="px-8 py-5 font-bold">Anggota</th>
                         <th className="px-8 py-5 font-bold">Username</th>
                         <th className="px-8 py-5 font-bold">Role</th>
-                        <th className="px-8 py-5 font-bold">Bergabung</th>
+                        <th className="px-8 py-5 font-bold">Status Login</th>
                         <th className="px-8 py-5 font-bold text-right">Aksi</th>
                       </tr>
                     </thead>
@@ -361,15 +371,31 @@ export default function UserManage() {
                               {u.role}
                             </span>
                           </td>
-                          <td className="px-8 py-5 text-gray-400 font-medium">
-                            {u.created_at
-                              ? new Date(u.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
-                              : '-'}
+                          <td className="px-8 py-5">
+                            {u.is_logged_in ? (
+                              <span className="flex items-center gap-1.5 text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full border border-green-200 w-fit">
+                                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                                Online
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1.5 text-xs font-bold text-gray-400 bg-gray-50 px-3 py-1 rounded-full border border-gray-200 w-fit">
+                                <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                                Offline
+                              </span>
+                            )}
                           </td>
                           <td className="px-8 py-5">
                             <div className="flex justify-end gap-2">
                               {userCanEdit('user_manage') && (
                                 <>
+                                  {u.is_logged_in ? (
+                                    <button
+                                      onClick={() => handleResetSesi(u.id)}
+                                      className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-80 shadow-sm border border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100"
+                                    >
+                                      Reset Sesi
+                                    </button>
+                                  ) : null}
                                   <button
                                     onClick={() => { setEditTarget(u); setEditRole(u.role); setShowEditRole(true) }}
                                     className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-80 shadow-sm border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"

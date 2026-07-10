@@ -19,6 +19,7 @@ import KDS from './pages/KDS.jsx'
 import MenuPublik from './pages/MenuPublik.jsx'
 import RoleManage from './pages/RoleManage'
 import Monitoring from './pages/Monitoring'
+import UpdateChecker from './components/UpdateChecker'
 
 /**
  * ProtectedRoute now uses dynamic permissions from the roles table.
