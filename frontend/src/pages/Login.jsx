@@ -11,11 +11,12 @@ export default function Login() {
   const [error, setError] = useState('')
   const [showPass, setShowPass] = useState(false)
 
+  const [showForcePrompt, setShowForcePrompt] = useState(false)
+
   const { loginSuccess } = useAuth()
   const navigate = useNavigate()
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
+  const handleLoginAttempt = async (force = false) => {
     if (!username || !password) {
       setError('Username dan password wajib diisi')
       return
@@ -23,8 +24,9 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      const data = await login(username, password)
+      const data = await login(username, password, force)
       await loginSuccess(data, password)
+      setShowForcePrompt(false)
       if (data.user.role === 'dapur') navigate('/kasir/kds')
       else navigate('/kasir')
     } catch (err) {
@@ -40,19 +42,55 @@ export default function Login() {
           setError('Anda sedang offline dan kredensial salah atau sudah kedaluwarsa.')
         }
       } else {
-        setError(err.response?.data?.message || 'Login gagal. Coba lagi.')
+        if (err.response?.data?.is_active_elsewhere) {
+          setShowForcePrompt(true)
+        } else {
+          setError(err.response?.data?.message || 'Login gagal. Coba lagi.')
+        }
       }
     } finally {
       setLoading(false)
     }
   }
 
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    handleLoginAttempt(false)
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#D4B896' }}>
       
       {/* Card */}
-      <div className="w-full max-w-sm mx-4 rounded-3xl shadow-xl p-10 flex flex-col items-center" style={{ backgroundColor: '#E8D5B7' }}>
+      <div className="w-full max-w-sm mx-4 rounded-3xl shadow-xl p-10 flex flex-col items-center relative overflow-hidden" style={{ backgroundColor: '#E8D5B7' }}>
         
+        {/* Force Login Overlay */}
+        {showForcePrompt && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-8 bg-[#E8D5B7]/95 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-4">
+               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <h3 className="text-xl font-bold text-center mb-2" style={{ color: '#634930' }}>Akun Sedang Aktif!</h3>
+            <p className="text-center text-sm font-medium mb-6" style={{ color: '#8B6F47' }}>
+              Akun <strong className="text-[#634930]">{username}</strong> saat ini sedang digunakan di perangkat lain. 
+            </p>
+            <button
+              onClick={() => handleLoginAttempt(true)}
+              disabled={loading}
+              className="w-full py-3 rounded-full font-bold text-white transition-all mb-3 bg-red-500 hover:bg-red-600 shadow-md"
+            >
+              {loading ? 'MEMPROSES...' : 'PAKSA LOGOUT & LOGIN SINI'}
+            </button>
+            <button
+              onClick={() => setShowForcePrompt(false)}
+              disabled={loading}
+              className="w-full py-3 rounded-full font-bold transition-all bg-white text-[#634930] hover:bg-gray-50 shadow-sm"
+            >
+              BATAL
+            </button>
+          </div>
+        )}
+
         {/* Logo */}
         <div className="mb-4">
           <div className="w-24 h-24 rounded-full border-4 overflow-hidden flex items-center justify-center bg-black" style={{ borderColor: '#634930' }}>

@@ -8,5 +8,6 @@ router.post('/', auth({ module: 'user_manage', action: 'edit' }), userController
 router.put('/ganti-password', auth([]), userController.gantiPassword);
 router.put('/:id', auth({ module: 'user_manage', action: 'edit' }), userController.updateUser);
 router.delete('/:id', auth({ module: 'user_manage', action: 'edit' }), userController.hapusUser);
+router.post('/:id/reset-session', auth({ module: 'user_manage', action: 'edit' }), userController.resetSession);
 
 module.exports = router;

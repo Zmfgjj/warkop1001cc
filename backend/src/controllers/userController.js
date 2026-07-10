@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 exports.getUsers = async (req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT id, nama, username, role, aktif, created_at FROM users ORDER BY created_at DESC'
+      'SELECT id, nama, username, role, aktif, created_at, is_logged_in FROM users ORDER BY created_at DESC'
     );
     res.json(rows);
   } catch (err) {
@@ -157,5 +157,15 @@ exports.gantiPassword = async (req, res) => {
     res.json({ message: 'Password berhasil diganti' });
   } catch (err) {
     console.error(err); res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.resetSession = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.query('UPDATE users SET is_logged_in = 0 WHERE id = ?', [id]);
+    res.json({ message: 'Sesi akun berhasil direset. Akun kini bisa login kembali.' });
+  } catch (err) {
+    console.error(err); res.status(500).json({ message: 'Server error saat mereset sesi' });
   }
 };

@@ -6,7 +6,7 @@ const { logAction } = require('../services/logger');
 
 exports.login = async (req, res, next) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, force } = req.body;
 
     if (!username || !password) {
       return res.status(400).json({ message: 'Username dan password wajib diisi' });
@@ -29,6 +29,17 @@ exports.login = async (req, res, next) => {
     if (!valid) {
       return res.status(401).json({ message: 'Password salah' });
     }
+
+    // CEK APAKAH SUDAH LOGIN DI TEMPAT LAIN
+    if (user.is_logged_in && !force) {
+      return res.status(401).json({ 
+        message: 'Akun ini sedang aktif di perangkat lain. Apakah Anda ingin memaksa logout perangkat tersebut?',
+        is_active_elsewhere: true
+      });
+    }
+
+    // Set status login
+    await db.query('UPDATE users SET is_logged_in = 1 WHERE id = ?', [user.id]);
 
     // Fetch permissions from roles table
     const permissions = await getPermissionsForRole(user.role);
@@ -70,7 +81,18 @@ exports.login = async (req, res, next) => {
   }
 };
 
-exports.logout = (req, res) => {
+exports.logout = async (req, res) => {
+  try {
+    const token = req.cookies?.token || (req.headers.authorization ? req.headers.authorization.split(' ')[1] : null);
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'warkop_secret_123', { ignoreExpiration: true });
+      if (decoded && decoded.id) {
+        await db.query('UPDATE users SET is_logged_in = 0 WHERE id = ?', [decoded.id]);
+      }
+    }
+  } catch (err) {
+    console.error('Error saat logout:', err);
+  }
   res.clearCookie('token');
   res.json({ message: 'Logout berhasil' });
 };

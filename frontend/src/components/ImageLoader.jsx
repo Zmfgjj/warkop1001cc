@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { Capacitor } from '@capacitor/core';
+import api from '../api/auth';
+
+// Ambil IP/Domain dasar dari pengaturan API (misal: "http://103.253.213.177/api" menjadi "http://103.253.213.177")
+const baseDomain = api.defaults.baseURL.replace(/\/api\/?$/, '');
 
 export default function ImageLoader({ src, alt, className, priority = false }) {
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Perbaiki URL gambar untuk APK Android karena APK tidak tahu alamat VPS-nya
-  const fullSrc = (src && src.startsWith('/uploads/') && Capacitor.isNativePlatform())
-    ? `http://103.253.213.177${src}`
+  // Paksa semua gambar "/uploads/..." untuk mengarah ke IP VPS
+  const fullSrc = (src && src.startsWith('/uploads/'))
+    ? `${baseDomain}${src}`
     : src;
 
   return (

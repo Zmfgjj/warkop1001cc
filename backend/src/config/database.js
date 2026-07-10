@@ -30,8 +30,19 @@ pool.getConnection()
         );
       `);
       console.log('✅ Table activity_logs is ready!');
+      
+      // Pastikan tabel users memiliki kolom is_logged_in
+      try {
+        await conn.query('ALTER TABLE users ADD COLUMN is_logged_in BOOLEAN DEFAULT FALSE');
+        console.log('✅ Added is_logged_in column to users table');
+      } catch (err) {
+        // Kolom mungkin sudah ada
+        if (err.code !== 'ER_DUP_FIELDNAME') {
+          console.error('⚠️ Could not add is_logged_in column:', err.message);
+        }
+      }
     } catch (e) {
-      console.error('⚠️ Failed to ensure activity_logs table:', e.message);
+      console.error('⚠️ Failed to ensure tables:', e.message);
     }
     conn.release();
   })
