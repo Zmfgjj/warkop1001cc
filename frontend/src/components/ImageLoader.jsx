@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import api from '../api/auth';
 
-// Ambil IP/Domain dasar dari pengaturan API (misal: "http://103.253.213.177/api" menjadi "http://103.253.213.177")
-const baseDomain = api.defaults.baseURL.replace(/\/api\/?$/, '');
+// Ambil API base URL (misal: "http://103.253.213.177/api")
+const baseURL = api.defaults.baseURL.replace(/\/$/, '');
 
 export default function ImageLoader({ src, alt, className, priority = false }) {
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Paksa semua gambar "/uploads/..." untuk mengarah ke IP VPS
+  // Gambar disimpan di DB sebagai "/uploads/...". 
+  // Gabungkan dengan baseURL menjadi "http://103.253.213.177/api/uploads/..." agar tembus Nginx proxy.
   const fullSrc = (src && src.startsWith('/uploads/'))
-    ? `${baseDomain}${src}`
+    ? `${baseURL}${src}`
     : src;
 
   return (
