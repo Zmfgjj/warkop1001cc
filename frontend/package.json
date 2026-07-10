@@ -9,10 +9,13 @@
     "tunnel": "node tunnel.js"
   },
   "dependencies": {
-    "@capacitor/android": "^8.3.4",
-    "@capacitor/cli": "^8.3.4",
-    "@capacitor/core": "^8.3.4",
+    "@capacitor-community/keep-awake": "^8.0.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/network": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
     "axios": "^1.7.9",
+    "cordova-plugin-bluetooth-serial": "^0.4.7",
     "idb-keyval": "^6.2.4",
     "lucide-react": "^1.14.0",
     "qrcode.react": "^4.2.0",
@@ -26,6 +29,8 @@
     "xlsx-js-style": "^1.2.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "localtunnel": "^2.0.0",

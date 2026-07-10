@@ -1,5 +1,5 @@
 const db = require('../config/database');
-
+const { logAction } = require('../services/logger');
 async function getNomorAntrean(conn, isOffline) {
   // Lock settings
   await conn.query('SELECT id FROM settings FOR UPDATE');
@@ -209,6 +209,12 @@ exports.buatPesanan = async (req, res) => {
     }
 
     await conn.commit();
+    
+    // TRACE LOGGING: Order berhasil masuk DB
+    const logDesc = is_offline_sync 
+      ? `Pesanan Offline #${pesanan_id} berhasil disinkronisasi` 
+      : `Pesanan Baru #${pesanan_id} berhasil dibuat`;
+    await logAction(req, 'INSERT', 'pesanan', logDesc, { pesanan_id, total });
 
     const io = req.app.get('io');
     if (io) {

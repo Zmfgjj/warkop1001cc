@@ -123,6 +123,39 @@ async function fixDB() {
       else throw e;
     }
 
+    try {
+      await db.query("ALTER TABLE activity_logs ADD COLUMN ip_address VARCHAR(45) NULL;");
+      console.log("✅ Kolom 'ip_address' berhasil ditambahkan ke activity_logs.");
+    } catch (e) {
+      if (e.code === 'ER_DUP_FIELDNAME') console.log("ℹ️ Kolom 'ip_address' sudah ada di activity_logs.");
+      else console.log("⚠️ Gagal tambah ip_address:", e.message);
+    }
+
+    try {
+      await db.query("ALTER TABLE activity_logs ADD COLUMN user_agent TEXT NULL;");
+      console.log("✅ Kolom 'user_agent' berhasil ditambahkan ke activity_logs.");
+    } catch (e) {
+      if (e.code === 'ER_DUP_FIELDNAME') console.log("ℹ️ Kolom 'user_agent' sudah ada di activity_logs.");
+      else console.log("⚠️ Gagal tambah user_agent:", e.message);
+    }
+
+    // CREATE INDEXES
+    try {
+      await db.query("CREATE INDEX idx_pesanan_status_date ON pesanan (status, created_at);");
+      console.log("✅ Index 'idx_pesanan_status_date' berhasil dibuat.");
+    } catch (e) {
+      if (e.code === 'ER_DUP_KEYNAME') console.log("ℹ️ Index 'idx_pesanan_status_date' sudah ada.");
+      else console.log("⚠️ Gagal buat index pesanan:", e.message);
+    }
+
+    try {
+      await db.query("CREATE INDEX idx_detail_pesanan_id ON detail_pesanan (pesanan_id);");
+      console.log("✅ Index 'idx_detail_pesanan_id' berhasil dibuat.");
+    } catch (e) {
+      if (e.code === 'ER_DUP_KEYNAME') console.log("ℹ️ Index 'idx_detail_pesanan_id' sudah ada.");
+      else console.log("⚠️ Gagal buat index detail pesanan:", e.message);
+    }
+
     console.log("🎉 Perbaikan selesai!");
   } catch (err) {
     console.error("❌ Terjadi kesalahan utama:", err.message);

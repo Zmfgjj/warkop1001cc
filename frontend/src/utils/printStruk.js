@@ -190,19 +190,16 @@ export function cetakStruk(data, printTypes = ['kasir', 'pelanggan']) {
 
 // Cache port reference in memory
 let cachedPort = null;
+let cachedMacAddress = localStorage.getItem('printer_mac') || null; // Simpan MAC address untuk auto-reconnect
 
 // Helper to get or request serial port
 async function getSerialPort() {
   if (cachedPort) return cachedPort;
-  
-  // Cek apakah ada port yang sudah dipasangkan sebelumnya
   const ports = await navigator.serial.getPorts();
   if (ports.length > 0) {
     cachedPort = ports[0];
     return cachedPort;
   }
-  
-  // Jika tidak ada, minta user memilih port baru
   cachedPort = await navigator.serial.requestPort();
   return cachedPort;
 }
@@ -210,31 +207,59 @@ async function getSerialPort() {
 // Fungsi manual untuk pairing printer agar user bisa klik tombol "Hubungkan Printer"
 export async function requestPrinterPermission() {
   try {
-    if (!('serial' in navigator)) {
-      globalAlert('Browser tidak mendukung Web Serial API.', 'Perhatian', 'error');
+    // 1. Cek apakah ini berjalan di APK (Cordova Bluetooth Serial)
+    if (window.bluetoothSerial) {
+      return new Promise((resolve) => {
+        window.bluetoothSerial.list((devices) => {
+          // Cari device yang mirip printer (Class 1664, atau ada kata printer/pos/blue)
+          const printers = devices.filter(d => (d.class === 1664 || d.name.toLowerCase().includes('print') || d.name.toLowerCase().includes('pos') || d.name.toLowerCase().includes('blue') || d.name.toLowerCase().includes('mpt')));
+          
+          if (printers.length > 0) {
+            // Ambil printer pertama
+            cachedMacAddress = printers[0].address;
+            localStorage.setItem('printer_mac', cachedMacAddress);
+            
+            window.bluetoothSerial.connect(cachedMacAddress, () => {
+              globalAlert(`Printer Bluetooth [${printers[0].name}] terhubung!`, 'Sukses', 'success');
+              resolve(true);
+            }, (err) => {
+              globalAlert('Gagal koneksi Bluetooth: ' + err, 'Error', 'error');
+              resolve(false);
+            });
+          } else {
+             globalAlert('Tidak ada printer Bluetooth paired ditemukan. Pair di Setting Bluetooth HP dulu.', 'Perhatian', 'error');
+             resolve(false);
+          }
+        }, (err) => {
+          globalAlert('Akses Bluetooth ditolak: ' + err, 'Error', 'error');
+          resolve(false);
+        });
+      });
+    } 
+    // 2. Fallback untuk Desktop Browser (Web Serial API)
+    else if ('serial' in navigator) {
+      const port = await navigator.serial.requestPort();
+      cachedPort = port;
+      if (!port.writable) {
+        await port.open({ baudRate: 9600 });
+      }
+      globalAlert('Printer thermal USB terhubung dan siap digunakan!', 'Sukses', 'success');
+      return true;
+    } else {
+      globalAlert('Browser tidak mendukung API Printer.', 'Perhatian', 'error');
       return false;
     }
-    const port = await navigator.serial.requestPort();
-    cachedPort = port;
-    
-    // Buka koneksi langsung biar persistent
-    if (!port.writable) {
-      await port.open({ baudRate: 9600 });
-    }
-    
-    globalAlert('Printer thermal berhasil terhubung dan siap digunakan!', 'Sukses', 'success');
-    return true;
   } catch (err) {
     console.error('Failed to pair printer:', err);
-    globalAlert('Gagal menghubungkan printer. Pastikan printer menyala dan tidak dipakai aplikasi lain.', 'Error', 'error');
+    globalAlert('Gagal menghubungkan printer. Pastikan menyala.', 'Error', 'error');
     return false;
   }
 }
 
 // Cetak struk via Web Serial API (thermal printer ESC/POS)
 export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
-  if (!('serial' in navigator)) {
-    globalAlert('Browser tidak mendukung Web Serial API. Gunakan Chrome/Edge.', 'Perhatian', 'error')
+  if (!('serial' in navigator) && !window.bluetoothSerial) {
+    globalAlert('Browser/APK tidak mendukung API Printer. Gunakan Chrome/Edge atau Build APK.', 'Perhatian', 'error')
     return false
   }
 
@@ -398,22 +423,55 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
       }
     }
 
-    // Kirim data secara bertahap (chunked) untuk mencegah buffer overflow pada printer Bluetooth/Serial
-    const chunkSize = 64
-    const delayMs = 30
-    const bytes = encoder.encode(receipt)
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      const chunk = bytes.slice(i, i + chunkSize)
-      await writer.write(chunk)
-      await new Promise(resolve => setTimeout(resolve, delayMs))
+    // --- Eksekusi Cetak ---
+    if (window.bluetoothSerial) {
+      // 1. Eksekusi via Native Bluetooth Serial (APK)
+      if (!cachedMacAddress) {
+        globalAlert('Printer belum dipilih. Klik tombol Printer di atas.', 'Perhatian', 'error');
+        return false;
+      }
+      return new Promise((resolve, reject) => {
+        const doPrint = () => {
+          window.bluetoothSerial.write(receipt, () => {
+            resolve(true);
+          }, (err) => {
+            reject(err);
+          });
+        };
+
+        window.bluetoothSerial.isConnected(() => {
+          doPrint(); // Sudah connect
+        }, () => {
+          // Belum connect, coba auto-reconnect
+          window.bluetoothSerial.connect(cachedMacAddress, doPrint, (err) => reject(err));
+        });
+      });
+      
+    } else {
+      // 2. Eksekusi via Web Serial (Browser PC)
+      const port = await getSerialPort()
+      if (!port.writable) {
+        await port.open({ baudRate: 9600 })
+      }
+
+      const writer = port.writable.getWriter()
+      const encoder = new TextEncoder()
+      
+      // Kirim data secara bertahap (chunked) untuk Web Serial
+      const chunkSize = 64
+      const delayMs = 30
+      const bytes = encoder.encode(receipt)
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.slice(i, i + chunkSize)
+        await writer.write(chunk)
+        await new Promise(resolve => setTimeout(resolve, delayMs))
+      }
+      
+      writer.releaseLock()
+      return true
     }
-    
-    writer.releaseLock()
-    // Koneksi dibiarkan tetap terbuka agar tidak perlu inisialisasi ulang
-    return true
   } catch (err) {
     console.error('Thermal printer error:', err)
-    // Hapus cache port agar bisa coba reconnect/pilih ulang jika terjadi error
     cachedPort = null
     return false
   }

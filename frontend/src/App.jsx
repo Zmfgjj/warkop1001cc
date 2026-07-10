@@ -1,3 +1,6 @@
+import { Capacitor } from '@capacitor/core';
+import { KeepAwake } from '@capacitor-community/keep-awake';
+import { StatusBar, Style } from '@capacitor/status-bar';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth'
@@ -104,9 +107,20 @@ function AppRoutes() {
   )
 }
 
+
 export default function App() {
   useEffect(() => {
     initSyncManager();
+    
+    // Capacitor Native Optimizations (Hanya berjalan jika di APK Android/iOS)
+    if (Capacitor.isNativePlatform()) {
+      // 1. Mencegah layar tablet mati otomatis (sangat penting untuk kasir & dapur)
+      KeepAwake.keepAwake().catch(() => {});
+      
+      // 2. Mengatur warna status bar HP agar menyatu dengan warna aplikasi Warkop
+      StatusBar.setStyle({ style: Style.Light }).catch(() => {});
+      StatusBar.setBackgroundColor({ color: '#F9F5F0' }).catch(() => {});
+    }
   }, []);
 
   return (
