@@ -24,11 +24,7 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 
 const corsOptions = {
   origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    callback(null, true);
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   credentials: true
@@ -106,6 +102,16 @@ app.get('/', (req, res) => {
   res.json({
     message: '🚀 Warkop 1001 CC API is running!',
     version: '1.0.0'
+  });
+});
+
+// Update Checker API
+app.get('/api/version', (req, res) => {
+  res.json({
+    latest_version: '1.0.0', // Ganti ini di server kalau mau minta user update
+    download_url: 'https://link-google-drive-atau-sejenisnya.com/warkop.apk', // Link download APK baru
+    force_update: false, // Jika true, user tidak bisa masuk sebelum update
+    message: 'Ada update fitur baru! Silakan download versi terbaru.'
   });
 });
 

@@ -207,6 +207,31 @@ export default function KDS() {
     return { ...p, items: filteredItems };
   }).filter(p => p.items.length > 0);
 
+  // Hitung jumlah order telat dan waktu terlama untuk ditampilkan di badge pojok kanan atas
+  const getLateOrdersInfo = () => {
+    let lateCount = 0;
+    let maxDelay = 0;
+    let maxDelayOrderId = null;
+    
+    filteredPesanan.forEach(pesanan => {
+      const createdTime = new Date(pesanan.created_at).getTime();
+      const elapsedMinutes = Math.floor((Date.now() - createdTime) / 60000);
+      const hasActiveItems = pesanan.items.some(i => i.status !== 'selesai');
+      
+      if (hasActiveItems && elapsedMinutes >= 10) {
+        lateCount++;
+        if (elapsedMinutes > maxDelay) {
+          maxDelay = elapsedMinutes;
+          maxDelayOrderId = String(pesanan.id).padStart(3, '0');
+        }
+      }
+    });
+    
+    return { lateCount, maxDelay, maxDelayOrderId };
+  };
+  
+  const lateInfo = getLateOrdersInfo();
+
   // Late order alarm (orders pending/processing for >= 10 minutes)
   useEffect(() => {
     if (!userCanEdit('kds') || !alarmEnabled) return;
@@ -367,11 +392,19 @@ export default function KDS() {
       <div className="flex-1 p-4 md:p-6 xl:p-10 overflow-auto scroll-smooth">
 
         {/* Mobile page title */}
-        <div className="lg:hidden mb-4">
-          <h1 className="text-xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
-            KDS - Kitchen Display
-          </h1>
-          <p className="text-xs text-gray-500 font-medium mt-0.5">Pantau pesanan masuk ke dapur</p>
+        <div className="lg:hidden mb-4 flex justify-between items-start">
+          <div>
+            <h1 className="text-xl font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
+              KDS - Kitchen Display
+            </h1>
+            <p className="text-xs text-gray-500 font-medium mt-0.5">Pantau pesanan masuk ke dapur</p>
+          </div>
+          {lateInfo.lateCount > 0 && (
+            <div className="bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg flex flex-col items-end animate-pulse shadow-sm">
+              <span className="text-red-600 text-[11px] font-bold">Order #{lateInfo.maxDelayOrderId} Telat!</span>
+              <span className="text-red-500 text-[10px] font-semibold">{lateInfo.maxDelay}m terlama</span>
+            </div>
+          )}
         </div>
 
         {loading ? (
