@@ -467,7 +467,7 @@ export default function ManajemenMenu() {
                   />
                   {formTambah.gambarPreview ? (
                     <div className="relative aspect-video w-full rounded-lg overflow-hidden shadow-sm">
-                      <img src={formTambah.gambarPreview} alt="Preview" className="w-full h-full object-cover" />
+                      <ImageLoader src={formTambah.gambarPreview} alt="Preview" className="w-full h-full" />
                       <div className="absolute inset-0 bg-stone-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <span className="text-white text-sm font-medium bg-stone-900/60 px-3 py-1.5 rounded-lg backdrop-blur-sm">Ganti Gambar</span>
                       </div>
@@ -641,7 +641,7 @@ export default function ManajemenMenu() {
                   />
                   {formEdit.gambarPreview ? (
                     <div className="relative aspect-video w-full rounded-lg overflow-hidden shadow-sm">
-                      <img src={formEdit.gambarPreview} alt="Preview" className="w-full h-full object-cover" />
+                      <ImageLoader src={formEdit.gambarPreview} alt="Preview" className="w-full h-full" />
                       <div className="absolute inset-0 bg-stone-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <span className="text-white text-sm font-medium bg-stone-900/60 px-3 py-1.5 rounded-lg backdrop-blur-sm">Ganti Gambar</span>
                       </div>
