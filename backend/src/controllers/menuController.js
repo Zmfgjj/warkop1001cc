@@ -121,7 +121,7 @@ exports.tambahMenu = async (req, res) => {
     
     const [result] = await conn.query(
       'INSERT INTO menu (kategori_id, nama, deskripsi, harga, harga_diskon, hpp, gambar, pilihan_rasa) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)',
-      [kategori_id, nama, deskripsi, harga, req.body.harga_diskon || 0, hpp || 0, gambar]
+      [kategori_id, nama, deskripsi || null, harga, req.body.harga_diskon || 0, hpp || 0, gambar]
     );
 
     const menuId = result.insertId;
@@ -201,7 +201,7 @@ exports.updateMenu = async (req, res) => {
     
     await conn.query(
       'UPDATE menu SET kategori_id=?, nama=?, deskripsi=?, harga=?, harga_diskon=?, hpp=?, gambar=?, tersedia=?, pilihan_rasa=NULL WHERE id=?',
-      [kategori_id, nama, deskripsi, harga, req.body.harga_diskon || 0, hpp || 0, gambar, tersedia, id]
+      [kategori_id, nama, deskripsi || null, harga, req.body.harga_diskon || 0, hpp || 0, gambar, tersedia, id]
     );
     
     // Update variants: delete old and insert new

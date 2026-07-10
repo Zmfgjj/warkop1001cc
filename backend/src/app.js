@@ -67,7 +67,7 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 app.use(cookieParser());
 
 // Serve static files for uploads
-app.use('/uploads', express.static(uploadsDir, { maxAge: '1d' }));
+app.use('/api/uploads', express.static(uploadsDir, { maxAge: '1d' }));
 
 // Routes
 const pesananRoutes = require('./routes/pesanan');
