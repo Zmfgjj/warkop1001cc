@@ -92,8 +92,9 @@ const sendBroadcastMessage = async (targets, messageTemplate) => {
       const formattedPhone = phone.includes('@c.us') ? phone : `${phone}@c.us`;
       await client.sendMessage(formattedPhone, message);
       successCount++;
-      // Wait 3 seconds to avoid ban
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // Random delay between 4 to 8 seconds to simulate human typing and avoid ban
+      const delay = Math.floor(Math.random() * (8000 - 4000 + 1)) + 4000;
+      await new Promise(resolve => setTimeout(resolve, delay));
     } catch (err) {
       console.error(`Failed to send to ${phone}`, err);
     }
