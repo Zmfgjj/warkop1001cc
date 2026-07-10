@@ -42,6 +42,7 @@ export default function KasirPOS() {
   const [showPromoPanel, setShowPromoPanel] = useState(false)
   const [showCustDetails, setShowCustDetails] = useState(false)
   const [showMejaDropdown, setShowMejaDropdown] = useState(false)
+  const [expandedDescId, setExpandedDescId] = useState(null)
   const [printMethod, setPrintMethod] = useState(() => {
     return localStorage.getItem('pos_print_method') || 'none'
   })
@@ -428,9 +429,20 @@ export default function KasirPOS() {
                       <div className="p-2 md:p-3 flex flex-col items-center flex-1 justify-between w-full">
                         <p className="text-xs font-bold text-center mb-1 line-clamp-2" style={{ color: '#634930' }}>{menu.nama}</p>
                         {menu.deskripsi && (
-                          <p className="text-[9px] text-center text-stone-500 mb-1 line-clamp-2 px-1">
-                            {menu.deskripsi}
-                          </p>
+                          <div 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedDescId(expandedDescId === menu.id ? null : menu.id);
+                            }}
+                            className="cursor-pointer mb-1 px-1 w-full"
+                          >
+                            <p className={`text-[9px] text-center text-stone-500 leading-tight ${expandedDescId === menu.id ? '' : 'line-clamp-2'}`}>
+                              {menu.deskripsi}
+                            </p>
+                            {expandedDescId !== menu.id && menu.deskripsi.length > 40 && (
+                              <p className="text-[8px] text-center text-[#8B6F47] mt-0.5 font-bold hover:underline">Baca selengkapnya...</p>
+                            )}
+                          </div>
                         )}
                         {(() => {
                           const activePromo = getActivePromo(menu);
