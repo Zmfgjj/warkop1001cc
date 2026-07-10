@@ -1,7 +1,11 @@
 import axios from 'axios'
+import { Capacitor } from '@capacitor/core'
+
+// HARDCODED UNTUK ANDROID
+const API_URL = 'http://103.253.213.177/api';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_URL,
   timeout: 10000,
   withCredentials: true,
 })

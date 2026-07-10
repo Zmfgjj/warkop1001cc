@@ -427,6 +427,11 @@ export default function KasirPOS() {
                       {/* Info + Actions */}
                       <div className="p-2 md:p-3 flex flex-col items-center flex-1 justify-between w-full">
                         <p className="text-xs font-bold text-center mb-1 line-clamp-2" style={{ color: '#634930' }}>{menu.nama}</p>
+                        {menu.deskripsi && (
+                          <p className="text-[9px] text-center text-stone-500 mb-1 line-clamp-2 px-1">
+                            {menu.deskripsi}
+                          </p>
+                        )}
                         {(() => {
                           const activePromo = getActivePromo(menu);
                           return (

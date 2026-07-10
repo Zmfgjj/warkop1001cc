@@ -112,8 +112,21 @@ export default function App() {
   useEffect(() => {
     initSyncManager();
     
+    // Minta izin Notifikasi (berlaku untuk Web dan Android 13+)
+    if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      Notification.requestPermission().catch(() => {});
+    }
+
     // Capacitor Native Optimizations (Hanya berjalan jika di APK Android/iOS)
     if (Capacitor.isNativePlatform()) {
+      // Pancing izin Bluetooth agar diminta di awal aplikasi
+      if (window.bluetoothSerial) {
+        window.bluetoothSerial.isEnabled(
+          () => {}, 
+          () => { window.bluetoothSerial.enable(() => {}, () => {}) }
+        );
+      }
+
       // 1. Mencegah layar tablet mati otomatis (sangat penting untuk kasir & dapur)
       KeepAwake.keepAwake().catch(() => {});
       
@@ -127,6 +140,7 @@ export default function App() {
     <AuthProvider>
       <AlertProvider>
         <div className="flex flex-col h-[100dvh] overflow-hidden">
+          <UpdateChecker />
           <OfflineBanner />
           <div className="flex-1 min-h-0 relative">
             <BrowserRouter>

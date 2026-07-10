@@ -29,7 +29,7 @@ export default function Login() {
       else navigate('/kasir')
     } catch (err) {
       // Check if it's a network error or offline
-      if (!navigator.onLine || !err.response) {
+      if (!err.response) {
         const offlineUser = await verifyOfflineCredentials(username, password);
         if (offlineUser) {
           await loginSuccess({ user: offlineUser }, password);

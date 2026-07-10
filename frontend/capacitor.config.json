@@ -1,5 +1,13 @@
 {
   "appId": "com.warkop1001cc.pos",
   "appName": "Warkop 1001cc POS",
-  "webDir": "dist"
+  "webDir": "dist",
+  "server": {
+    "cleartext": true
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
 }

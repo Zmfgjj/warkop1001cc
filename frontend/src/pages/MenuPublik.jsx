@@ -276,6 +276,11 @@ export default function MenuPublik() {
                           <p className="text-sm text-center text-[#442D1D] font-bold leading-tight line-clamp-2 min-h-[2.5rem]">
                             {menu.nama}
                           </p>
+                          {menu.deskripsi && (
+                            <p className="text-[10px] text-center text-stone-500 mt-1 mb-2 line-clamp-2 leading-tight px-1">
+                              {menu.deskripsi}
+                            </p>
+                          )}
                           {activePromo ? (
                             <div className="flex flex-col items-center gap-1 mb-1">
                               <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-pink-100 text-pink-700">
