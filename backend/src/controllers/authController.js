@@ -2,8 +2,9 @@ const db = require('../config/database');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { getPermissionsForRole } = require('./roleController');
+const { logAction } = require('../services/logger');
 
-exports.login = async (req, res) => {
+exports.login = async (req, res, next) => {
   try {
     const { username, password } = req.body;
 
@@ -47,6 +48,12 @@ exports.login = async (req, res) => {
       maxAge: 4 * 60 * 60 * 1000 // 4 hours
     });
 
+    // Set user object inside req temporarily for logger
+    req.user = { id: user.id, username: user.username, role: user.role };
+    
+    // Log Activity (akan mengambil IP dan User-Agent dari req)
+    await logAction(req, 'SYSTEM', 'users', `User ${user.username} berhasil login`);
+
     res.json({
       message: 'Login berhasil',
       user: {
@@ -59,8 +66,7 @@ exports.login = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Login Error:', err); 
-    res.status(500).json({ message: 'Server error: ' + (err.message || 'Unknown error') });
+    next(err);
   }
 };
 
@@ -69,7 +75,7 @@ exports.logout = (req, res) => {
   res.json({ message: 'Logout berhasil' });
 };
 
-exports.getMe = async (req, res) => {
+exports.getMe = async (req, res, next) => {
   try {
     const [rows] = await db.query(
       'SELECT id, nama, username, role FROM users WHERE id = ? AND aktif = 1', 
@@ -89,6 +95,6 @@ exports.getMe = async (req, res) => {
       }
     });
   } catch (err) {
-    console.error(err); res.status(500).json({ message: 'Server error' });
+    next(err);
   }
 };

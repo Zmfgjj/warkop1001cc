@@ -10,6 +10,8 @@ import MobileLayout from '../components/MobileLayout'
 import { useNetwork } from '../hooks/useNetwork'
 import { saveMasterData, getMasterData, queueOfflineOrder } from '../utils/offlineStore'
 import { useAlert } from '../context/AlertContext'
+import { Capacitor } from '@capacitor/core'
+import { Haptics, ImpactStyle } from '@capacitor/haptics'
 
 export default function KasirPOS() {
   const { user, canEdit: userCanEdit } = useAuth()
@@ -303,6 +305,12 @@ export default function KasirPOS() {
       if (!successOffline) {
         showAlert('Pesanan berhasil dibuat & pembayaran tercatat!', 'Sukses')
       }
+      
+      // Native Feedback (Getar)
+      if (Capacitor.isNativePlatform()) {
+        Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
+      }
+      
       setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); setNamaPelanggan(''); setNomorHp(''); setSelectedMejaId(''); setTipePelanggan('Umum'); setDiscountName(''); setDiscountValue(''); fetchData()
     } catch (err) { 
       showAlert(err.response?.data?.message || 'Gagal memproses pembayaran', 'Gagal') 

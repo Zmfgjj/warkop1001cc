@@ -6,6 +6,8 @@ import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
 import { useAlert } from '../context/AlertContext'
 import { cetakStruk, cetakStrukThermal, requestPrinterPermission } from '../utils/printStruk'
+import { Capacitor } from '@capacitor/core'
+import { Haptics, ImpactStyle } from '@capacitor/haptics'
 
 export default function KDS() {
   const { user, canEdit: userCanEdit } = useAuth()
@@ -288,6 +290,10 @@ export default function KDS() {
 
     try {
       await api.put(`/pesanan/${pesananId}/status`, { status })
+      // Native Feedback (Getar) saat order sukses
+      if (Capacitor.isNativePlatform() && status === 'selesai') {
+        Haptics.impact({ style: ImpactStyle.Medium }).catch(() => {});
+      }
     } catch (err) {
       showAlert('Gagal update status pesanan', 'Gagal', 'error')
       fetchPesanan()

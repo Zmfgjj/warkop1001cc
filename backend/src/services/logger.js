@@ -12,12 +12,18 @@ async function logAction(reqOrUser, actionType, tableName, description, backupDa
   try {
     let userId = null;
     let username = 'SYSTEM';
+    let ip = null;
+    let userAgent = null;
     
     if (reqOrUser) {
       if (reqOrUser.user) {
+        // reqOrUser is an express request object
         userId = reqOrUser.user.id;
         username = reqOrUser.user.username || reqOrUser.user.nama || 'USER';
+        ip = reqOrUser.ip || reqOrUser.connection?.remoteAddress || null;
+        userAgent = reqOrUser.headers ? reqOrUser.headers['user-agent'] : null;
       } else if (reqOrUser.id) {
+        // reqOrUser is just a user object
         userId = reqOrUser.id;
         username = reqOrUser.username || reqOrUser.nama || 'USER';
       }
@@ -26,9 +32,9 @@ async function logAction(reqOrUser, actionType, tableName, description, backupDa
     const backupStr = backupData ? JSON.stringify(backupData) : null;
 
     await db.query(
-      `INSERT INTO activity_logs (user_id, username, action_type, table_name, description, backup_data) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [userId, username, actionType, tableName, description, backupStr]
+      `INSERT INTO activity_logs (user_id, username, action_type, table_name, description, backup_data, ip_address, user_agent) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, username, actionType, tableName, description, backupStr, ip, userAgent]
     );
   } catch (err) {
     console.error('❌ Gagal menulis activity log:', err.message);
