@@ -27,6 +27,10 @@ export default function ImageLoader({ src, alt, className, priority = false }) {
         loading={priority ? "eager" : "lazy"}
         fetchpriority={priority ? "high" : "auto"}
         onLoad={() => setIsLoaded(true)}
+        onError={(e) => {
+          console.error('Image load error for src:', fullSrc);
+          setIsLoaded(true); // make it visible to show broken icon
+        }}
       />
     </div>
   );
