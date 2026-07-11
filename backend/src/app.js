@@ -97,6 +97,28 @@ app.use('/api/crm', crmRoutes);
 const logRoutes = require('./routes/logs');
 app.use('/api/logs', logRoutes);
 
+// Diagnostic route for uploads
+app.get('/api/diagnose-uploads', (req, res) => {
+  const uploadsDir = path.join(__dirname, '../public/uploads');
+  try {
+    const files = fs.readdirSync(uploadsDir);
+    const stats = fs.statSync(uploadsDir);
+    res.json({
+      success: true,
+      path: uploadsDir,
+      mode: stats.mode,
+      filesCount: files.length,
+      files: files.slice(0, 50),
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message,
+      path: uploadsDir
+    });
+  }
+});
+
 // Test route
 app.get('/', (req, res) => {
   res.json({
