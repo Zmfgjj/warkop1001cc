@@ -119,6 +119,22 @@ app.get('/api/diagnose-uploads', (req, res) => {
   }
 });
 
+// Diagnostic route for DB menus
+app.get('/api/diagnose-db', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT id, nama, gambar, tersedia FROM menu ORDER BY id DESC LIMIT 10');
+    res.json({
+      success: true,
+      menus: rows
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      error: err.message
+    });
+  }
+});
+
 // Test route
 app.get('/', (req, res) => {
   res.json({
