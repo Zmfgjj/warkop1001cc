@@ -141,9 +141,9 @@ export default function ManajemenMenu() {
       formData.append('variants', JSON.stringify(formEdit.variants))
       formData.append('tersedia', formEdit.tersedia ? 1 : 0)
       
-      if (formEdit.gambar instanceof File) {
+      if (formEdit.gambar) {
         formData.append('gambar', formEdit.gambar)
-      } else if (formEdit.gambarPreview) {
+      } else if (formEdit.gambarPreview && typeof formEdit.gambarPreview === 'string' && formEdit.gambarPreview.startsWith('/uploads/')) {
         formData.append('gambar', formEdit.gambarPreview)
       }
       
