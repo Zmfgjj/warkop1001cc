@@ -122,7 +122,7 @@ app.get('/api/diagnose-uploads', (req, res) => {
 // Diagnostic route for DB menus
 app.get('/api/diagnose-db', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT id, nama, gambar, tersedia FROM menu ORDER BY id DESC LIMIT 10');
+    const [rows] = await db.query('SELECT id, nama, gambar, tersedia FROM menu');
     res.json({
       success: true,
       menus: rows
