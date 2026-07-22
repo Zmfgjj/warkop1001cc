@@ -300,10 +300,11 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
     function padRight(str, len) { return (str + ' '.repeat(len)).slice(0, len) }
     function padLeft(str, len) { return (' '.repeat(len) + str).slice(-len) }
 
-    let receipt = INIT
+    const receipts = [];
     
     // Print requested copies
     for (const type of printTypes) {
+      let receipt = INIT;
       let label = '[ PELANGGAN ]';
       if (type === 'kasir') label = '[ KASIR ]';
       else if (type === 'dapur') label = '[ DAPUR ]';
@@ -429,6 +430,7 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
         receipt += LF + LF
         receipt += CUT
       }
+      receipts.push(receipt);
     }
 
     // --- Eksekusi Cetak ---
@@ -439,12 +441,35 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
         return false;
       }
       return new Promise((resolve, reject) => {
-        const doPrint = () => {
-          window.bluetoothSerial.write(receipt, () => {
+        const doPrint = async () => {
+          try {
+            for (let i = 0; i < receipts.length; i++) {
+              const currentReceipt = receipts[i];
+              
+              // Chunking untuk Bluetooth agar buffer printer tidak penuh (tumpang tindih)
+              const bytes = encoder.encode(currentReceipt);
+              const chunkSize = 64;
+              const delayMs = 40;
+              
+              for (let j = 0; j < bytes.length; j += chunkSize) {
+                const chunk = bytes.slice(j, j + chunkSize);
+                await new Promise((res, rej) => {
+                  // Kirim Uint8Array chunk
+                  window.bluetoothSerial.write(chunk, res, rej);
+                });
+                // Delay sebentar agar printer selesai memproses chunk
+                await new Promise(res => setTimeout(res, delayMs));
+              }
+
+              // Jeda 3 detik antar struk agar kasir bisa menyobek
+              if (i < receipts.length - 1) {
+                await new Promise(res => setTimeout(res, 3000));
+              }
+            }
             resolve(true);
-          }, (err) => {
+          } catch (err) {
             reject(err);
-          });
+          }
         };
 
         window.bluetoothSerial.isConnected(() => {
@@ -463,16 +488,24 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
       }
 
       const writer = port.writable.getWriter()
-      const encoder = new TextEncoder()
       
-      // Kirim data secara bertahap (chunked) untuk Web Serial
-      const chunkSize = 64
-      const delayMs = 30
-      const bytes = encoder.encode(receipt)
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.slice(i, i + chunkSize)
-        await writer.write(chunk)
-        await new Promise(resolve => setTimeout(resolve, delayMs))
+      for (let i = 0; i < receipts.length; i++) {
+        const currentReceipt = receipts[i];
+        
+        // Kirim data secara bertahap (chunked) untuk Web Serial
+        const chunkSize = 64
+        const delayMs = 30
+        const bytes = encoder.encode(currentReceipt)
+        for (let j = 0; j < bytes.length; j += chunkSize) {
+          const chunk = bytes.slice(j, j + chunkSize)
+          await writer.write(chunk)
+          await new Promise(resolve => setTimeout(resolve, delayMs))
+        }
+
+        // Jeda 3 detik antar struk
+        if (i < receipts.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        }
       }
       
       writer.releaseLock()

@@ -280,7 +280,7 @@ export default function KasirPOS() {
       }
 
       // Cetak struk sesuai metode cetak yang dipilih
-      const printTypes = ['kasir', 'pelanggan', 'bar'];
+      const printTypes = ['pelanggan', 'bar', 'kasir'];
       if (printMethod === 'thermal') {
         // Cetak secara background agar tidak memblokir kasir
         cetakStrukThermal(strukData, printTypes).catch(err => {
