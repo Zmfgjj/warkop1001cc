@@ -8,14 +8,12 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Load user dari backend via cookie
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const data = await getMe()
-        setUser(data.user) // now includes permissions
+        setUser(data.user)
       } catch (err) {
-        // Fallback to offline user if network fails
         const offlineUser = getOfflineUser();
         if (offlineUser && (!navigator.onLine || !err.response)) {
           setUser(offlineUser);
@@ -27,11 +25,11 @@ export const AuthProvider = ({ children }) => {
       }
     }
     fetchUser()
-  }, []) // Empty dependency array - hanya run sekali saat mount
+  }, [])
 
   const loginSuccess = async (data, password) => {
-    // token dikelola otomatis via HttpOnly Cookie
-    setUser(data.user) // now includes permissions
+    setUser(data.user)
+    if (data.token) localStorage.setItem('auth_token', data.token)
     if (password) {
       await saveOfflineCredentials(data.user, password);
     }
@@ -43,22 +41,28 @@ export const AuthProvider = ({ children }) => {
     } catch (err) {
       console.error(err)
     } finally {
+      localStorage.removeItem('auth_token')
       clearOfflineActiveUser()
       setUser(null)
     }
   }
 
-  // Helper: check if user has view access to a module
   const canView = (module) => {
-    if (!user?.permissions) return false
-    return user.permissions[module]?.view === true
+    if (!user) return false;
+    
+    // Always allow POS and Dashboard as fallback
+    if (module === 'pos' || module === 'dashboard') return true;
+    
+    if (!user.permissions) return false;
+    return user.permissions[module]?.view === true;
   }
 
-  // Helper: check if user has edit access to a module
   const canEdit = (module) => {
-    if (user?.role === 'investor') return false
-    if (!user?.permissions) return false
-    return user.permissions[module]?.edit === true
+    if (!user) return false;
+    if (user.role === 'investor') return false;
+    
+    if (!user.permissions) return false;
+    return user.permissions[module]?.edit === true;
   }
 
   const isInvestor = user?.role === 'investor'

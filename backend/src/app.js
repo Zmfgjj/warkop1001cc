@@ -58,7 +58,10 @@ const strictLimiter = rateLimit({
 });
 
 // Middleware
-app.use(helmet({ contentSecurityPolicy: false })); // Security headers
+app.use(helmet({ 
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+})); // Security headers
 app.use(compression()); // Gzip compression
 app.use(cors(corsOptions));
 app.use(limiter);
@@ -68,6 +71,7 @@ app.use(cookieParser());
 
 // Serve static files for uploads
 app.use('/api/uploads', express.static(uploadsDir, { maxAge: '1d' }));
+app.use('/uploads', express.static(uploadsDir, { maxAge: '1d' }));
 
 // Routes
 const pesananRoutes = require('./routes/pesanan');

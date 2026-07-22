@@ -30,23 +30,10 @@ export default function Login() {
       if (data.user.role === 'dapur') navigate('/kasir/kds')
       else navigate('/kasir')
     } catch (err) {
-      // Check if it's a network error or offline
-      if (!err.response) {
-        const offlineUser = await verifyOfflineCredentials(username, password);
-        if (offlineUser) {
-          await loginSuccess({ user: offlineUser }, password);
-          if (offlineUser.role === 'dapur') navigate('/kasir/kds')
-          else navigate('/kasir')
-          return;
-        } else {
-          setError('Anda sedang offline dan kredensial salah atau sudah kedaluwarsa.')
-        }
+      if (err.response?.data?.is_active_elsewhere) {
+        setShowForcePrompt(true)
       } else {
-        if (err.response?.data?.is_active_elsewhere) {
-          setShowForcePrompt(true)
-        } else {
-          setError(err.response?.data?.message || 'Login gagal. Coba lagi.')
-        }
+        setError(err.response?.data?.message || err.message || 'Login gagal. Gagal terhubung ke server.')
       }
     } finally {
       setLoading(false)

@@ -1,17 +1,16 @@
 import { useState } from 'react';
-import api from '../api/auth';
+import { Capacitor } from '@capacitor/core';
 
-// Ambil API base URL (misal: "http://103.253.213.177/api")
-const baseURL = api.defaults.baseURL.replace(/\/$/, '');
+const isNative = Capacitor.isNativePlatform();
 
 export default function ImageLoader({ src, alt, className, priority = false }) {
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // Gambar disimpan di DB sebagai "/uploads/...". 
-  // Gabungkan dengan baseURL menjadi "http://103.253.213.177/api/uploads/..." agar tembus Nginx proxy.
-  const fullSrc = (src && src.startsWith('/uploads/'))
-    ? `${baseURL}${src}`
-    : src;
+  let fullSrc = src;
+  if (src && src.startsWith('/uploads/')) {
+    const serverOrigin = (import.meta.env.VITE_API_URL || 'http://202.155.157.13:3000').replace(/\/api\/?$/, '');
+    fullSrc = `${serverOrigin}${src}`;
+  }
 
   return (
     <div className={`relative ${className} overflow-hidden bg-gray-200`}>
@@ -20,7 +19,7 @@ export default function ImageLoader({ src, alt, className, priority = false }) {
       )}
       <img
         src={fullSrc}
-        alt={alt}
+        alt={alt || 'Menu Image'}
         className={`w-full h-full object-cover transition-opacity duration-300 ${
           isLoaded ? 'opacity-100' : 'opacity-0'
         }`}
@@ -29,7 +28,7 @@ export default function ImageLoader({ src, alt, className, priority = false }) {
         onLoad={() => setIsLoaded(true)}
         onError={(e) => {
           console.error('Image load error for src:', fullSrc);
-          setIsLoaded(true); // make it visible to show broken icon
+          setIsLoaded(true);
         }}
       />
     </div>

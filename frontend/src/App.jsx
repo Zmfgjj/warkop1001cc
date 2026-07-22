@@ -86,6 +86,16 @@ const AuthRoute = ({ children }) => {
 }
 
 function AppRoutes() {
+  if (!Capacitor.isNativePlatform()) {
+    return (
+      <Routes>
+        <Route path="/menu" element={<MenuPublik />} />
+        <Route path="/menu/:meja_id" element={<MenuPublik />} />
+        <Route path="*" element={<Navigate to="/menu" replace />} />
+      </Routes>
+    )
+  }
+
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />

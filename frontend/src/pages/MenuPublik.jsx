@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import { Utensils, Search, Info } from 'lucide-react'
 import ImageLoader from '../components/ImageLoader'
+import api from '../api/auth'
 
 function formatRupiah(n) {
   return 'Rp ' + Number(n).toLocaleString('id-ID')
@@ -23,13 +24,11 @@ export default function MenuPublik() {
   const fetchData = useCallback(async () => {
     try {
       const [katRes, menuRes] = await Promise.all([
-        fetch('/api/publik/kategori'),
-        fetch('/api/publik/menu')
+        api.get('/publik/kategori'),
+        api.get('/publik/menu')
       ])
-      if (!katRes.ok || !menuRes.ok) {
-        throw new Error('API error')
-      }
-      const [kats, menus] = await Promise.all([katRes.json(), menuRes.json()])
+      const kats = katRes.data
+      const menus = menuRes.data
       setKategoriList(Array.isArray(kats) ? kats : [])
       setMenuList(Array.isArray(menus) ? menus : [])
     } catch {
@@ -42,7 +41,7 @@ export default function MenuPublik() {
   useEffect(() => { 
     fetchData() 
     // Log visit in background
-    fetch('/api/publik/visit', { method: 'POST' }).catch(err => console.error('Visit log error:', err))
+    api.post('/publik/visit').catch(err => console.error('Visit log error:', err))
   }, [fetchData])
 
   // Debounced refetch for socket events

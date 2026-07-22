@@ -266,30 +266,17 @@ export default function KasirPOS() {
         discount_value: Number(discountValue) || 0
       }
 
-      let successOffline = false;
-
-      if (isOnline) {
-        try {
-          // Online flow
-          const resPesanan = await api.post('/pesanan', pesananData)
-          await api.post('/pembayaran', { pesanan_id: resPesanan.data.pesanan_id, metode: metodeBayar.toLowerCase(), jumlah: total, is_kasir: true })
-          strukData.pesananId = resPesanan.data.pesanan_id
-        } catch (err) {
-          // Fallback to offline queue on network error or server down
-          if (!err.response || err.response.status >= 500) {
-            console.warn('[POS] Gagal menghubungi server. Menyimpan pesanan ke antrean offline...', err);
-            await queueOfflineOrder(pesananData);
-            successOffline = true;
-            showAlert('Gagal menghubungi server. Pesanan disimpan secara lokal and akan disinkronkan nanti.', 'Mode Offline');
-          } else {
-            throw err;
-          }
-        }
-      } else {
-        // Offline flow
-        await queueOfflineOrder(pesananData)
-        successOffline = true
-        showAlert('Anda sedang offline. Pesanan disimpan secara lokal and akan disinkronkan nanti.', 'Mode Offline')
+      try {
+        // Strict Online Flow
+        const resPesanan = await api.post('/pesanan', pesananData)
+        await api.post('/pembayaran', { pesanan_id: resPesanan.data.pesanan_id, metode: metodeBayar.toLowerCase(), jumlah: total, is_kasir: true })
+        strukData.pesananId = resPesanan.data.pesanan_id
+      } catch (err) {
+        const errMsg = err.response?.data?.message || err.message || 'Gagal membuat pesanan';
+        console.error('[POS] Error checkout:', errMsg, err);
+        showAlert(`Gagal transaksi: ${errMsg}`, 'Perhatian');
+        setLoadingBayar(false);
+        return;
       }
 
       // Cetak struk sesuai metode cetak yang dipilih
@@ -303,9 +290,7 @@ export default function KasirPOS() {
         cetakStruk(strukData, printTypes);
       }
       
-      if (!successOffline) {
-        showAlert('Pesanan berhasil dibuat & pembayaran tercatat!', 'Sukses')
-      }
+      showAlert('Pesanan berhasil dibuat & pembayaran tercatat!', 'Sukses')
       
       // Native Feedback (Getar)
       if (Capacitor.isNativePlatform()) {

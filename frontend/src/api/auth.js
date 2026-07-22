@@ -1,8 +1,10 @@
 import axios from 'axios'
 import { Capacitor } from '@capacitor/core'
 
-// HARDCODED UNTUK ANDROID
-const API_URL = 'http://103.253.213.177/api';
+const isNative = Capacitor.isNativePlatform();
+const API_URL = import.meta.env.VITE_API_URL 
+  ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api` 
+  : 'http://202.155.157.13:3000/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -10,9 +12,11 @@ const api = axios.create({
   withCredentials: true,
 })
 
-// Attach token automatically (no longer needed for cookie, but kept for non-auth local variables if any. We can just remove token logic)
 api.interceptors.request.use((config) => {
-  // token is sent automatically via cookie
+  const token = localStorage.getItem('auth_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
   return config
 })
 

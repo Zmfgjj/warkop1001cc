@@ -3,13 +3,13 @@ const router = express.Router();
 const pesananController = require('../controllers/pesananController');
 const auth = require('../middleware/auth');
 
-router.get('/', auth(), pesananController.getPesanan);
-router.post('/', auth(['kasir', 'owner']), pesananController.buatPesanan);
-router.post('/reservasi', auth(['kasir', 'owner']), pesananController.buatReservasi);
-router.put('/:id/status', auth(['kasir', 'owner', 'dapur']), pesananController.updateStatus);
-router.put('/detail/:id/status', auth(['dapur', 'kasir', 'owner']), pesananController.updateStatusDetail);
-router.put('/detail/:id/catatan', auth(['dapur', 'kasir', 'owner']), pesananController.updateDetailCatatan);
-router.put('/:id/pembayaran', auth(['kasir', 'owner']), pesananController.konfirmasiPembayaran);
+router.get('/', auth({ module: 'pos', action: 'view' }), pesananController.getPesanan);
+router.post('/', auth({ module: 'pos', action: 'edit' }), pesananController.buatPesanan);
+router.post('/reservasi', auth({ module: 'pos', action: 'edit' }), pesananController.buatReservasi);
+router.put('/:id/status', auth({ module: 'pos', action: 'edit' }), pesananController.updateStatus);
+router.put('/detail/:id/status', auth({ module: 'pos', action: 'edit' }), pesananController.updateStatusDetail);
+router.put('/detail/:id/catatan', auth({ module: 'pos', action: 'edit' }), pesananController.updateDetailCatatan);
+router.put('/:id/pembayaran', auth({ module: 'pos', action: 'edit' }), pesananController.konfirmasiPembayaran);
 router.delete('/:id', auth({ module: 'laporan', action: 'edit' }), pesananController.hapusPesanan);
 
 module.exports = router;

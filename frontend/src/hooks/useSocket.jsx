@@ -1,12 +1,17 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
+import { Capacitor } from '@capacitor/core';
 
 let sharedSocket = null;
 let refCount = 0;
 
+const socketUrl = Capacitor.isNativePlatform()
+  ? (import.meta.env.VITE_API_URL || 'http://202.155.157.13:3000')
+  : window.location.origin;
+
 function getSocket() {
   if (!sharedSocket) {
-    sharedSocket = io('/', {
+    sharedSocket = io(socketUrl, {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
@@ -53,7 +58,6 @@ export function useSocket() {
   return { socket, connected };
 }
 
-// Debounced callback hook - coalesces rapid-fire socket events
 export function useDebouncedCallback(callback, delay = 400) {
   const timerRef = useRef(null);
   const callbackRef = useRef(callback);

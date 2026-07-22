@@ -231,7 +231,7 @@ export async function requestPrinterPermission() {
              resolve(false);
           }
         }, (err) => {
-          globalAlert('Akses Bluetooth ditolak: ' + err, 'Error', 'error');
+          console.warn('Bluetooth permission notice:', err);
           resolve(false);
         });
       });
