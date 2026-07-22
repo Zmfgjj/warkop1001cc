@@ -210,28 +210,38 @@ export async function requestPrinterPermission() {
     // 1. Cek apakah ini berjalan di APK (Cordova Bluetooth Serial)
     if (window.bluetoothSerial) {
       return new Promise((resolve) => {
-        window.bluetoothSerial.list((devices) => {
-          // Cari device yang mirip printer (Class 1664, atau ada kata printer/pos/blue)
+        const doConnect = (devices) => {
+          // Cari device yang mirip printer
           const printers = devices.filter(d => (d.class === 1664 || d.name.toLowerCase().includes('print') || d.name.toLowerCase().includes('pos') || d.name.toLowerCase().includes('blue') || d.name.toLowerCase().includes('mpt')));
           
           if (printers.length > 0) {
-            // Ambil printer pertama
             cachedMacAddress = printers[0].address;
             localStorage.setItem('printer_mac', cachedMacAddress);
             
-            window.bluetoothSerial.connect(cachedMacAddress, () => {
-              globalAlert(`Printer Bluetooth [${printers[0].name}] terhubung!`, 'Sukses', 'success');
-              resolve(true);
-            }, (err) => {
-              globalAlert('Gagal koneksi Bluetooth: ' + err, 'Error', 'error');
-              resolve(false);
+            const connectNow = () => {
+              window.bluetoothSerial.connect(cachedMacAddress, () => {
+                globalAlert(`Printer [${printers[0].name}] terhubung!`, 'Sukses', 'success');
+                resolve(true);
+              }, (err) => {
+                globalAlert('Gagal koneksi Bluetooth: ' + err, 'Error', 'error');
+                resolve(false);
+              });
+            };
+
+            // Disconnect dulu jika sudah connected, baru reconnect
+            window.bluetoothSerial.isConnected(() => {
+              window.bluetoothSerial.disconnect(() => connectNow(), () => connectNow());
+            }, () => {
+              connectNow(); // Belum connected, langsung connect
             });
           } else {
              globalAlert('Tidak ada printer Bluetooth paired ditemukan. Pair di Setting Bluetooth HP dulu.', 'Perhatian', 'error');
              resolve(false);
           }
-        }, (err) => {
-          console.warn('Bluetooth permission notice:', err);
+        };
+
+        window.bluetoothSerial.list(doConnect, (err) => {
+          console.warn('Bluetooth list error:', err);
           resolve(false);
         });
       });
@@ -264,14 +274,7 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
   }
 
   try {
-    const port = await getSerialPort()
-    
-    // Buka port jika belum terbuka (persistent connection)
-    if (!port.writable) {
-      await port.open({ baudRate: 9600 })
-    }
-
-    const writer = port.writable.getWriter()
+    // Variabel writer/encoder hanya dipakai untuk Web Serial (bukan Bluetooth APK)
     const encoder = new TextEncoder()
 
     const ESC = '\x1B'
