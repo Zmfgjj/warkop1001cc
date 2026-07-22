@@ -446,15 +446,14 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
             for (let i = 0; i < receipts.length; i++) {
               const currentReceipt = receipts[i];
               
-              // Chunking untuk Bluetooth agar buffer printer tidak penuh (tumpang tindih)
-              const bytes = encoder.encode(currentReceipt);
-              const chunkSize = 64;
-              const delayMs = 40;
+              // Chunking string langsung untuk Bluetooth (hindari Uint8Array bug di beberapa versi Cordova)
+              const chunkSize = 128;
+              const delayMs = 50;
               
-              for (let j = 0; j < bytes.length; j += chunkSize) {
-                const chunk = bytes.slice(j, j + chunkSize);
+              for (let j = 0; j < currentReceipt.length; j += chunkSize) {
+                const chunk = currentReceipt.substring(j, j + chunkSize);
                 await new Promise((res, rej) => {
-                  // Kirim Uint8Array chunk
+                  // Kirim potongan string
                   window.bluetoothSerial.write(chunk, res, rej);
                 });
                 // Delay sebentar agar printer selesai memproses chunk
