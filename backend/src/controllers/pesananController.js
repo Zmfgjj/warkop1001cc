@@ -407,6 +407,17 @@ exports.updateStatusDetail = async (req, res) => {
       );
       if (remaining[0].cnt === 0) {
         await db.query("UPDATE pesanan SET status = 'selesai' WHERE id = ?", [pesanan_id]);
+        
+        // Free table
+        const [pes] = await db.query('SELECT meja_id FROM pesanan WHERE id = ?', [pesanan_id]);
+        if (pes.length > 0 && pes[0].meja_id) {
+           await db.query('UPDATE meja SET status = "kosong" WHERE id = ?', [pes[0].meja_id]);
+           const io = req.app.get('io');
+           if (io) {
+             io.emit('status_meja', { meja_id: pes[0].meja_id, status: 'kosong' });
+             io.emit('mejaUpdated');
+           }
+        }
       }
     }
 
