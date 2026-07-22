@@ -464,7 +464,7 @@ export default function KDS() {
                         <h2 className="text-base md:text-lg font-black bg-clip-text text-transparent bg-gradient-to-r from-[#634930] to-[#b8860b]">
                           {pesanan.tipe === 'take-away'
                             ? `TA #${String(pesanan.id).padStart(3, '0')}`
-                            : `Dine In #${String(pesanan.id).padStart(3, '0')}`
+                            : `Dine In ${pesanan.nomor_meja ? `(Meja ${pesanan.nomor_meja}) ` : ''}#${String(pesanan.id).padStart(3, '0')}`
                           }
                         </h2>
                         <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
