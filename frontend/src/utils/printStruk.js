@@ -448,7 +448,7 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
               
               // Chunking string langsung untuk Bluetooth (hindari Uint8Array bug di beberapa versi Cordova)
               const chunkSize = 128;
-              const delayMs = 100;
+              const delayMs = 80;
               
               for (let j = 0; j < currentReceipt.length; j += chunkSize) {
                 const chunk = currentReceipt.substring(j, j + chunkSize);
