@@ -496,7 +496,7 @@ exports.hapusPesanan = async (req, res) => {
 
     const pesananData = pesanan[0];
     if (pesananData.meja_id) {
-      await conn.query("UPDATE meja SET status = 'tersedia' WHERE id = ?", [pesananData.meja_id]);
+      await conn.query("UPDATE meja SET status = 'kosong' WHERE id = ?", [pesananData.meja_id]);
     }
 
     // Fetch detail & pembayaran for backup log
