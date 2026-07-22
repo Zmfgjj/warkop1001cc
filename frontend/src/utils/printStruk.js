@@ -402,7 +402,7 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
 
         const ppnRateNum = data.ppnRate || 11;
         const ppnValue = Math.round((isMeja ? 0 : data.total) * ppnRateNum / 100);
-        const ppnStr = isMeja ? '------' : `--${formatRupiah(ppnValue)}--`;
+        const ppnStr = isMeja ? '------' : `(${formatRupiah(ppnValue)})`;
         receipt += padRight(`PPN ${ppnRateNum}% (Inc)`, 16) + padLeft(ppnStr, 16) + LF
 
         const totalStr = isMeja ? '------' : formatRupiah(data.total);
