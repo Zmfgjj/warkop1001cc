@@ -204,21 +204,32 @@ async function getSerialPort() {
   return cachedPort;
 }
 
-// Fungsi manual untuk pairing printer agar user bisa klik tombol "Hubungkan Printer"
+// Fungsi manual untuk pairing printer - connect sekali, stay connected
 export async function requestPrinterPermission() {
   try {
-    // 1. Cek apakah ini berjalan di APK (Cordova Bluetooth Serial)
+    // 1. APK (Cordova Bluetooth Serial)
     if (window.bluetoothSerial) {
       return new Promise((resolve) => {
-        const doConnect = (devices) => {
-          // Cari device yang mirip printer
-          const printers = devices.filter(d => (d.class === 1664 || d.name.toLowerCase().includes('print') || d.name.toLowerCase().includes('pos') || d.name.toLowerCase().includes('blue') || d.name.toLowerCase().includes('mpt')));
-          
-          if (printers.length > 0) {
-            cachedMacAddress = printers[0].address;
-            localStorage.setItem('printer_mac', cachedMacAddress);
-            
-            const connectNow = () => {
+
+        // Kalau sudah connected, tidak perlu connect ulang
+        window.bluetoothSerial.isConnected(() => {
+          globalAlert('Printer sudah terhubung dan siap cetak!', 'Info', 'success');
+          resolve(true);
+        }, () => {
+          // Belum connected, cari dan connect ke printer
+          window.bluetoothSerial.list((devices) => {
+            const printers = devices.filter(d => (
+              d.class === 1664 ||
+              d.name.toLowerCase().includes('print') ||
+              d.name.toLowerCase().includes('pos') ||
+              d.name.toLowerCase().includes('blue') ||
+              d.name.toLowerCase().includes('mpt')
+            ));
+
+            if (printers.length > 0) {
+              cachedMacAddress = printers[0].address;
+              localStorage.setItem('printer_mac', cachedMacAddress);
+
               window.bluetoothSerial.connect(cachedMacAddress, () => {
                 globalAlert(`Printer [${printers[0].name}] terhubung!`, 'Sukses', 'success');
                 resolve(true);
@@ -226,27 +237,20 @@ export async function requestPrinterPermission() {
                 globalAlert('Gagal koneksi Bluetooth: ' + err, 'Error', 'error');
                 resolve(false);
               });
-            };
-
-            // Disconnect dulu jika sudah connected, baru reconnect
-            window.bluetoothSerial.isConnected(() => {
-              window.bluetoothSerial.disconnect(() => connectNow(), () => connectNow());
-            }, () => {
-              connectNow(); // Belum connected, langsung connect
-            });
-          } else {
-             globalAlert('Tidak ada printer Bluetooth paired ditemukan. Pair di Setting Bluetooth HP dulu.', 'Perhatian', 'error');
-             resolve(false);
-          }
-        };
-
-        window.bluetoothSerial.list(doConnect, (err) => {
-          console.warn('Bluetooth list error:', err);
-          resolve(false);
+            } else {
+              globalAlert('Tidak ada printer Bluetooth paired. Pair di Setting Bluetooth HP dulu.', 'Perhatian', 'error');
+              resolve(false);
+            }
+          }, (err) => {
+            console.warn('Bluetooth list error:', err);
+            globalAlert('Gagal ambil daftar perangkat Bluetooth: ' + err, 'Error', 'error');
+            resolve(false);
+          });
         });
+
       });
-    } 
-    // 2. Fallback untuk Desktop Browser (Web Serial API)
+    }
+    // 2. Desktop Browser (Web Serial API)
     else if ('serial' in navigator) {
       const port = await navigator.serial.requestPort();
       cachedPort = port;
@@ -261,10 +265,11 @@ export async function requestPrinterPermission() {
     }
   } catch (err) {
     console.error('Failed to pair printer:', err);
-    globalAlert('Gagal menghubungkan printer. Pastikan menyala.', 'Error', 'error');
+    globalAlert('Gagal menghubungkan printer. Pastikan printer menyala.', 'Error', 'error');
     return false;
   }
 }
+
 
 // Cetak struk via Web Serial API (thermal printer ESC/POS)
 export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
