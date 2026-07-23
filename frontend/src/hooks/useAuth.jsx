@@ -50,6 +50,8 @@ export const AuthProvider = ({ children }) => {
   const canView = (module) => {
     if (!user) return false;
     
+    if (user.role === 'owner') return true;
+
     // Always allow POS and Dashboard as fallback
     if (module === 'pos' || module === 'dashboard') return true;
     
@@ -59,6 +61,7 @@ export const AuthProvider = ({ children }) => {
 
   const canEdit = (module) => {
     if (!user) return false;
+    if (user.role === 'owner') return true;
     if (user.role === 'investor') return false;
     
     if (!user.permissions) return false;

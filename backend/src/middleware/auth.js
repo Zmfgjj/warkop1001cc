@@ -72,6 +72,8 @@ module.exports = (config = []) => {
 
       // Permission mode: { module: 'xxx', action: 'view'|'edit' }
       if (typeof config === 'object' && config.module) {
+        if (userRole === 'owner') return next(); // Owner bypasses all checks
+
         const allPerms = await loadPermissions();
         const rolePerms = allPerms[userRole];
         
