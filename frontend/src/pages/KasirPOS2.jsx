@@ -140,13 +140,6 @@ export default function KasirPOS() {
   }
 
 
-
-  const filteredMenu = menuList.filter(m => {
-    const mk = m.kategori_nama || m.kategori || ''
-    const matchKat = kategori === 'semua' ? true : mk.toLowerCase() === kategori.toLowerCase()
-    return matchKat && m.nama?.toLowerCase().includes(search.toLowerCase())
-  })
-
   const getActivePromo = (m) => {
     if (m.promosi && m.promosi.length > 0) {
       const now = new Date();
@@ -209,7 +202,21 @@ export default function KasirPOS() {
 
   const isPromoActive = (menu) => {
     return !!getActivePromo(menu);
-  }
+  };
+
+  const filteredMenu = menuList.filter(m => {
+    const searchMatch = m.nama?.toLowerCase().includes(search.toLowerCase());
+    
+    if (kategori.toLowerCase() === 'promo') {
+      return isPromoActive(m) && searchMatch;
+    }
+    
+    const mk = m.kategori_nama || m.kategori || ''
+    const matchKat = kategori === 'semua' ? true : mk.toLowerCase() === kategori.toLowerCase()
+    return matchKat && searchMatch;
+  });
+
+
 
   const tambahItem = (menu) => {
     setOrder(prev => {

@@ -71,11 +71,9 @@ const startService = () => {
 
 const stopService = async () => {
   if (client) {
-    try {
-      await client.destroy(); // This kills the Puppeteer Chrome processes
-    } catch (err) {
-      console.error('Failed to destroy WA client', err);
-    }
+    await client.destroy().catch(err => {
+      console.error('Ignored error during WA client destroy:', err.message);
+    }); // This kills the Puppeteer Chrome processes
   }
   client = null;
   qrCodeData = null;

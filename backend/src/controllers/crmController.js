@@ -72,8 +72,8 @@ exports.toggleWa = async (req, res) => {
       waGateway.startService();
       res.json({ message: 'Memulai WhatsApp Gateway...' });
     } else if (action === 'stop') {
-      await waGateway.stopService();
-      res.json({ message: 'WhatsApp Gateway dimatikan.' });
+      waGateway.stopService().catch(e => console.error(e));
+      res.json({ message: 'WhatsApp Gateway sedang dimatikan...' });
     } else {
       res.status(400).json({ message: 'Action tidak valid' });
     }
