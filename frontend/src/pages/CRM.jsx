@@ -73,6 +73,16 @@ export default function CRM() {
     }
   }
 
+  const handleToggleWa = async (action) => {
+    try {
+      const res = await api.post('/crm/wa-toggle', { action })
+      showAlert(res.data.message, 'Sukses')
+      checkWaStatus()
+    } catch (err) {
+      showAlert('Gagal mengubah status WA Gateway', 'Error', 'error')
+    }
+  }
+
   const fetchCustomers = async () => {
     try {
       setLoading(true)
@@ -203,9 +213,17 @@ export default function CRM() {
                   </p>
                 </div>
               )}
-              {waStatus === 'CONNECTED' && (
-                <button onClick={handleLogoutWa} className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 font-bold rounded-lg text-xs transition-colors flex items-center gap-1 border border-red-200">
-                  <LogOut size={14} /> Putuskan Koneksi
+              {waStatus === 'STARTING' && (
+                <span className="text-xs font-bold text-stone-500 animate-pulse">Memulai Chrome...</span>
+              )}
+              {(waStatus === 'CONNECTED' || waStatus === 'QR_READY' || waStatus === 'STARTING') && (
+                <button onClick={() => handleToggleWa('stop')} className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 font-bold rounded-lg text-xs transition-colors flex items-center gap-1 border border-red-200">
+                  <LogOut size={14} /> Matikan Bot (Hemat RAM)
+                </button>
+              )}
+              {(waStatus === 'STOPPED' || waStatus === 'DISCONNECTED') && (
+                <button onClick={() => handleToggleWa('start')} className="px-4 py-2 bg-[#21B214]/10 text-[#21B214] hover:bg-[#21B214]/20 font-bold rounded-lg text-xs transition-colors flex items-center gap-1 border border-[#21B214]/30">
+                  <RefreshCw size={14} /> Aktifkan Bot WA
                 </button>
               )}
             </div>

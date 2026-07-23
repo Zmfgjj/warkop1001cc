@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { useAlert } from '../context/AlertContext'
 import api from '../api/auth'
 import MobileLayout from '../components/MobileLayout'
@@ -11,7 +11,12 @@ import { getOfflineOrders } from '../utils/offlineStore'
 import { syncOfflineOrders } from '../utils/syncManager'
 
 export default function Monitoring() {
-  const { user } = useAuth()
+  const { user, canView } = useAuth()
+  
+  if (!canView('logs_monitoring')) {
+    return <Navigate to="/kasir" replace />
+  }
+
   const { showAlert } = useAlert()
   const navigate = useNavigate()
   

@@ -8,10 +8,15 @@ const MODULE_LABELS = {
   pos: 'Kasir (POS)',
   manajemen_menu: 'Manajemen Menu',
   manajemen_promo: 'Manajemen Promo',
+  manajemen_meja: 'Manajemen Meja',
   kds: 'KDS (Dapur)',
   laporan: 'Laporan',
   user_manage: 'User Manage',
-  crm: 'CRM (Pelanggan)'
+  bonus_karyawan: 'Bonus Karyawan',
+  crm: 'CRM (Pelanggan)',
+  manajemen_stock: 'Manajemen Stock',
+  logs_monitoring: 'Logs & Monitoring',
+  role_manage: 'Hak dan Role Akses'
 }
 
 export default function RolePermissions() {

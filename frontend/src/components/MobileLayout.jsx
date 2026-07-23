@@ -13,8 +13,8 @@ const allMenuItems = [
   { icon: <MonitorPlay size={20} />, label: 'KDS', path: '/kasir/kds', module: 'kds' },
   { icon: <BarChart3 size={20} />, label: 'Laporan', path: '/kasir/laporan', module: 'laporan' },
   { icon: <Users size={20} />, label: 'User Manage', path: '/kasir/user-manage', module: 'user_manage' },
-  { icon: <Activity size={20} />, label: 'Logs & Monitoring', path: '/kasir/monitoring', ownerOnly: true },
-  { icon: <Shield size={20} />, label: 'Hak dan Role Akses', path: '/kasir/role-manage', ownerOnly: true },
+  { icon: <Activity size={20} />, label: 'Logs & Monitoring', path: '/kasir/monitoring', module: 'logs_monitoring' },
+  { icon: <Shield size={20} />, label: 'Hak dan Role Akses', path: '/kasir/role-manage', module: 'role_manage' },
 ]
 
 export default function MobileLayout({ activeMenu, children, overflowClass = 'overflow-y-auto' }) {

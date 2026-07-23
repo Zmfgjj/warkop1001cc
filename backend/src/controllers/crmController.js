@@ -65,6 +65,23 @@ exports.logoutWa = async (req, res) => {
   }
 };
 
+exports.toggleWa = async (req, res) => {
+  try {
+    const { action } = req.body;
+    if (action === 'start') {
+      waGateway.startService();
+      res.json({ message: 'Memulai WhatsApp Gateway...' });
+    } else if (action === 'stop') {
+      await waGateway.stopService();
+      res.json({ message: 'WhatsApp Gateway dimatikan.' });
+    } else {
+      res.status(400).json({ message: 'Action tidak valid' });
+    }
+  } catch (err) {
+    res.status(500).json({ message: 'Gagal mengubah status WA' });
+  }
+};
+
 exports.broadcastLocal = async (req, res) => {
   try {
     const { targets, message } = req.body;

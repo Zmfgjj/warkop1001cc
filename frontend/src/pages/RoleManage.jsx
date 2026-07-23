@@ -5,9 +5,9 @@ import RolePermissions from '../components/RolePermissions'
 import { Navigate } from 'react-router-dom'
 
 export default function RoleManage() {
-  const { user } = useAuth()
+  const { user, canView } = useAuth()
   
-  if (user?.role !== 'owner') {
+  if (!canView('role_manage')) {
     return <Navigate to="/kasir" replace />
   }
 

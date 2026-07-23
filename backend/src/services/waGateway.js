@@ -11,6 +11,15 @@ const setSocketIo = (io) => {
 };
 
 const initializeGateway = () => {
+  // Do nothing on boot, wait for manual start
+  status = 'STOPPED';
+};
+
+const startService = () => {
+  if (status !== 'STOPPED' && status !== 'DISCONNECTED') return;
+  status = 'STARTING';
+  if (socketIo) socketIo.emit('wa_status', { status, qr: null });
+
   try {
     client = new Client({
       authStrategy: new LocalAuth({ clientId: "warkop-crm" }),
@@ -30,7 +39,6 @@ const initializeGateway = () => {
 
     client.on('qr', (qr) => {
       console.log('WhatsApp Gateway QR Code Generated!');
-      // Generate QR Base64
       qrcode.toDataURL(qr, (err, url) => {
         if (!err) {
           qrCodeData = url;
@@ -56,7 +64,24 @@ const initializeGateway = () => {
     client.initialize();
   } catch (err) {
     console.error('Failed to initialize WhatsApp Gateway', err);
+    status = 'STOPPED';
+    if (socketIo) socketIo.emit('wa_status', { status, qr: null });
   }
+};
+
+const stopService = async () => {
+  if (client) {
+    try {
+      await client.destroy(); // This kills the Puppeteer Chrome processes
+    } catch (err) {
+      console.error('Failed to destroy WA client', err);
+    }
+  }
+  client = null;
+  qrCodeData = null;
+  status = 'STOPPED';
+  console.log('WhatsApp Gateway Stopped to save RAM');
+  if (socketIo) socketIo.emit('wa_status', { status, qr: null });
 };
 
 const getStatus = () => {
@@ -72,7 +97,8 @@ const logout = async () => {
     }
     status = 'DISCONNECTED';
     qrCodeData = null;
-    client.initialize();
+    // Just stop it entirely on logout to save RAM, user must click Start again
+    stopService();
   }
 };
 
@@ -103,8 +129,10 @@ const sendBroadcastMessage = async (targets, messageTemplate) => {
 };
 
 module.exports = {
-  initializeGateway,
   setSocketIo,
+  initializeGateway,
+  startService,
+  stopService,
   getStatus,
   logout,
   sendBroadcastMessage
