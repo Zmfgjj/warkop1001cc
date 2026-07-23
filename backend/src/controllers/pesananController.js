@@ -36,9 +36,22 @@ async function getNomorAntrean(conn, isOffline) {
 exports.buatPesanan = async (req, res) => {
   const conn = await db.getConnection();
   try {
-    await conn.beginTransaction();
+    const { local_id, meja_id, tipe, catatan, items, is_offline_sync, pembayaran, nama_pelanggan, no_telepon, discount_name, discount_value } = req.body;
     
-    const { meja_id, tipe, catatan, items, is_offline_sync, pembayaran, nama_pelanggan, no_telepon, discount_name, discount_value } = req.body;
+    // Cek idempotency: jika local_id sudah ada, kembalikan sukses (mencegah duplikat saat retry sync)
+    if (local_id) {
+      const [existing] = await conn.query('SELECT id, total FROM pesanan WHERE local_id = ?', [local_id]);
+      if (existing.length > 0) {
+        conn.release();
+        return res.status(200).json({ 
+          message: 'Pesanan sudah tersinkronisasi sebelumnya',
+          pesanan_id: existing[0].id,
+          total: existing[0].total
+        });
+      }
+    }
+
+    await conn.beginTransaction();
     const kasir_id = req.user?.id || null;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -182,8 +195,8 @@ exports.buatPesanan = async (req, res) => {
       const paymentStatusValue = is_offline_sync ? 'paid' : 'unpaid';
 
       const [result] = await conn.query(
-        'INSERT INTO pesanan (meja_id, kasir_id, tipe, catatan, total, nomor_antrean, status, payment_status, nama_pelanggan, no_telepon, discount_name, discount_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [meja_id, kasir_id, tipe, catatan, total, nomor_antrean, statusValue, paymentStatusValue, nama_pelanggan || null, no_telepon || null, discount_name || null, Number(discount_value) || 0]
+        'INSERT INTO pesanan (local_id, meja_id, kasir_id, tipe, catatan, total, nomor_antrean, status, payment_status, nama_pelanggan, no_telepon, discount_name, discount_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [local_id || null, meja_id, kasir_id, tipe, catatan, total, nomor_antrean, statusValue, paymentStatusValue, nama_pelanggan || null, no_telepon || null, discount_name || null, Number(discount_value) || 0]
       );
       pesanan_id = result.insertId;
 

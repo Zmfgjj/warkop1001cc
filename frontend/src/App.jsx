@@ -6,6 +6,8 @@ import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { AlertProvider } from './context/AlertContext'
 import { initSyncManager } from './utils/syncManager'
+import { dbService } from './services/DatabaseService'
+import { syncService } from './services/SyncService'
 import OfflineBanner from './components/OfflineBanner'
 import Login from './pages/Login'
 import Kasir from './pages/Kasir'
@@ -145,6 +147,16 @@ export default function App() {
       StatusBar.setStyle({ style: Style.Light }).catch(() => {});
       StatusBar.setBackgroundColor({ color: '#F9F5F0' }).catch(() => {});
     }
+
+    // Inisialisasi Database SQLite & Layanan Sinkronisasi
+    const initLocalDb = async () => {
+      const isReady = await dbService.init();
+      if (isReady) {
+        await syncService.init();
+      }
+    };
+    initLocalDb();
+
   }, []);
 
   return (

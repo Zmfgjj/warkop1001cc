@@ -12,6 +12,9 @@ import { saveMasterData, getMasterData, queueOfflineOrder } from '../utils/offli
 import { useAlert } from '../context/AlertContext'
 import { Capacitor } from '@capacitor/core'
 import { Haptics, ImpactStyle } from '@capacitor/haptics'
+import { v4 as uuidv4 } from 'uuid';
+import { dbService } from '../services/DatabaseService';
+import { syncService } from '../services/SyncService';
 
 export default function KasirPOS() {
   const { user, canEdit: userCanEdit } = useAuth()
@@ -267,10 +270,36 @@ export default function KasirPOS() {
       }
 
       try {
-        // Strict Online Flow
-        const resPesanan = await api.post('/pesanan', pesananData)
-        await api.post('/pembayaran', { pesanan_id: resPesanan.data.pesanan_id, metode: metodeBayar.toLowerCase(), jumlah: total, is_kasir: true })
-        strukData.pesananId = resPesanan.data.pesanan_id
+        const localId = uuidv4();
+        strukData.pesananId = localId.substring(0, 8).toUpperCase(); // Short ID for local receipt
+        
+        if (Capacitor.isNativePlatform() && dbService.isReady) {
+          // ---------------------------------------------------------
+          // OFFLINE / OPTIMISTIC MODE (ANDROID POS)
+          // ---------------------------------------------------------
+          const success = await dbService.saveOrder({
+            local_id: localId,
+            ...pesananData,
+            total,
+            metodeBayar,
+            jumlahBayar: parseInt(jumlahBayar.replace(/\D/g, '') || 0),
+            kembali
+          }, order);
+          
+          if (!success) throw new Error('Gagal menyimpan ke database lokal');
+          
+          // Trigger sync in background asynchronously
+          setTimeout(() => syncService.syncOrders(), 1000);
+          
+        } else {
+          // ---------------------------------------------------------
+          // STRICT ONLINE FLOW (WEB / FALLBACK)
+          // ---------------------------------------------------------
+          const payload = { ...pesananData, local_id: localId };
+          const resPesanan = await api.post('/pesanan', payload)
+          await api.post('/pembayaran', { pesanan_id: resPesanan.data.pesanan_id, metode: metodeBayar.toLowerCase(), jumlah: total, is_kasir: true })
+          strukData.pesananId = resPesanan.data.pesanan_id
+        }
       } catch (err) {
         const errMsg = err.response?.data?.message || err.message || 'Gagal membuat pesanan';
         console.error('[POS] Error checkout:', errMsg, err);
