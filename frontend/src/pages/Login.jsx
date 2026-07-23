@@ -30,6 +30,22 @@ export default function Login() {
       if (data.user.role === 'dapur') navigate('/kasir/kds')
       else navigate('/kasir')
     } catch (err) {
+      // Check for offline login fallback if no response (network error/offline)
+      if (!navigator.onLine || !err.response) {
+        const offlineUser = await verifyOfflineCredentials(username, password);
+        if (offlineUser) {
+          await loginSuccess({ user: offlineUser, token: 'offline-token' }, password);
+          setShowForcePrompt(false);
+          if (offlineUser.role === 'dapur') navigate('/kasir/kds');
+          else navigate('/kasir');
+          return;
+        } else {
+          setError('Login offline gagal. Pastikan username dan password benar.');
+          setLoading(false);
+          return;
+        }
+      }
+
       if (err.response?.data?.is_active_elsewhere) {
         setShowForcePrompt(true)
       } else {
