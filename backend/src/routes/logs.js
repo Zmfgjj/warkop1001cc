@@ -3,10 +3,10 @@ const router = express.Router();
 const logController = require('../controllers/logController');
 const auth = require('../middleware/auth');
 
-// All monitoring, logging, and rollback actions are restricted to Owner only
-router.get('/activity', auth(['owner']), logController.getActivityLogs);
-router.post('/restore/:id', auth(['owner']), logController.restoreLog);
-router.get('/monitoring', auth(['owner']), logController.getSystemStatus);
-router.post('/clear-cache', auth(['owner']), logController.clearServerCache);
+// All monitoring, logging, and rollback actions are restricted by logs_monitoring module
+router.get('/activity', auth({ module: 'logs_monitoring', action: 'view' }), logController.getActivityLogs);
+router.post('/restore/:id', auth({ module: 'logs_monitoring', action: 'edit' }), logController.restoreLog);
+router.get('/monitoring', auth({ module: 'logs_monitoring', action: 'view' }), logController.getSystemStatus);
+router.post('/clear-cache', auth({ module: 'logs_monitoring', action: 'edit' }), logController.clearServerCache);
 
 module.exports = router;

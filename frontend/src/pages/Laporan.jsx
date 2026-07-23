@@ -1154,6 +1154,48 @@ export default function Laporan() {
             
         </div>
       </div>
+
+      {/* Edit Target Modal */}
+      {showEditTarget && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl">
+            <h3 className="font-bold text-lg text-[#634930] mb-2">Edit Target KPI Bulanan</h3>
+            <p className="text-xs text-gray-500 mb-4">Ubah target pendapatan bulanan untuk mengukur capaian dan bonus karyawan.</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Target (Rp)</label>
+                <input 
+                  type="number" 
+                  value={tempTarget} 
+                  onChange={e => setTempTarget(Number(e.target.value))} 
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:border-[#634930] font-bold text-lg text-gray-700 bg-gray-50"
+                  placeholder="Contoh: 50000000"
+                />
+                <p className="text-xs text-[#8B6F47] font-medium mt-2">
+                  Format Rupiah: {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(tempTarget)}
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setShowEditTarget(false)} 
+                  className="flex-1 py-3 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all text-sm"
+                >
+                  Batal
+                </button>
+                <button 
+                  onClick={handleSaveTarget} 
+                  className="flex-1 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-[#634930] to-[#8B6F47] hover:opacity-90 transition-all shadow-md text-sm"
+                >
+                  Simpan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </MobileLayout>
   )
 }
