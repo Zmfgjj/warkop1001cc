@@ -100,6 +100,30 @@ export default function Monitoring() {
     }
   }
 
+  const [clearLoading, setClearLoading] = useState(false)
+  const handleClearCache = async (target) => {
+    const messages = {
+      'pm2': 'Log PM2 yang sudah usang akan dibersihkan.',
+      'puppeteer': 'Cache session WhatsApp (Puppeteer) akan dihapus. Ini akan memaksa bot logout jika sedang nyala.',
+      'temp_uploads': 'Semua file gambar sementara (temp_uploads) akan dihapus.',
+      'all': 'Semua log PM2, cache Puppeteer, dan file temporary akan dibersihkan.'
+    };
+    
+    if (window.confirm(`${messages[target]}\n\nApakah Anda yakin ingin melanjutkan?`)) {
+      setClearLoading(target)
+      try {
+        const res = await api.post('/logs/clear-cache', { target })
+        showAlert(res.data.message || 'Pembersihan berhasil!', 'Sukses', 'success')
+        fetchSystemStatus() // Refresh stats and sizes
+      } catch (err) {
+        console.error(err)
+        showAlert(err.response?.data?.message || 'Gagal membersihkan cache', 'Gagal', 'error')
+      } finally {
+        setClearLoading(false)
+      }
+    }
+  }
+
   const formatBytes = (bytes) => {
     if (!bytes) return '0 Bytes'
     const k = 1024
@@ -395,6 +419,76 @@ export default function Monitoring() {
                         <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Pengguna Terdaftar</p>
                         <p className="text-lg font-bold text-stone-800">{sysStatus.database.stats.users}</p>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Top Processes */}
+                  <div className="bg-white p-6 rounded-3xl border border-[#EDE0CC] shadow-sm md:col-span-3">
+                    <h3 className="font-bold text-stone-700 mb-4 flex items-center gap-2">
+                      <Cpu className="text-[#634930]" size={20} /> Top Proses Memori (Server)
+                    </h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className="text-xs text-gray-400 border-b border-gray-100">
+                            <th className="pb-2 font-bold uppercase tracking-wider">PID</th>
+                            <th className="pb-2 font-bold uppercase tracking-wider">Command</th>
+                            <th className="pb-2 font-bold uppercase tracking-wider">%CPU</th>
+                            <th className="pb-2 font-bold uppercase tracking-wider">%MEM</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sysStatus.processes?.map((p, i) => (
+                            <tr key={i} className="border-b border-gray-50 hover:bg-[#F9F5F0]">
+                              <td className="py-2 text-gray-600 font-mono text-xs">{p.pid}</td>
+                              <td className="py-2 font-semibold text-stone-700">{p.cmd}</td>
+                              <td className="py-2 text-amber-600 font-bold">{p.cpu}%</td>
+                              <td className="py-2 text-emerald-600 font-bold">{p.mem}%</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Storage Management */}
+                  <div className="bg-white p-6 rounded-3xl border border-[#EDE0CC] shadow-sm md:col-span-3">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                      <div>
+                        <h3 className="font-bold text-stone-700 flex items-center gap-2">
+                          <HardDrive className="text-[#634930]" size={20} /> Manajemen Penyimpanan
+                        </h3>
+                        <p className="text-xs text-gray-500 mt-1">Disk Utama: {sysStatus.disk?.size} (Terpakai {sysStatus.disk?.pcent})</p>
+                      </div>
+                      <button
+                        onClick={() => handleClearCache('all')}
+                        disabled={clearLoading !== false}
+                        className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 font-bold rounded-xl text-xs transition-colors flex items-center gap-2"
+                      >
+                        <Trash2 size={14} /> {clearLoading === 'all' ? 'Membersihkan...' : 'Bersihkan Semua Sampah'}
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {sysStatus.folders?.map((folder, i) => {
+                        const targetKey = i === 0 ? 'pm2' : i === 1 ? 'puppeteer' : 'temp_uploads';
+                        return (
+                          <div key={i} className="border border-gray-100 rounded-2xl p-4 bg-[#F9F5F0] flex flex-col justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-bold text-gray-400 uppercase">{folder.name}</p>
+                              <p className="text-2xl font-black text-[#634930]">{folder.size}</p>
+                              <p className="text-[10px] text-gray-500 font-mono mt-1 break-all">{folder.path}</p>
+                            </div>
+                            <button
+                              onClick={() => handleClearCache(targetKey)}
+                              disabled={clearLoading !== false}
+                              className="w-full py-2 bg-white text-[#634930] hover:bg-stone-50 border border-[#EDE0CC] font-bold rounded-lg text-xs transition-colors"
+                            >
+                              {clearLoading === targetKey ? '...' : 'Bersihkan'}
+                            </button>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
 

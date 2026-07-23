@@ -160,7 +160,7 @@ export default function CRM() {
 
   return (
     <MobileLayout activeMenu="CRM (Pelanggan)">
-      <div className="p-4 md:p-8 flex flex-col h-full bg-[#F9F5F0]">
+      <div className="p-4 md:p-8 bg-[#F9F5F0] min-h-full pb-24">
         
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -296,7 +296,7 @@ export default function CRM() {
         </div>
 
         {/* Content Table */}
-        <div className="flex-1 overflow-y-auto bg-white rounded-2xl shadow-sm border border-stone-200 p-1">
+        <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-1">
           {loading ? (
             <div className="flex justify-center py-20 text-[#8B6F47]">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#634930]"></div>

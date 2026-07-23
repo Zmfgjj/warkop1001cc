@@ -7,5 +7,6 @@ const auth = require('../middleware/auth');
 router.get('/activity', auth(['owner']), logController.getActivityLogs);
 router.post('/restore/:id', auth(['owner']), logController.restoreLog);
 router.get('/monitoring', auth(['owner']), logController.getSystemStatus);
+router.post('/clear-cache', auth(['owner']), logController.clearServerCache);
 
 module.exports = router;

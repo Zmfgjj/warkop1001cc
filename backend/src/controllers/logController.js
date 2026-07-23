@@ -1,6 +1,8 @@
 const db = require('../config/database');
 const os = require('os');
 const { logAction } = require('../services/logger');
+const util = require('util');
+const exec = util.promisify(require('child_process').exec);
 
 // Fetch activity logs
 exports.getActivityLogs = async (req, res) => {
@@ -144,6 +146,45 @@ exports.getSystemStatus = async (req, res) => {
     const [[{ menuCount }]] = await db.query('SELECT COUNT(*) as menuCount FROM menu');
     const [[{ userCount }]] = await db.query('SELECT COUNT(*) as userCount FROM users');
 
+    // Helper function to get folder size
+    const getFolderSize = async (path) => {
+      try {
+        const { stdout } = await exec(`du -sh ${path} 2>/dev/null | cut -f1`);
+        return stdout.trim() || '0B';
+      } catch (e) {
+        return '0B';
+      }
+    };
+
+    // 5. Disk Usage
+    let diskUsage = { size: '0G', used: '0G', avail: '0G', pcent: '0%' };
+    try {
+      const { stdout } = await exec('df -h / | awk \'NR==2 {print $2, $3, $4, $5}\'');
+      const parts = stdout.trim().split(/\s+/);
+      if (parts.length >= 4) {
+        diskUsage = { size: parts[0], used: parts[1], avail: parts[2], pcent: parts[3] };
+      }
+    } catch (e) {
+      console.warn('Failed to get disk usage:', e.message);
+    }
+
+    // 6. Top Processes (Top 5 by memory)
+    let processes = [];
+    try {
+      // Get top 5 processes. PID, %CPU, %MEM, COMMAND
+      const { stdout } = await exec('ps aux --sort=-%mem | awk \'NR>1 && NR<=6 {print $2, $3, $4, $11}\'');
+      const lines = stdout.trim().split('\n');
+      processes = lines.map(line => {
+        const parts = line.trim().split(/\s+/);
+        // cmd might be a path, extract the basename
+        let cmd = parts.slice(3).join(' ');
+        cmd = cmd.split('/').pop();
+        return { pid: parts[0], cpu: parts[1], mem: parts[2], cmd: cmd };
+      }).filter(p => p.pid);
+    } catch (e) {
+      console.warn('Failed to get processes:', e.message);
+    }
+
     res.json({
       platform: os.platform(),
       arch: os.arch(),
@@ -167,10 +208,68 @@ exports.getSystemStatus = async (req, res) => {
           menus: menuCount,
           users: userCount
         }
-      }
+      },
+      processes: processes,
+      folders: [
+        { name: 'PM2 Logs', path: '~/.pm2/logs', size: await getFolderSize('~/.pm2/logs') },
+        { name: 'Puppeteer Cache', path: '/root/.cache/puppeteer', size: await getFolderSize('/root/.cache/puppeteer') },
+        { name: 'Temp Uploads', path: '../temp_uploads', size: await getFolderSize('../temp_uploads') }
+      ]
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Clear server cache (PM2 logs, old puppeteer data, temporary files)
+exports.clearServerCache = async (req, res) => {
+  try {
+    const { target } = req.body; // e.g. 'pm2', 'puppeteer', 'temp_uploads', or 'all'
+    let commands = [];
+    let desc = '';
+
+    if (target === 'pm2') {
+      commands.push('pm2 flush');
+      desc = 'Membersihkan log PM2';
+    } else if (target === 'puppeteer') {
+      commands.push('rm -rf /root/.cache/puppeteer/*');
+      desc = 'Membersihkan cache Chrome/Puppeteer';
+    } else if (target === 'temp_uploads') {
+      commands.push('rm -rf ../temp_uploads/*');
+      desc = 'Membersihkan file temporary uploads';
+    } else {
+      commands = [
+        'pm2 flush',
+        'rm -rf /root/.cache/puppeteer/*',
+        'rm -rf ../temp_uploads/*'
+      ];
+      desc = 'Membersihkan semua sampah server';
+    }
+
+    let results = [];
+    for (const cmd of commands) {
+      try {
+        await exec(cmd);
+        results.push({ cmd, status: 'success' });
+      } catch (err) {
+        results.push({ cmd, status: 'error', error: err.message });
+      }
+    }
+
+    // Log this action
+    const userId = req.user ? req.user.id : null;
+    const username = req.user ? (req.user.username || req.user.nama || 'USER') : 'SYSTEM';
+    
+    await db.query(
+      `INSERT INTO activity_logs (user_id, username, action_type, table_name, description) 
+       VALUES (?, ?, 'CLEAR_CACHE', 'system', ?)`,
+      [userId, username, desc]
+    );
+
+    res.json({ message: 'Pembersihan selesai', results });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Gagal membersihkan cache server' });
   }
 };
