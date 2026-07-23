@@ -1,22 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Shield, Plus, Trash2, Save, Lock, Eye, Edit3, X } from 'lucide-react'
 import api from '../api/auth'
 import { useAlert } from '../context/AlertContext'
+import { allMenuItems } from './MobileLayout'
 
-const MODULE_LABELS = {
-  dashboard: 'Dashboard',
-  pos: 'Kasir (POS)',
-  manajemen_menu: 'Manajemen Menu',
-  manajemen_promo: 'Manajemen Promo',
-  manajemen_meja: 'Manajemen Meja',
-  kds: 'KDS (Dapur)',
-  laporan: 'Laporan',
-  user_manage: 'User Manage',
-  bonus_karyawan: 'Bonus Karyawan',
-  crm: 'CRM (Pelanggan)',
+// Base legacy labels (for modules not explicitly in sidebar but exist in DB)
+const LEGACY_LABELS = {
   manajemen_stock: 'Manajemen Stock',
-  logs_monitoring: 'Logs & Monitoring',
-  role_manage: 'Hak dan Role Akses'
+  bonus_karyawan: 'Bonus Karyawan'
 }
 
 export default function RolePermissions() {
@@ -36,12 +27,25 @@ export default function RolePermissions() {
     try {
       const res = await api.get('/roles')
       setRoles(res.data.roles)
-      setModules(res.data.modules)
+      
+      // Merge backend modules with frontend dynamic sidebar modules
+      const backendModules = res.data.modules || []
+      const sidebarModules = allMenuItems.map(m => m.module)
+      const merged = Array.from(new Set([...backendModules, ...sidebarModules]))
+      
+      setModules(merged)
     } catch (err) {
       console.error('Gagal fetch roles:', err)
     } finally {
       setLoading(false)
     }
+  }
+
+  // Build dynamic labels
+  const getModuleLabel = (mod) => {
+    const menuItem = allMenuItems.find(m => m.module === mod)
+    if (menuItem) return menuItem.label
+    return LEGACY_LABELS[mod] || mod
   }
 
   useEffect(() => { fetchRoles() }, [])
@@ -182,7 +186,7 @@ export default function RolePermissions() {
                   const p = role.permissions?.[mod] || { view: false, edit: false }
                   return (
                     <tr key={mod} className="border-b border-gray-50 hover:bg-amber-50/20 transition-colors">
-                      <td className="px-5 py-3 font-semibold text-gray-700">{MODULE_LABELS[mod] || mod}</td>
+                      <td className="px-5 py-3 font-semibold text-gray-700">{getModuleLabel(mod)}</td>
                       <td className="px-5 py-3 text-center">
                         <button
                           onClick={() => togglePerm(ri, mod, 'view')}

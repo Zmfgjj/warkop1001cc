@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut, Menu, X, Shield, Tag, MessageCircle, Activity } from 'lucide-react'
 
 // Map of menu items with their permission module keys
-const allMenuItems = [
+export const allMenuItems = [
   { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/kasir', module: 'dashboard' },
   { icon: <ReceiptText size={20} />, label: 'Kasir (POS)', path: '/kasir/pos', module: 'pos' },
   { icon: <ShoppingCart size={20} />, label: 'Manajemen Menu', path: '/kasir/menu', module: 'manajemen_menu' },
