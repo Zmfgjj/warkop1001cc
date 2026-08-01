@@ -29,10 +29,10 @@ export default function UserManage() {
   const [formTambah, setFormTambah] = useState({ nama: '', username: '', password: '', role: 'kasir' })
   const [loadingTambah, setLoadingTambah] = useState(false)
 
-  // Modal edit role
+  // Modal edit user
   const [showEditRole, setShowEditRole] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
-  const [editRole, setEditRole] = useState('')
+  const [editForm, setEditForm] = useState({ nama: '', username: '', role: '', password: '' })
   const [loadingEdit, setLoadingEdit] = useState(false)
 
   // Modal konfirmasi hapus
@@ -45,8 +45,8 @@ export default function UserManage() {
   const [qrUrl, setQrUrl] = useState('')
 
   const handleShowPublicMenuQR = () => {
-    const baseUrl = window.location.origin
-    setQrUrl(`${baseUrl}/menu`)
+    // Arahkan langsung ke domain menu publik
+    setQrUrl(`https://menu.warkop1001cc.cloud`)
     setShowQR(true)
   }
 
@@ -139,20 +139,28 @@ export default function UserManage() {
   }
 
   const handleEditRole = async () => {
+    if (!editForm.nama || !editForm.username || !editForm.role) {
+      return showAlert('Nama, username, dan role wajib diisi!', 'Perhatian', 'error')
+    }
     setLoadingEdit(true)
     try {
-      await api.put(`/user/${editTarget.id}`, { 
-        nama: editTarget.nama,
-        username: editTarget.username,
-        role: editRole,
+      const payload = { 
+        nama: editForm.nama,
+        username: editForm.username,
+        role: editForm.role,
         aktif: editTarget.aktif ?? 1
-      })
+      }
+      // Hanya kirim password kalau diisi
+      if (editForm.password && editForm.password.trim() !== '') {
+        payload.password = editForm.password
+      }
+      await api.put(`/user/${editTarget.id}`, payload)
       setShowEditRole(false)
       setEditTarget(null)
-      showAlert('Role berhasil diubah! Memuat ulang sistem...', 'Sukses')
+      showAlert('Data user berhasil diubah! Memuat ulang sistem...', 'Sukses')
       setTimeout(() => window.location.reload(), 1500)
     } catch (err) {
-      showAlert(err.response?.data?.message || 'Gagal update role', 'Gagal', 'error')
+      showAlert(err.response?.data?.message || 'Gagal update user', 'Gagal', 'error')
       setLoadingEdit(false)
     }
   }
@@ -397,10 +405,14 @@ export default function UserManage() {
                                     </button>
                                   ) : null}
                                   <button
-                                    onClick={() => { setEditTarget(u); setEditRole(u.role); setShowEditRole(true) }}
+                                    onClick={() => { 
+                                      setEditTarget(u); 
+                                      setEditForm({ nama: u.nama, username: u.username, role: u.role, password: '' }); 
+                                      setShowEditRole(true) 
+                                    }}
                                     className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-80 shadow-sm border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
                                   >
-                                    Edit Role
+                                    Edit
                                   </button>
                                   <button
                                     onClick={() => { setHapusTarget(u); setShowHapus(true) }}
@@ -496,11 +508,11 @@ export default function UserManage() {
         </div>
       )}
 
-      {/* Modal Edit Role */}
+      {/* Modal Edit User */}
       {showEditRole && editTarget && (
         <div className="fixed inset-0 flex items-center justify-center z-50 backdrop-blur-sm" style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <div className="rounded-3xl p-8 w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200" style={{ backgroundColor: '#fff', border: '1px solid #EDE0CC' }}>
-            <h2 className="text-2xl font-black mb-2" style={{ color: '#634930' }}>Edit Role</h2>
+          <div className="rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in-95 duration-200" style={{ backgroundColor: '#fff', border: '1px solid #EDE0CC' }}>
+            <h2 className="text-2xl font-black mb-2" style={{ color: '#634930' }}>Edit User</h2>
             <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-100 flex items-center gap-3">
                <div className="w-10 h-10 rounded-full bg-white text-[#634930] flex items-center justify-center font-bold text-lg shadow-sm">
                  {(editTarget.nama || '?')[0].toUpperCase()}
@@ -510,17 +522,53 @@ export default function UserManage() {
                   <p className="text-xs font-medium text-amber-700">@{editTarget.username}</p>
                </div>
             </div>
-            
-            <div>
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-2">Pilih Role Baru</label>
-              <select
-                value={editRole}
-                onChange={e => setEditRole(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
-                style={{ backgroundColor: '#F9F5F0', color: '#634930', border: '1px solid #EDE0CC' }}
-              >
-                                  {roleList.map(r => <option key={r} value={r} className="uppercase">{r}</option>)}
-              </select>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Nama Lengkap</label>
+                <input
+                  type="text"
+                  value={editForm.nama}
+                  onChange={e => setEditForm(p => ({ ...p, nama: e.target.value }))}
+                  placeholder="Nama lengkap"
+                  className="w-full px-4 py-3 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                  style={{ backgroundColor: '#F9F5F0', color: '#634930', border: '1px solid #EDE0CC' }}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Username</label>
+                <input
+                  type="text"
+                  value={editForm.username}
+                  onChange={e => setEditForm(p => ({ ...p, username: e.target.value }))}
+                  placeholder="Username login"
+                  className="w-full px-4 py-3 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                  style={{ backgroundColor: '#F9F5F0', color: '#634930', border: '1px solid #EDE0CC' }}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                  Password Baru <span className="text-gray-300 font-normal normal-case">(kosongkan jika tidak ingin diubah)</span>
+                </label>
+                <input
+                  type="password"
+                  value={editForm.password}
+                  onChange={e => setEditForm(p => ({ ...p, password: e.target.value }))}
+                  placeholder="Password baru (opsional)"
+                  className="w-full px-4 py-3 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                  style={{ backgroundColor: '#F9F5F0', color: '#634930', border: '1px solid #EDE0CC' }}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Role Akses</label>
+                <select
+                  value={editForm.role}
+                  onChange={e => setEditForm(p => ({ ...p, role: e.target.value }))}
+                  className="w-full px-4 py-3 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                  style={{ backgroundColor: '#F9F5F0', color: '#634930', border: '1px solid #EDE0CC' }}
+                >
+                  {roleList.map(r => <option key={r} value={r} className="uppercase">{r}</option>)}
+                </select>
+              </div>
             </div>
             <div className="flex gap-3 mt-8">
               <button

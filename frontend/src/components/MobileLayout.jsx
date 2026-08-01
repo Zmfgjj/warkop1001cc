@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useNavigate } from 'react-router-dom'
 import { LayoutDashboard, ReceiptText, ShoppingCart, Grid2X2, MonitorPlay, BarChart3, Users, LogOut, Menu, X, Shield, Tag, MessageCircle, Activity } from 'lucide-react'
+import { CURRENT_APP_VERSION } from './UpdateChecker'
 
 // Map of menu items with their permission module keys
 export const allMenuItems = [
@@ -97,6 +98,11 @@ export default function MobileLayout({ activeMenu, children, overflowClass = 'ov
         >
           <LogOut size={20} className="inline mr-2" /> Logout
         </button>
+
+        {/* Version Info */}
+        <div className="mt-4 text-center text-[10px] font-bold" style={{ color: '#8B6F47' }}>
+          Versi: {CURRENT_APP_VERSION}
+        </div>
       </div>
 
       {/* Main Content Area */}

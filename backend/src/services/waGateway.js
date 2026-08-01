@@ -3,7 +3,7 @@ const qrcode = require('qrcode');
 
 let client;
 let qrCodeData = null;
-let status = 'DISCONNECTED'; // 'DISCONNECTED', 'QR_READY', 'CONNECTED'
+let status = 'DISCONNECTED'; // 'DISCONNECTED', 'QR_READY', 'CONNECTED', 'STOPPED', 'STARTING'
 let socketIo = null;
 
 const setSocketIo = (io) => {
@@ -21,12 +21,27 @@ const startService = () => {
   if (socketIo) socketIo.emit('wa_status', { status, qr: null });
 
   try {
+    // Cari path Chrome: dari env variable, atau dari cache Puppeteer
+    const fs = require('fs');
+    const path = require('path');
+    const chromeCachePath = path.join(process.env.HOME || '/root', '.cache/puppeteer/chrome');
+    let executablePath;
+    
+    if (fs.existsSync(chromeCachePath)) {
+      const versions = fs.readdirSync(chromeCachePath).filter(d => d.startsWith('linux-'));
+      if (versions.length > 0) {
+        const candidate = path.join(chromeCachePath, versions[0], 'chrome-linux64', 'chrome');
+        if (fs.existsSync(candidate)) executablePath = candidate;
+      }
+    }
+
     client = new Client({
       authStrategy: new LocalAuth({ clientId: "warkop-crm" }),
       puppeteer: {
         headless: true,
+        ...(executablePath ? { executablePath } : {}),
         args: [
-          '--no-sandbox', 
+          '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-accelerated-2d-canvas',
@@ -61,7 +76,18 @@ const startService = () => {
       if (socketIo) socketIo.emit('wa_status', { status, qr: null });
     });
 
-    client.initialize();
+    // Initialize async - wrap dengan catch agar Puppeteer crash
+    // TIDAK membunuh seluruh backend / menyebabkan PM2 restart
+    (async () => {
+      try {
+        await client.initialize();
+      } catch (err) {
+        console.error('[WA Gateway] Puppeteer initialize error (ditangani, backend tetap jalan):', err.message);
+        status = 'STOPPED';
+        if (socketIo) socketIo.emit('wa_status', { status, qr: null });
+      }
+    })();
+
   } catch (err) {
     console.error('Failed to initialize WhatsApp Gateway', err);
     status = 'STOPPED';
@@ -73,7 +99,7 @@ const stopService = async () => {
   if (client) {
     await client.destroy().catch(err => {
       console.error('Ignored error during WA client destroy:', err.message);
-    }); // This kills the Puppeteer Chrome processes
+    });
   }
   client = null;
   qrCodeData = null;
@@ -95,7 +121,6 @@ const logout = async () => {
     }
     status = 'DISCONNECTED';
     qrCodeData = null;
-    // Just stop it entirely on logout to save RAM, user must click Start again
     stopService();
   }
 };
@@ -111,16 +136,13 @@ const sendBroadcastMessage = async (targets, messageTemplate) => {
       const phone = target.phone;
       const name = target.name || '';
       const message = messageTemplate.replace(/\[Nama\]/gi, name);
-
-      // Ensure number ends with @c.us
       const formattedPhone = phone.includes('@c.us') ? phone : `${phone}@c.us`;
       await client.sendMessage(formattedPhone, message);
       successCount++;
-      // Random delay between 4 to 8 seconds to simulate human typing and avoid ban
       const delay = Math.floor(Math.random() * (8000 - 4000 + 1)) + 4000;
       await new Promise(resolve => setTimeout(resolve, delay));
     } catch (err) {
-      console.error(`Failed to send to ${phone}`, err);
+      console.error(`Failed to send to ${target.phone}`, err);
     }
   }
   return successCount;

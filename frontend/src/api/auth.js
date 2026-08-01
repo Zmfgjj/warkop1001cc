@@ -2,9 +2,9 @@ import axios from 'axios'
 import { Capacitor } from '@capacitor/core'
 
 const isNative = Capacitor.isNativePlatform();
-const API_URL = import.meta.env.VITE_API_URL 
-  ? `${import.meta.env.VITE_API_URL.replace(/\/$/, '')}/api` 
-  : 'http://202.155.157.13:3000/api';
+const API_URL = isNative
+  ? 'http://202.155.157.13:3000/api' // Android APK langsung ke IP VPS
+  : '/api'; // Web app menggunakan relative path (Nginx reverse proxy)
 
 const api = axios.create({
   baseURL: API_URL,

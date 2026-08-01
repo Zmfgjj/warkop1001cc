@@ -124,6 +124,31 @@ export default function Monitoring() {
     }
   }
 
+  const [restartLoading, setRestartLoading] = useState(false)
+  const handleRestartServer = async (type = 'pm2') => {
+    const isVps = type === 'vps';
+    const confirmMsg = isVps
+      ? '⚠️ PERINGATAN REBOOT MESIN VPS ⚠️\n\nApakah Anda yakin ingin melakukan REBOOT pada mesin VPS server secara keseluruhan?\n\n- Seluruh mesin server akan dimatikan & dinyalakan ulang dari OS.\n- Uptime server akan di-reset menjadi 0.\n- Web & API akan mati sementara selama 30-60 detik sampai server hidup kembali.'
+      : 'Apakah Anda yakin ingin melakukan RESTART pada layanan aplikasi (PM2)?\n\nLayanan (Backend API, Bot WhatsApp, KDS socket) akan dimuat ulang dengan cepat dalam 2-5 detik tanpa mematikan mesin VPS.';
+
+    if (window.confirm(confirmMsg)) {
+      setRestartLoading(type)
+      try {
+        const res = await api.post('/logs/restart', { type })
+        showAlert(res.data.message || 'Server sedang diproses...', 'Sukses', 'success')
+        const delay = isVps ? 45000 : 5000;
+        setTimeout(() => {
+          fetchSystemStatus()
+          setRestartLoading(false)
+        }, delay)
+      } catch (err) {
+        console.error(err)
+        showAlert(err.response?.data?.message || 'Gagal memuat ulang server', 'Gagal', 'error')
+        setRestartLoading(false)
+      }
+    }
+  }
+
   const formatBytes = (bytes) => {
     if (!bytes) return '0 Bytes'
     const k = 1024
@@ -489,6 +514,36 @@ export default function Monitoring() {
                           </div>
                         )
                       })}
+                    </div>
+                  </div>
+
+                  {/* Server Control Card */}
+                  <div className="bg-white p-6 rounded-3xl border border-amber-200/80 shadow-sm md:col-span-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gradient-to-r from-amber-50/40 to-white">
+                    <div>
+                      <h3 className="font-bold text-stone-800 flex items-center gap-2 text-base">
+                        <Server className="text-amber-600" size={20} /> Kontrol &amp; Reboot Server (PM2 &amp; VPS)
+                      </h3>
+                      <p className="text-xs text-gray-600 mt-1 max-w-xl">
+                        Pilih <strong>Restart PM2</strong> untuk memuat ulang aplikasi dengan cepat (2-5 detik), atau pilih <strong>Reboot VPS Server</strong> untuk menyalakan ulang seluruh mesin server dari sistem operasi sehingga waktu <em>Uptime Server</em> kembali ke 0.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 shrink-0">
+                      <button
+                        onClick={() => handleRestartServer('pm2')}
+                        disabled={restartLoading !== false}
+                        className="px-4 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
+                      >
+                        <RotateCcw size={16} className={restartLoading === 'pm2' ? "animate-spin" : ""} /> 
+                        {restartLoading === 'pm2' ? 'Proses PM2...' : 'Restart Layanan (PM2)'}
+                      </button>
+                      <button
+                        onClick={() => handleRestartServer('vps')}
+                        disabled={restartLoading !== false}
+                        className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
+                      >
+                        <RotateCcw size={16} className={restartLoading === 'vps' ? "animate-spin" : ""} /> 
+                        {restartLoading === 'vps' ? 'Rebooting OS...' : 'Reboot VPS Server (Reset Uptime)'}
+                      </button>
                     </div>
                   </div>
 

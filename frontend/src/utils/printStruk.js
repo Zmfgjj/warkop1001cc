@@ -88,7 +88,7 @@ function generateStrukHTML({ pesananId, items, subtotal, ppn, ppnRate, total, me
           <p style="margin:2px 0">${dateStr}</p>
           <p style="margin:2px 0">${timeStr}</p>
           ${nama_pelanggan ? `<p style="margin:2px 0;font-weight:medium;">Pelanggan: ${nama_pelanggan}</p>` : ''}
-          ${no_telepon ? `<p style="margin:2px 0">No HP: ${no_telepon}</p>` : ''}
+          ${(no_telepon && type !== 'pelanggan') ? `<p style="margin:2px 0">No HP: ${no_telepon}</p>` : ''}
         </div>
         <div style="text-align:right">
           <p style="margin:2px 0">Tipe: ${tipe === 'take-away' ? 'Take Away' : `Meja: ${meja || '?'}`}</p>
@@ -109,18 +109,17 @@ function generateStrukHTML({ pesananId, items, subtotal, ppn, ppnRate, total, me
         <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Subtotal</span><span>${isMeja ? `<del>${formatRupiah(subtotal)}</del>` : formatRupiah(subtotal)}</span></div>
         ${(!isMeja && discount_value > 0) ? `<div style="display:flex;justify-content:space-between;margin:2px 0;color:#c0392b;font-weight:bold;"><span>${discount_name || 'Promo'}</span><span>-${formatRupiah(discount_value)}</span></div>` : ''}
         ${(!isMeja && !discount_value && (subtotal - total) > 0) ? `<div style="display:flex;justify-content:space-between;margin:2px 0;color:#c0392b;font-weight:bold;"><span>Diskon CAKRA</span><span>-${formatRupiah(subtotal - total)}</span></div>` : ''}
-        <div style="display:flex;justify-content:space-between;margin:2px 0"><span>PPN ${ppnRate || 11}% (Inc)</span><span><del>${formatRupiah(Math.round((isMeja ? 0 : total) * (ppnRate || 11) / 100))}</del></span></div>
         <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Total Tagihan</span><span style="font-weight:bold;">${isMeja ? `<del>${formatRupiah(total)}</del>` : formatRupiah(total)}</span></div>
         <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Bayar (${metodeBayar === 'Tunai' ? 'Cash' : metodeBayar})</span><span>${isMeja ? `<del>${formatRupiah(metodeBayar === 'Tunai' ? jumlahBayar : total)}</del>` : formatRupiah(metodeBayar === 'Tunai' ? jumlahBayar : total)}</span></div>
         ${metodeBayar === 'Tunai' ? `<div style="display:flex;justify-content:space-between;margin:2px 0"><span>Kembali</span><span>${isMeja ? `<del>${formatRupiah(kembali)}</del>` : formatRupiah(kembali)}</span></div>` : ''}
       </div>
-      <div style="text-align:right;font-size:10px;font-style:italic;margin-top:2px;">Harga sudah termasuk PPN (Termasuk)</div>
       <hr style="border:none;border-top:1px dashed #000;margin:8px 0">
       
       <div style="text-align:center;font-size:12px;margin-top:8px">
         <p style="margin:2px 0">Good Vibes In Every Cup</p>
         <p style="margin:2px 0">Password Wifi :</p>
-        <p style="margin:2px 0">warkopnaikkelaz</p>
+        <p style="margin:2px 0">Lt 1: kopicakramantap</p>
+        <p style="margin:2px 0">Lt 2: warkopnaikkelaz</p>
         <br>
         <p style="margin:2px 0">Bantu kami jadi lebih baik!</p>
         <p style="margin:2px 0">Beri ulasan di Google Maps:</p>
@@ -189,83 +188,60 @@ export function cetakStruk(data, printTypes = ['kasir', 'pelanggan']) {
 }
 
 // Cache port reference in memory
-let cachedPort = null;
-let cachedMacAddress = localStorage.getItem('printer_mac') || null; // Simpan MAC address untuk auto-reconnect
+let cachedPorts = { kasir: null, dapur: null, bar: null };
 
 // Helper to get or request serial port
-async function getSerialPort() {
-  if (cachedPort) return cachedPort;
-  const ports = await navigator.serial.getPorts();
-  if (ports.length > 0) {
-    cachedPort = ports[0];
-    return cachedPort;
-  }
-  cachedPort = await navigator.serial.requestPort();
-  return cachedPort;
+async function getSerialPort(role = 'kasir') {
+  if (cachedPorts[role]) return cachedPorts[role];
+  // Web Serial API doesn't let us easily persist which port is which without re-requesting in some browsers,
+  // but we can cache them in memory during the session.
+  const port = await navigator.serial.requestPort();
+  cachedPorts[role] = port;
+  return port;
 }
 
-// Fungsi manual untuk pairing printer - connect sekali, stay connected
+// Dapatkan daftar printer bluetooth
+export async function getBluetoothPrinters() {
+  return new Promise((resolve) => {
+    if (!window.bluetoothSerial) return resolve([]);
+    window.bluetoothSerial.list((devices) => {
+      const printers = devices.filter(d => (
+        d.class === 1664 ||
+        d.name.toLowerCase().includes('print') ||
+        d.name.toLowerCase().includes('pos') ||
+        d.name.toLowerCase().includes('blue') ||
+        d.name.toLowerCase().includes('mpt') ||
+        d.name.toLowerCase().includes('bt')
+      ));
+      resolve(printers);
+    }, (err) => {
+      console.warn('Gagal ambil bluetooth list', err);
+      resolve([]);
+    });
+  });
+}
+
+// Backward compatibility (Single Printer) - Jika dipanggil tanpa UI multi-printer
 export async function requestPrinterPermission() {
   try {
-    // 1. APK (Cordova Bluetooth Serial)
     if (window.bluetoothSerial) {
-      return new Promise((resolve) => {
-
-        // Kalau sudah connected, tidak perlu connect ulang
-        window.bluetoothSerial.isConnected(() => {
-          globalAlert('Printer sudah terhubung dan siap cetak!', 'Info', 'success');
-          resolve(true);
-        }, () => {
-          // Belum connected, cari dan connect ke printer
-          window.bluetoothSerial.list((devices) => {
-            const printers = devices.filter(d => (
-              d.class === 1664 ||
-              d.name.toLowerCase().includes('print') ||
-              d.name.toLowerCase().includes('pos') ||
-              d.name.toLowerCase().includes('blue') ||
-              d.name.toLowerCase().includes('mpt')
-            ));
-
-            if (printers.length > 0) {
-              cachedMacAddress = printers[0].address;
-              localStorage.setItem('printer_mac', cachedMacAddress);
-
-              window.bluetoothSerial.connect(cachedMacAddress, () => {
-                globalAlert(`Printer [${printers[0].name}] terhubung!`, 'Sukses', 'success');
-                resolve(true);
-              }, (err) => {
-                globalAlert('Gagal koneksi Bluetooth: ' + err, 'Error', 'error');
-                resolve(false);
-              });
-            } else {
-              globalAlert('Tidak ada printer Bluetooth paired. Pair di Setting Bluetooth HP dulu.', 'Perhatian', 'error');
-              resolve(false);
-            }
-          }, (err) => {
-            console.warn('Bluetooth list error:', err);
-            globalAlert('Gagal ambil daftar perangkat Bluetooth: ' + err, 'Error', 'error');
-            resolve(false);
-          });
-        });
-
-      });
-    }
-    // 2. Desktop Browser (Web Serial API)
-    else if ('serial' in navigator) {
-      const port = await navigator.serial.requestPort();
-      cachedPort = port;
-      if (!port.writable) {
-        await port.open({ baudRate: 9600 });
+      const printers = await getBluetoothPrinters();
+      if (printers.length > 0) {
+        localStorage.setItem('printer_mac_kasir', printers[0].address);
+        globalAlert(`Printer [${printers[0].name}] disimpan sebagai Kasir!`, 'Sukses', 'success');
+        return true;
+      } else {
+        globalAlert('Tidak ada printer Bluetooth paired.', 'Perhatian', 'error');
+        return false;
       }
-      globalAlert('Printer thermal USB terhubung dan siap digunakan!', 'Sukses', 'success');
+    } else if ('serial' in navigator) {
+      await getSerialPort('kasir');
+      globalAlert('Printer thermal USB Kasir terhubung!', 'Sukses', 'success');
       return true;
-    } else {
-      globalAlert('Browser tidak mendukung API Printer.', 'Perhatian', 'error');
-      return false;
     }
+    return false;
   } catch (err) {
-    console.error('Failed to pair printer:', err);
-    globalAlert('Gagal menghubungkan printer. Pastikan printer menyala.', 'Error', 'error');
+    globalAlert('Gagal menghubungkan printer.', 'Error', 'error');
     return false;
   }
 }
@@ -373,7 +349,7 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
         if (data.nama_pelanggan) {
           receipt += `Plg: ${padRight(data.nama_pelanggan, 27)}` + LF;
         }
-        if (data.no_telepon) {
+        if (data.no_telepon && type !== 'pelanggan') {
           receipt += `HP : ${padRight(data.no_telepon, 27)}` + LF;
         }
 
@@ -400,11 +376,6 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
           receipt += padRight('Diskon CAKRA', 16) + padLeft(diskonStr, 16) + LF
         }
 
-        const ppnRateNum = data.ppnRate || 11;
-        const ppnValue = Math.round((isMeja ? 0 : data.total) * ppnRateNum / 100);
-        const ppnStr = isMeja ? '------' : `(${formatRupiah(ppnValue)})`;
-        receipt += padRight(`PPN ${ppnRateNum}% (Inc)`, 16) + padLeft(ppnStr, 16) + LF
-
         const totalStr = isMeja ? '------' : formatRupiah(data.total);
         receipt += padRight('Total Tagihan', 16) + padLeft(totalStr, 16) + LF
         
@@ -414,84 +385,103 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
           const kembaliStr = isMeja ? '------' : formatRupiah(data.kembali);
           receipt += padRight('Kembali', 16) + padLeft(kembaliStr, 16) + LF
         }
-        receipt += padLeft('Harga sudah termasuk PPN', 32) + LF
         receipt += dashed
 
         receipt += CENTER + 'Good Vibes In Every Cup' + LF
-        receipt += 'Password Wifi :' + LF
-        receipt += 'warkopnaikkelaz' + LF + LF
-        receipt += 'Bantu kami jadi lebih baik!' + LF
-        receipt += 'Beri ulasan di Google Maps:' + LF
-        receipt += 's.id/warkop1001cc-maps' + LF + LF
-        receipt += 'Instagram : @warkop1001cc' + LF
-        receipt += 'TikTok    : @warkop1001cc' + LF
-        receipt += 'YouTube   : @warkop1001cc' + LF
+        receipt += CENTER + 'Password Wifi :' + LF
+        receipt += 'Lt 1: kopicakramantap' + LF
+        receipt += 'Lt 2: warkopnaikkelaz' + LF + LF
+        receipt += CENTER + 'Terima kasih telah menjadi' + LF
+        receipt += 'bagian dari cerita 1001cc.' + LF + LF
+        receipt += 'follow kami @warkop1001cc' + LF
         
         receipt += LF + LF
         receipt += CUT
       }
-      receipts.push(receipt);
+      receipts.push({ type, data: receipt });
     }
 
     // --- Eksekusi Cetak ---
     if (window.bluetoothSerial) {
       // 1. Eksekusi via Native Bluetooth Serial (APK)
-      if (!cachedMacAddress) {
-        globalAlert('Printer belum dipilih. Klik tombol Printer di atas.', 'Perhatian', 'error');
-        return false;
-      }
-      return new Promise((resolve, reject) => {
-        const doPrint = async () => {
-          try {
-            for (let i = 0; i < receipts.length; i++) {
-              const currentReceipt = receipts[i];
-              
-              // Chunking string langsung untuk Bluetooth (hindari Uint8Array bug di beberapa versi Cordova)
+      return new Promise(async (resolve, reject) => {
+        try {
+          for (let i = 0; i < receipts.length; i++) {
+            const { type, data: currentReceipt } = receipts[i];
+            
+            // Tentukan target MAC address berdasarkan tipe struk
+            let targetMac = null;
+            if (type === 'dapur') targetMac = localStorage.getItem('printer_mac_dapur') || localStorage.getItem('printer_mac_kasir') || localStorage.getItem('printer_mac');
+            else if (type === 'bar') targetMac = localStorage.getItem('printer_mac_bar') || localStorage.getItem('printer_mac_kasir') || localStorage.getItem('printer_mac');
+            else targetMac = localStorage.getItem('printer_mac_kasir') || localStorage.getItem('printer_mac');
+
+            if (!targetMac) {
+              console.warn(`Target printer untuk ${type} tidak diatur, melewati cetak.`);
+              continue; // Skip jika printer belum di-set
+            }
+
+            // Fungsi untuk print string via koneksi yang ada
+            const doPrint = async () => {
               const chunkSize = 128;
               const delayMs = 80;
-              
               for (let j = 0; j < currentReceipt.length; j += chunkSize) {
                 const chunk = currentReceipt.substring(j, j + chunkSize);
-                await new Promise((res, rej) => {
-                  // Kirim potongan string
-                  window.bluetoothSerial.write(chunk, res, rej);
-                });
-                // Delay sebentar agar printer selesai memproses chunk
+                await new Promise((res, rej) => window.bluetoothSerial.write(chunk, res, rej));
                 await new Promise(res => setTimeout(res, delayMs));
               }
-
-              // Jeda 3 detik antar struk agar kasir bisa menyobek
               if (i < receipts.length - 1) {
                 await new Promise(res => setTimeout(res, 3000));
               }
-            }
-            resolve(true);
-          } catch (err) {
-            reject(err);
-          }
-        };
+            };
 
-        window.bluetoothSerial.isConnected(() => {
-          doPrint(); // Sudah connect
-        }, () => {
-          // Belum connect, coba auto-reconnect
-          window.bluetoothSerial.connect(cachedMacAddress, doPrint, (err) => reject(err));
-        });
+            // Diskonek & Konek untuk routing ke printer yang tepat
+            await new Promise((res) => {
+              const tryConnect = () => {
+                window.bluetoothSerial.connect(targetMac, async () => {
+                  await doPrint();
+                  res();
+                }, (err) => {
+                  console.error('Gagal koneksi ke MAC', targetMac, err);
+                  res(); // Lanjut ke struk berikutnya
+                });
+              };
+
+              // Disconnect from current before connecting to new one
+              window.bluetoothSerial.disconnect(() => {
+                setTimeout(tryConnect, 500); // Jeda aman setelah disconnect berhasil
+              }, () => {
+                // Jika disconnect gagal (biasanya karena belum connect sama sekali), langsung coba connect
+                tryConnect(); 
+              });
+            });
+          }
+          // Setelah semua selesai, diskonek saja atau biarkan (kita pilih diskonek agar fresh)
+          window.bluetoothSerial.disconnect(() => {}, () => {});
+          resolve(true);
+        } catch (err) {
+          reject(err);
+        }
       });
-      
     } else {
       // 2. Eksekusi via Web Serial (Browser PC)
-      const port = await getSerialPort()
-      if (!port.writable) {
-        await port.open({ baudRate: 9600 })
-      }
-
-      const writer = port.writable.getWriter()
-      
       for (let i = 0; i < receipts.length; i++) {
-        const currentReceipt = receipts[i];
+        const { type, data: currentReceipt } = receipts[i];
         
-        // Kirim data secara bertahap (chunked) untuk Web Serial
+        let role = 'kasir';
+        if (type === 'dapur') role = 'dapur';
+        if (type === 'bar') role = 'bar';
+        
+        const port = await getSerialPort(role);
+        if (!port) {
+          console.warn(`Serial port untuk ${role} belum di-set.`);
+          continue;
+        }
+
+        if (!port.writable) {
+          await port.open({ baudRate: 9600 })
+        }
+        const writer = port.writable.getWriter()
+
         const chunkSize = 64
         const delayMs = 30
         const bytes = encoder.encode(currentReceipt)
@@ -501,18 +491,16 @@ export async function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan'
           await new Promise(resolve => setTimeout(resolve, delayMs))
         }
 
-        // Jeda 3 detik antar struk
         if (i < receipts.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 3000));
         }
+        writer.releaseLock()
       }
-      
-      writer.releaseLock()
       return true
     }
   } catch (err) {
     console.error('Thermal printer error:', err)
-    cachedPort = null
     return false
   }
 }
+

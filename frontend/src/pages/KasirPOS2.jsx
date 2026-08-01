@@ -5,7 +5,7 @@ import { Search, Utensils, ShoppingBag, ShoppingCart, X } from 'lucide-react';
 import ImageLoader from '../components/ImageLoader'
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
-import { cetakStruk, cetakStrukThermal, requestPrinterPermission } from '../utils/printStruk'
+import { cetakStruk, cetakStrukThermal, requestPrinterPermission, getBluetoothPrinters } from '../utils/printStruk'
 import MobileLayout from '../components/MobileLayout'
 import { useNetwork } from '../hooks/useNetwork'
 import { saveMasterData, getMasterData, queueOfflineOrder } from '../utils/offlineStore'
@@ -46,9 +46,20 @@ export default function KasirPOS() {
   const [showCustDetails, setShowCustDetails] = useState(false)
   const [showMejaDropdown, setShowMejaDropdown] = useState(false)
   const [expandedDescId, setExpandedDescId] = useState(null)
+  const [showSpinModal, setShowSpinModal] = useState(false)
+  const [selectedSpinPrizes, setSelectedSpinPrizes] = useState([])
   const [printMethod, setPrintMethod] = useState(() => {
     return localStorage.getItem('pos_print_method') || 'none'
   })
+
+  // Multi-Printer states
+  const [showPrinterModal, setShowPrinterModal] = useState(false);
+  const [btPrinters, setBtPrinters] = useState([]);
+  const [printerConfig, setPrinterConfig] = useState({
+    kasir: localStorage.getItem('printer_mac_kasir') || localStorage.getItem('printer_mac') || '',
+    dapur: localStorage.getItem('printer_mac_dapur') || '',
+    bar: localStorage.getItem('printer_mac_bar') || ''
+  });
 
   const handlePrintMethodChange = (method) => {
     setPrintMethod(method)
@@ -243,18 +254,74 @@ export default function KasirPOS() {
   const kembali = jumlahBayar ? Math.max(0, parseInt(jumlahBayar.replace(/\D/g, '') || 0) - total) : 0
   const totalItems = order.reduce((s, o) => s + o.qty, 0)
 
-  const handleProsesBayar = async () => {
+  const handleTriggerBayar = () => {
+    if (order.length === 0) return showAlert('Tambah menu dulu!', 'Perhatian')
+    if (tipeOrder === 'dine-in' && !selectedMejaId) return showAlert('Pilih nomor meja terlebih dahulu!', 'Perhatian')
+    if (metodeBayar === 'Tunai' && parseInt(jumlahBayar.replace(/\D/g, '') || 0) < total) return showAlert('Jumlah bayar kurang!', 'Perhatian')
+
+    const spinCount = Math.floor(total / 100000);
+    const alreadyHasSpinItem = order.some(o => o.nama && (o.nama.includes('[PROMO SPIN]') || o.nama.includes('[HADIAH SPIN]')));
+    if (spinCount > 0 && selectedSpinPrizes.length === 0 && !alreadyHasSpinItem) {
+      setSelectedSpinPrizes(Array(spinCount).fill('TANPA_HADIAH'));
+      setShowSpinModal(true);
+    } else {
+      handleProsesBayar(false, selectedSpinPrizes);
+    }
+  };
+
+  const handleProsesBayar = async (isOffline = false, spinPrizesArg = []) => {
     if (order.length === 0) return showAlert('Tambah menu dulu!', 'Perhatian')
     if (tipeOrder === 'dine-in' && !selectedMejaId) return showAlert('Pilih nomor meja terlebih dahulu!', 'Perhatian')
     if (metodeBayar === 'Tunai' && parseInt(jumlahBayar.replace(/\D/g, '') || 0) < total) return showAlert('Jumlah bayar kurang!', 'Perhatian')
     
     setLoadingBayar(true)
     try {
+      let finalOrder = [...order];
+      const activePrizes = Array.isArray(spinPrizesArg) ? spinPrizesArg : (spinPrizesArg ? [spinPrizesArg] : selectedSpinPrizes);
+      
+      activePrizes.forEach((activeSpinPrize, idx) => {
+        if (activeSpinPrize && activeSpinPrize !== 'TANPA_HADIAH' && activeSpinPrize !== '') {
+          const p = activeSpinPrize.toLowerCase();
+          let menuMatch = null;
+          let specialPrice = 10000;
+          if (p.includes('lychee')) { menuMatch = menuList.find(m => m.nama.toLowerCase().includes('lychee')); specialPrice = 10000; }
+          else if (p.includes('boci') || p.includes('tulang rangu')) { menuMatch = menuList.find(m => m.nama.toLowerCase().includes('tulang rangu') || m.nama.toLowerCase().includes('baso aci')); specialPrice = 13000; }
+          else if (p.includes('siomay') || p.includes('somay')) { menuMatch = menuList.find(m => m.nama.toLowerCase().includes('siomay') || m.nama.toLowerCase().includes('somay')); specialPrice = 10000; }
+          else if (p.includes('mango')) { menuMatch = menuList.find(m => m.nama.toLowerCase().includes('mango')); specialPrice = 10000; }
+          else if (p.includes('seblak')) { menuMatch = menuList.find(m => m.nama.toLowerCase().includes('seblak')); specialPrice = 15000; }
+          else if (p.includes('cireng isi')) { menuMatch = menuList.find(m => m.nama.toLowerCase().includes('cireng gemoy')); specialPrice = 12000; }
+          else if (p.includes('es teh')) { menuMatch = menuList.find(m => m.nama.toLowerCase().includes('es teh')); specialPrice = 5000; }
+          else if (p.includes('singkong')) { menuMatch = menuList.find(m => m.nama.toLowerCase().includes('singkong')); specialPrice = 10000; }
+          else if (p.includes('kentang')) { menuMatch = menuList.find(m => m.nama.toLowerCase().includes('kentang')); specialPrice = 10000; }
+          else if (p.includes('peach')) { menuMatch = menuList.find(m => m.nama.toLowerCase().includes('peach')); specialPrice = 10000; }
+          else if (p.includes('macaroni') || p.includes('schotel')) { menuMatch = menuList.find(m => m.nama.toLowerCase().includes('macaroni') || m.nama.toLowerCase().includes('schotel')); specialPrice = 13000; }
+          else if (p.includes('cireng rujak')) { menuMatch = menuList.find(m => m.nama.toLowerCase().includes('cireng rujak')); specialPrice = 10000; }
+          else { menuMatch = menuList.find(m => m.nama.toLowerCase().includes(p)) || menuList[0]; specialPrice = 10000; }
+
+          const prizeQty = activeSpinPrize.includes('(2 Gelas)') ? 2 : 1;
+          const labelIdx = activePrizes.length > 1 ? ` ${idx + 1}` : '';
+
+          finalOrder.push({
+            menu_id: menuMatch ? menuMatch.id : null,
+            nama: `[PROMO SPIN${labelIdx}] ${activeSpinPrize}`,
+            harga: specialPrice,
+            qty: prizeQty,
+            catatan: 'Hadiah Spin Wheel (>100k) - Harga Promo',
+            kategori: menuMatch ? (menuMatch.kategori || '') : 'minuman'
+          });
+        }
+      });
+
+      // Kalkulasi ulang total karena spin prize mungkin menambahkan item berbayar ke finalOrder
+      const finalSubtotal = finalOrder.reduce((sum, o) => sum + o.harga * o.qty, 0);
+      const finalTotal = tipePelanggan === 'CAKRA' ? 0 : Math.max(0, finalSubtotal - (Number(discountValue) || 0));
+      const finalKembali = jumlahBayar ? Math.max(0, parseInt(jumlahBayar.replace(/\D/g, '') || 0) - finalTotal) : 0;
+
       const pesananData = {
         meja_id: tipeOrder === 'dine-in' ? parseInt(selectedMejaId) : null,
         tipe: tipeOrder,
-        items: order.map(o => ({ menu_id: o.menu_id, qty: o.qty, catatan: o.catatan, kategori: o.kategori })),
-        pembayaran: { metode: metodeBayar.toLowerCase(), jumlah: total }, // payload offline
+        items: finalOrder.map(o => ({ menu_id: o.menu_id, qty: o.qty, catatan: o.catatan, kategori: o.kategori })),
+        pembayaran: { metode: metodeBayar.toLowerCase(), jumlah: finalTotal }, // payload offline
         nama_pelanggan: namaPelanggan.trim() || null,
         no_telepon: nomorHp.trim() || null,
         discount_name: discountName.trim() || null,
@@ -266,8 +333,8 @@ export default function KasirPOS() {
 
       const strukData = { 
         pesananId: 'TMP-' + Date.now(), 
-        items: order, subtotal, ppn, ppnRate, total, metodeBayar, 
-        jumlahBayar: parseInt(jumlahBayar.replace(/\D/g, '') || 0), kembali, 
+        items: finalOrder, subtotal: finalSubtotal, ppn, ppnRate, total: finalTotal, metodeBayar, 
+        jumlahBayar: parseInt(jumlahBayar.replace(/\D/g, '') || 0), kembali: finalKembali, 
         meja: tipeOrder === 'dine-in' ? nomorMeja : null, 
         tipe: tipeOrder, kasir: user?.username, tanggal: new Date(),
         nama_pelanggan: namaPelanggan.trim() || null,
@@ -287,25 +354,38 @@ export default function KasirPOS() {
           const success = await dbService.saveOrder({
             local_id: localId,
             ...pesananData,
-            total,
+            total: finalTotal,
             metodeBayar,
             jumlahBayar: parseInt(jumlahBayar.replace(/\D/g, '') || 0),
-            kembali
-          }, order);
+            kembali: finalKembali
+          }, finalOrder);
           
           if (!success) throw new Error('Gagal menyimpan ke database lokal');
           
-          // Trigger sync in background asynchronously
-          setTimeout(() => syncService.syncOrders(), 1000);
+          // Trigger sync in background asynchronously — langsung coba, juga retry saat online kembali
+          setTimeout(() => syncService.syncOrders(), 500);
           
-        } else {
+        } else if (navigator.onLine) {
           // ---------------------------------------------------------
-          // STRICT ONLINE FLOW (WEB / FALLBACK)
+          // ONLINE FLOW (WEB)
           // ---------------------------------------------------------
           const payload = { ...pesananData, local_id: localId };
           const resPesanan = await api.post('/pesanan', payload)
-          await api.post('/pembayaran', { pesanan_id: resPesanan.data.pesanan_id, metode: metodeBayar.toLowerCase(), jumlah: total, is_kasir: true })
+          await api.post('/pembayaran', { pesanan_id: resPesanan.data.pesanan_id, metode: metodeBayar.toLowerCase(), jumlah: finalTotal, is_kasir: true })
           strukData.pesananId = resPesanan.data.pesanan_id
+        } else {
+          // ---------------------------------------------------------
+          // OFFLINE FALLBACK (WEB — simpan ke localStorage, sync saat online)
+          // ---------------------------------------------------------
+          const offlinePayload = {
+            ...pesananData,
+            local_id: localId,
+            total: finalTotal,
+            is_offline_sync: true,
+            pembayaran: { metode: metodeBayar.toLowerCase(), jumlah: finalTotal }
+          };
+          await queueOfflineOrder(offlinePayload);
+          console.log('[POS] Offline: pesanan disimpan ke antrian lokal (localStorage):', localId);
         }
       } catch (err) {
         const errMsg = err.response?.data?.message || err.message || 'Gagal membuat pesanan';
@@ -316,7 +396,7 @@ export default function KasirPOS() {
       }
 
       // Cetak struk sesuai metode cetak yang dipilih
-      const printTypes = ['pelanggan', 'bar', 'kasir'];
+      const printTypes = ['pelanggan', 'bar', 'kasir', 'dapur'];
       if (printMethod === 'thermal') {
         // Cetak secara background agar tidak memblokir kasir
         cetakStrukThermal(strukData, printTypes).catch(err => {
@@ -333,7 +413,7 @@ export default function KasirPOS() {
         Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
       }
       
-      setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); setNamaPelanggan(''); setNomorHp(''); setSelectedMejaId(''); setTipePelanggan('Umum'); setDiscountName(''); setDiscountValue(''); fetchData()
+      setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); setNamaPelanggan(''); setNomorHp(''); setSelectedMejaId(''); setTipePelanggan('Umum'); setDiscountName(''); setDiscountValue(''); setSelectedSpinPrizes([]); setShowSpinModal(false); fetchData()
     } catch (err) { 
       showAlert(err.response?.data?.message || 'Gagal memproses pembayaran', 'Gagal') 
     } finally { 
@@ -341,7 +421,7 @@ export default function KasirPOS() {
     }
   }
 
-  const handleCancel = () => { setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); setTipePelanggan('Umum'); setDiscountName(''); setDiscountValue('') }
+  const handleCancel = () => { setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); setTipePelanggan('Umum'); setDiscountName(''); setDiscountValue(''); setSelectedSpinPrizes([]); setShowSpinModal(false); }
 
   return (
     <MobileLayout activeMenu="Kasir (POS)" overflowClass="overflow-hidden flex flex-col">
@@ -361,7 +441,7 @@ export default function KasirPOS() {
             </select>
           </div>
           {printMethod === 'thermal' && (
-            <button onClick={requestPrinterPermission} className="px-4 py-2 bg-[#634930] hover:bg-[#4d3925] text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5">
+            <button onClick={() => setShowPrinterModal(true)} className="px-4 py-2 bg-[#634930] hover:bg-[#4d3925] text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center gap-1.5">
               🔌 Hubungkan Printer
             </button>
           )}
@@ -409,7 +489,7 @@ export default function KasirPOS() {
                   <option value="browser">🌐 Browser</option>
                 </select>
                 {printMethod === 'thermal' && (
-                  <button onClick={requestPrinterPermission} className="px-3 py-2 bg-[#634930] hover:bg-[#4d3925] text-white text-xs font-bold rounded-full flex items-center gap-1 transition-all">
+                  <button onClick={() => setShowPrinterModal(true)} className="px-3 py-2 bg-[#634930] hover:bg-[#4d3925] text-white text-xs font-bold rounded-full flex items-center gap-1 transition-all">
                     🔌 Pair
                   </button>
                 )}
@@ -437,7 +517,12 @@ export default function KasirPOS() {
                     <div key={menu.id} className="rounded-2xl overflow-hidden flex flex-col shadow-sm"
                       style={{ backgroundColor: '#EDE0CC', border: qty > 0 ? '2px solid #634930' : '2px solid transparent' }}>
                       {/* Menu Image */}
-                      <div className="w-full aspect-square bg-[#F5F0E8] overflow-hidden">
+                      <div className="w-full aspect-square bg-[#F5F0E8] overflow-hidden relative">
+                        {Number(menu.tersedia) === 0 && (
+                          <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
+                            <span className="bg-red-600 text-white font-black text-[10px] uppercase px-2 py-0.5 rounded-full shadow-md tracking-wider transform -rotate-6">Habis</span>
+                          </div>
+                        )}
                         {menu.gambar ? (
                           <ImageLoader src={menu.gambar} alt={menu.nama} className="w-full h-full" />
                         ) : (
@@ -448,8 +533,8 @@ export default function KasirPOS() {
                       </div>
                       {/* Info + Actions */}
                       <div className="p-2 md:p-3 flex flex-col items-center flex-1 justify-between w-full">
-                        <p className="text-xs font-bold text-center mb-1 line-clamp-2" style={{ color: '#634930' }}>{menu.nama}</p>
-                        {menu.deskripsi && (
+                        <p className="text-xs font-bold text-center mb-1 leading-snug min-h-[2rem] flex items-center justify-center" style={{ color: '#634930' }}>{menu.nama}</p>
+                        {menu.deskripsi && menu.deskripsi !== '-' && menu.deskripsi.trim() !== '' && (
                           <div 
                             onClick={(e) => {
                               e.stopPropagation();
@@ -768,7 +853,7 @@ export default function KasirPOS() {
               {userCanEdit('pos') ? (
                 <div className="flex gap-2">
                   <button onClick={handleCancel} className="flex-1 py-2.5 md:py-3 rounded-full font-bold text-sm text-white" style={{ backgroundColor: '#e74c3c' }}>Cancel</button>
-                  <button onClick={() => handleProsesBayar(false)} disabled={loadingBayar} className="flex-1 py-2.5 md:py-3 rounded-full font-bold text-sm text-white disabled:opacity-60" style={{ backgroundColor: '#27ae60' }}>
+                  <button onClick={() => handleTriggerBayar()} disabled={loadingBayar} className="flex-1 py-2.5 md:py-3 rounded-full font-bold text-sm text-white disabled:opacity-60" style={{ backgroundColor: '#27ae60' }}>
                     {loadingBayar ? '...' : 'Bayar'}
                   </button>
                 </div>
@@ -776,6 +861,160 @@ export default function KasirPOS() {
                 <div className="text-center text-xs text-red-500 font-bold mt-2">Hanya View (Tidak bisa proses)</div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Dropdown Hadiah Spin (Belanja > 100k) */}
+      {showSpinModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border-2 border-[#C4A882] max-h-[90vh] overflow-y-auto">
+            <div className="mb-4">
+              <h3 className="font-extrabold text-lg text-[#634930]">Belanja Rp {total.toLocaleString('id-ID')} (Kelipatan 100k)!</h3>
+              <p className="text-xs text-[#8c6d46]">Pelanggan berhak memutar Roda Hadiah Fisik sebanyak <strong>{Math.floor(total / 100000)} kali</strong> di lokasi.</p>
+            </div>
+            
+            <div className="bg-[#F5F0E8] rounded-2xl p-4 mb-4 border border-[#C4A882]/40">
+              <p className="text-xs font-semibold text-[#634930] mb-3">
+                <strong>Instruksi Kasir:</strong> Arahkan pelanggan memutar alat spin fisik sebanyak {Math.floor(total / 100000)} kali. Setelah berhenti, pilih hadiah yang dimenangkan untuk setiap putaran di bawah ini:
+              </p>
+              
+              <div className="space-y-3">
+                {selectedSpinPrizes.map((prize, idx) => (
+                  <div key={idx}>
+                    <label className="block text-xs font-bold text-[#634930] mb-1">Hadiah Putaran ke-{idx + 1}:</label>
+                    <select 
+                      value={prize || 'TANPA_HADIAH'} 
+                      onChange={(e) => {
+                        const newPrizes = [...selectedSpinPrizes];
+                        newPrizes[idx] = e.target.value;
+                        setSelectedSpinPrizes(newPrizes);
+                      }}
+                      className="w-full p-2.5 rounded-xl border-2 border-[#C4A882] bg-white font-bold text-xs text-[#634930] focus:outline-none"
+                    >
+                      <option value="TANPA_HADIAH">-- Tidak Ambil Hadiah / Tanpa Hadiah --</option>
+                      <option value="BLACK LYCHEE">BLACK LYCHEE (10k)</option>
+                      <option value="BOCI TULANG RANGU">BOCI TULANG RANGU (13k)</option>
+                      <option value="SIOMAY">SIOMAY (10k)</option>
+                      <option value="BLACK MANGO">BLACK MANGO (10k)</option>
+                      <option value="SEBLAK">SEBLAK (15k)</option>
+                      <option value="CIRENG ISI">CIRENG ISI (12k)</option>
+                      <option value="ES TEH MANIS (2 Gelas)">ES TEH MANIS 2 Gelas (10k)</option>
+                      <option value="SINGKONG GORENG">SINGKONG GORENG (10k)</option>
+                      <option value="KENTANG GORENG">KENTANG GORENG (10k)</option>
+                      <option value="BLACK PEACH">BLACK PEACH (10k)</option>
+                      <option value="MACARONI SCHOTEL">MACARONI SCHOTEL (13k)</option>
+                      <option value="CIRENG RUJAK">CIRENG RUJAK (10k)</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => {
+                  setSelectedSpinPrizes([]);
+                  setShowSpinModal(false);
+                  handleProsesBayar(false, []);
+                }}
+                className="flex-1 py-3 rounded-xl font-bold text-xs bg-gray-200 text-gray-700 hover:bg-gray-300 transition"
+              >
+                Tanpa Hadiah
+              </button>
+              <button 
+                onClick={() => {
+                  setShowSpinModal(false);
+                  handleProsesBayar(false, selectedSpinPrizes);
+                }}
+                className="flex-1 py-3 rounded-xl font-bold text-sm text-white shadow-lg transition"
+                style={{ backgroundColor: '#27ae60' }}
+              >
+                Simpan &amp; Proses Bayar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MULTI PRINTER SETTINGS MODAL */}
+      {showPrinterModal && (
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+          <div className="bg-[#FDFBF7] rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto border-2 border-[#C4A882]">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-[#634930]">Pengaturan Multi-Printer</h2>
+              <button onClick={() => setShowPrinterModal(false)} className="text-[#8B6F47] hover:text-[#634930] font-bold text-xl">✕</button>
+            </div>
+            
+            {!window.bluetoothSerial ? (
+              <div className="text-sm text-[#8B6F47] mb-4 bg-[#EDE0CC] p-4 rounded-xl border border-[#C4A882]/40">
+                <p className="font-bold text-[#634930] mb-2">🌐 Mode Desktop (Web Serial)</p>
+                Konfigurasi MAC Address (Bluetooth) hanya berlaku di Android APK. Di browser PC, koneksi USB/Serial akan diminta setiap kali kasir di-refresh atau ketika mulai mencetak (Browser Policy).
+                <div className="mt-4">
+                  <button onClick={() => { requestPrinterPermission(); setShowPrinterModal(false); }} className="w-full py-2.5 bg-[#634930] text-white font-bold rounded-xl flex justify-center items-center gap-2">
+                    🔌 Pair USB Thermal Printer
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex justify-end">
+                  <button 
+                    onClick={async () => {
+                      showAlert('Mencari printer Bluetooth...', 'Info');
+                      const list = await getBluetoothPrinters();
+                      setBtPrinters(list);
+                      if(list.length === 0) showAlert('Tidak ada printer ditemukan. Pastikan sudah di-pair di Settings HP.', 'Info');
+                    }}
+                    className="px-3 py-1.5 bg-[#EDE0CC] hover:bg-[#C4A882] text-xs font-bold rounded-lg text-[#634930] flex items-center gap-1 transition-all"
+                  >
+                    🔄 Refresh Daftar Perangkat
+                  </button>
+                </div>
+                
+                <div className="space-y-3">
+                  {['kasir', 'dapur', 'bar'].map(role => (
+                    <div key={role} className="border border-[#C4A882]/40 p-3 rounded-xl bg-white shadow-sm">
+                      <label className="block text-xs font-bold text-[#8B6F47] uppercase tracking-wider mb-1.5">
+                        Printer {role}
+                      </label>
+                      <select 
+                        value={printerConfig[role]} 
+                        onChange={e => setPrinterConfig({...printerConfig, [role]: e.target.value})}
+                        className="w-full p-2.5 rounded-lg bg-[#F5F0E8] border border-[#C4A882]/40 text-sm font-bold text-[#634930] focus:outline-none"
+                      >
+                        <option value="">❌ -- Tidak Ada / Jangan Cetak --</option>
+                        {btPrinters.map(p => (
+                          <option key={p.address} value={p.address}>{p.name} ({p.address})</option>
+                        ))}
+                        {printerConfig[role] && !btPrinters.find(p => p.address === printerConfig[role]) && (
+                          <option value={printerConfig[role]}>💾 MAC Tersimpan: {printerConfig[role]}</option>
+                        )}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+
+                <button 
+                  onClick={() => {
+                    if(printerConfig.kasir) localStorage.setItem('printer_mac_kasir', printerConfig.kasir);
+                    else localStorage.removeItem('printer_mac_kasir');
+                    
+                    if(printerConfig.dapur) localStorage.setItem('printer_mac_dapur', printerConfig.dapur);
+                    else localStorage.removeItem('printer_mac_dapur');
+                    
+                    if(printerConfig.bar) localStorage.setItem('printer_mac_bar', printerConfig.bar);
+                    else localStorage.removeItem('printer_mac_bar');
+                    
+                    showAlert('Konfigurasi Printer Berhasil Disimpan!', 'Sukses', 'success');
+                    setShowPrinterModal(false);
+                  }} 
+                  className="w-full mt-2 py-3 bg-[#634930] text-white font-bold rounded-xl shadow-md active:scale-95 transition-all flex justify-center items-center gap-2"
+                >
+                  💾 Simpan Pengaturan
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

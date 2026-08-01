@@ -8,5 +8,6 @@ router.get('/activity', auth({ module: 'logs_monitoring', action: 'view' }), log
 router.post('/restore/:id', auth({ module: 'logs_monitoring', action: 'edit' }), logController.restoreLog);
 router.get('/monitoring', auth({ module: 'logs_monitoring', action: 'view' }), logController.getSystemStatus);
 router.post('/clear-cache', auth({ module: 'logs_monitoring', action: 'edit' }), logController.clearServerCache);
+router.post('/restart', auth({ module: 'logs_monitoring', action: 'edit' }), logController.restartServer);
 
 module.exports = router;

@@ -15,32 +15,40 @@ class SyncService {
   }
 
   async init() {
-    // Listen to network changes
+    // Listen to Capacitor network changes (native)
     Network.addListener('networkStatusChange', status => {
       console.log('[SyncService] Network status changed', status);
       this.networkStatus = status;
       if (status.connected) {
+        console.log('[SyncService] Kembali online! Memulai sinkronisasi pesanan offline...');
         this.syncOrders();
       }
+    });
+
+    // Juga listen ke browser online event sebagai fallback (web + native)
+    window.addEventListener('online', () => {
+      console.log('[SyncService] window.online fired. Memulai sinkronisasi...');
+      this.networkStatus = { connected: true };
+      this.syncOrders();
     });
 
     // Get initial network status
     this.networkStatus = await Network.getStatus();
 
-    // Start periodic sync (e.g., every 3 minutes) just in case
+    // Start periodic sync (every 2 minutes) untuk jaga-jaga
     this.intervalId = setInterval(() => {
-      if (this.networkStatus.connected) {
+      if (this.networkStatus.connected || navigator.onLine) {
         this.syncOrders();
       }
       this.cleanupOldOrders();
-    }, 3 * 60 * 1000);
+    }, 2 * 60 * 1000);
 
     // Initial sync attempt if online
-    if (this.networkStatus.connected) {
+    if (this.networkStatus.connected || navigator.onLine) {
       setTimeout(() => {
         this.syncOrders();
         this.cleanupOldOrders();
-      }, 2000); // delay a bit after init
+      }, 2000);
     }
   }
 

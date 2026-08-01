@@ -51,6 +51,7 @@ export const AuthProvider = ({ children }) => {
     if (!user) return false;
     
     if (user.role === 'owner') return true;
+    if (user.role === 'dapur' && module !== 'kds' && module !== 'logs_monitoring') return false;
 
     // Always allow POS and Dashboard as fallback
     if (module === 'pos' || module === 'dashboard') return true;

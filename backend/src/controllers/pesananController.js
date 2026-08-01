@@ -210,9 +210,10 @@ exports.buatPesanan = async (req, res) => {
 
       // Jika sync offline, simpan pembayaran secara otomatis
       if (is_offline_sync && pembayaran) {
+        const metodeSafe = (pembayaran.metode || 'tunai').toString().toLowerCase();
         await conn.query(
           'INSERT INTO pembayaran (pesanan_id, metode, jumlah, status) VALUES (?, ?, ?, "sukses")',
-          [pesanan_id, pembayaran.metode || 'tunai', pembayaran.jumlah || total]
+          [pesanan_id, metodeSafe, pembayaran.jumlah || total]
         );
       }
 
@@ -269,7 +270,8 @@ exports.buatPesanan = async (req, res) => {
     res.status(201).json({ message: 'Pesanan dibuat/diperbarui', pesanan_id, total });
   } catch (err) {
     await conn.rollback();
-    console.error(err); res.status(500).json({ message: 'Server error' });
+    console.error('[PesananController] Error buatPesanan:', err.message, err.sqlMessage || '');
+    res.status(500).json({ message: 'Server error: ' + (err.sqlMessage || err.message) });
   } finally {
     conn.release();
   }

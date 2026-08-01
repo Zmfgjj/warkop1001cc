@@ -66,8 +66,10 @@ export default function MenuPublik() {
 
   // Filtered menu by category and search
   const filteredMenu = menuList.filter(m => {
-    const matchKat = activeKat ? m.kategori_nama === activeKat : true;
-    const matchSearch = m.nama.toLowerCase().includes(searchQuery.toLowerCase());
+    const mk = (m.kategori_nama || m.kategori || '').trim();
+    const targetKat = (activeKat || '').trim();
+    const matchKat = targetKat ? mk.toLowerCase() === targetKat.toLowerCase() : true;
+    const matchSearch = (m.nama || '').toLowerCase().includes((searchQuery || '').toLowerCase());
     return matchKat && matchSearch;
   })
 
@@ -257,7 +259,12 @@ export default function MenuPublik() {
                       className="bg-white rounded-2xl overflow-hidden flex flex-col"
                       style={{ boxShadow: '6px 6px 4px 0 rgba(0,0,0,0.15)' }}
                     >
-                      <div className="w-full aspect-square bg-[#F5F0E8] overflow-hidden">
+                      <div className="w-full aspect-square bg-[#F5F0E8] overflow-hidden relative">
+                        {Number(menu.tersedia) === 0 && (
+                          <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
+                            <span className="bg-red-600 text-white font-black text-xs uppercase px-3 py-1 rounded-full shadow-md tracking-wider transform -rotate-6">Habis</span>
+                          </div>
+                        )}
                         {menu.gambar ? (
                           <ImageLoader
                             src={menu.gambar}
@@ -273,10 +280,10 @@ export default function MenuPublik() {
                       </div>
                       <div className="px-3 pt-3 pb-4 flex flex-col flex-1 justify-between">
                         <div>
-                          <p className="text-sm text-center text-[#442D1D] font-bold leading-tight line-clamp-2 min-h-[2.5rem]">
+                          <p className="text-sm text-center text-[#442D1D] font-bold leading-snug min-h-[2.5rem] flex items-center justify-center">
                             {menu.nama}
                           </p>
-                          {menu.deskripsi && (
+                          {menu.deskripsi && menu.deskripsi !== '-' && menu.deskripsi.trim() !== '' && (
                             <div 
                               onClick={(e) => {
                                 e.stopPropagation();

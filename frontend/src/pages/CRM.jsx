@@ -206,9 +206,9 @@ export default function CRM() {
             
             <div className="flex flex-col sm:flex-row items-center gap-4">
               {waStatus === 'QR_READY' && waQr && (
-                <div className="flex items-center gap-3 bg-amber-50 p-2 rounded-xl border border-amber-100">
-                  <img src={waQr} alt="WhatsApp QR Code" className="w-20 h-20 rounded bg-white p-1" />
-                  <p className="text-xs text-amber-800 font-medium max-w-[150px]">
+                <div className="flex flex-col items-center gap-3 bg-amber-50 p-4 rounded-xl border border-amber-100">
+                  <img src={waQr} alt="WhatsApp QR Code" className="w-48 h-48 md:w-64 md:h-64 rounded bg-white p-2 shadow-sm" />
+                  <p className="text-xs text-amber-800 font-bold text-center max-w-[200px]">
                     Buka WhatsApp di HP Anda, lalu Scan QR ini untuk menghubungkan Gateway.
                   </p>
                 </div>

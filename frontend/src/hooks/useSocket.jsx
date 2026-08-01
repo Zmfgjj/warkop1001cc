@@ -55,7 +55,14 @@ export function useSocket() {
     };
   }, []);
 
-  return { socket, connected };
+  const reconnect = useCallback(() => {
+    if (sharedSocket) {
+      sharedSocket.disconnect();
+      sharedSocket.connect();
+    }
+  }, []);
+
+  return { socket, connected, reconnect };
 }
 
 export function useDebouncedCallback(callback, delay = 400) {

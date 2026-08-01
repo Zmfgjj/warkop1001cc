@@ -31,7 +31,10 @@ const corsOptions = {
 };
 
 const io = new Server(server, {
-  cors: corsOptions
+  cors: corsOptions,
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  allowEIO3: true
 });
 
 // Setup folder uploads
@@ -150,10 +153,11 @@ app.get('/', (req, res) => {
 // Update Checker API
 app.get('/api/version', (req, res) => {
   res.json({
-    latest_version: '1.0.0', // Ganti ini di server kalau mau minta user update
-    download_url: 'https://link-google-drive-atau-sejenisnya.com/warkop.apk', // Link download APK baru
-    force_update: false, // Jika true, user tidak bisa masuk sebelum update
-    message: 'Ada update fitur baru! Silakan download versi terbaru.'
+    latest_version: process.env.APP_VERSION || '1.0.11', // Ganti di .env atau di sini saat rilis update baru
+    bundle_url: 'https://warkop1001cc.cloud/bundle.zip', // OTA Bundle (Hot Code Push)
+    download_url: 'https://warkop1001cc.cloud/warkop.apk', // Full APK (sideload fallback)
+    force_update: false,
+    message: 'Ada update baru! Klik Update & Restart untuk langsung memasang tanpa install ulang APK.'
   });
 });
 

@@ -70,7 +70,7 @@ module.exports = (config = []) => {
         return next();
       }
 
-      // Permission mode: { module: 'xxx', action: 'view'|'edit' }
+      // Permission mode: { module: 'xxx' | ['xxx', 'yyy'], action: 'view'|'edit' }
       if (typeof config === 'object' && config.module) {
         if (userRole === 'owner') return next(); // Owner bypasses all checks
 
@@ -81,13 +81,18 @@ module.exports = (config = []) => {
           return res.status(403).json({ message: 'Role tidak memiliki konfigurasi permission' });
         }
 
-        const modulePerm = rolePerms[config.module];
-        if (!modulePerm) {
-          return res.status(403).json({ message: 'Akses ditolak untuk modul ini' });
+        const modules = Array.isArray(config.module) ? config.module : [config.module];
+        const action = config.action || 'view';
+        let hasAccess = false;
+
+        for (const mod of modules) {
+          if (rolePerms[mod] && rolePerms[mod][action]) {
+            hasAccess = true;
+            break;
+          }
         }
 
-        const action = config.action || 'view';
-        if (!modulePerm[action]) {
+        if (!hasAccess) {
           return res.status(403).json({ message: `Anda tidak memiliki akses ${action} untuk modul ini` });
         }
 

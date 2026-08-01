@@ -1,13 +1,15 @@
 import { Capacitor } from '@capacitor/core';
 import { KeepAwake } from '@capacitor-community/keep-awake';
 import { StatusBar, Style } from '@capacitor/status-bar';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { CapacitorUpdater } from '@capgo/capacitor-updater';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { AlertProvider } from './context/AlertContext'
 import { initSyncManager } from './utils/syncManager'
 import { dbService } from './services/DatabaseService'
 import { syncService } from './services/SyncService'
+import PullToRefresh from 'react-simple-pull-to-refresh'
 import OfflineBanner from './components/OfflineBanner'
 import Login from './pages/Login'
 import Kasir from './pages/Kasir'
@@ -50,7 +52,9 @@ const ProtectedRoute = ({ children, module }) => {
       manajemen_meja: '/kasir/meja',
       kds: '/kasir/kds',
       laporan: '/kasir/laporan',
-      user_manage: '/kasir/user-manage'
+      user_manage: '/kasir/user-manage',
+      logs_monitoring: '/kasir/monitoring',
+      role_manage: '/kasir/role-manage'
     }
     
     for (const [mod, path] of Object.entries(moduleRouteMap)) {
@@ -81,6 +85,8 @@ const AuthRoute = ({ children }) => {
     if (canView('crm')) return <Navigate to="/kasir/crm" replace />
     if (canView('manajemen_meja')) return <Navigate to="/kasir/meja" replace />
     if (canView('user_manage')) return <Navigate to="/kasir/user-manage" replace />
+    if (canView('logs_monitoring')) return <Navigate to="/kasir/monitoring" replace />
+    if (canView('role_manage')) return <Navigate to="/kasir/role-manage" replace />
     // Fallback
     return <Navigate to="/kasir" replace />
   }
@@ -89,13 +95,22 @@ const AuthRoute = ({ children }) => {
 
 function AppRoutes() {
   if (!Capacitor.isNativePlatform()) {
-    return (
-      <Routes>
-        <Route path="/menu" element={<MenuPublik />} />
-        <Route path="/menu/:meja_id" element={<MenuPublik />} />
-        <Route path="*" element={<Navigate to="/menu" replace />} />
-      </Routes>
-    )
+    const hostname = window.location.hostname || '';
+    const isMenuDomain = hostname.startsWith('menu.');
+    
+    // Jika diakses dari menu.warkop1001cc.cloud, kunci ke MenuPublik saja
+    if (isMenuDomain) {
+      return (
+        <Routes>
+          <Route path="/menu" element={<MenuPublik />} />
+          <Route path="/menu/:meja_id" element={<MenuPublik />} />
+          <Route path="*" element={<Navigate to="/menu" replace />} />
+        </Routes>
+      )
+    }
+    
+    // Jika diakses dari apps.warkop1001cc.cloud atau localhost, tampilkan semua rute POS
+    // (Akan diteruskan ke return <Routes> di bawah)
   }
 
   return (
@@ -110,8 +125,8 @@ function AppRoutes() {
       <Route path="/kasir/kds" element={<ProtectedRoute module="kds"><KDS /></ProtectedRoute>} />
       <Route path="/kasir/laporan" element={<ProtectedRoute module="laporan"><Laporan /></ProtectedRoute>} />
       <Route path="/kasir/user-manage" element={<ProtectedRoute module="user_manage"><UserManage /></ProtectedRoute>} />
-      <Route path="/kasir/monitoring" element={<ProtectedRoute><Monitoring /></ProtectedRoute>} />
-      <Route path="/kasir/role-manage" element={<RoleManage />} />
+      <Route path="/kasir/monitoring" element={<ProtectedRoute module="logs_monitoring"><Monitoring /></ProtectedRoute>} />
+      <Route path="/kasir/role-manage" element={<ProtectedRoute module="role_manage"><RoleManage /></ProtectedRoute>} />
       {/* Public customer web order - no auth required */}
       <Route path="/menu" element={<MenuPublik />} />
       <Route path="/menu/:meja_id" element={<MenuPublik />} />
@@ -120,8 +135,44 @@ function AppRoutes() {
   )
 }
 
+const AppWrapper = () => {
+  const location = useLocation();
+  // Nonaktifkan Pull-to-Refresh di dashboard dan halaman POS agar keranjang belanja
+  // tidak terhapus ketika pengguna scroll ke atas (termasuk jika ada trailing slash)
+  const isKasirPage = location.pathname === '/kasir' || 
+                      location.pathname === '/kasir/' || 
+                      location.pathname.startsWith('/kasir/pos');
+
+  const content = (
+    <div style={{ minHeight: '100%', height: '100%' }}>
+      <AppRoutes />
+    </div>
+  );
+
+  if (isKasirPage) {
+    return content;
+  }
+
+  return (
+    <PullToRefresh 
+      onRefresh={async () => {
+        if (navigator.onLine) {
+          await syncService.syncOrders();
+        }
+        window.location.reload();
+      }}
+      pullingContent={<div className="text-center py-4 text-gray-500">Tarik untuk memuat ulang...</div>}
+      refreshingContent={<div className="text-center py-4 text-gray-500">Memuat ulang...</div>}
+    >
+      {content}
+    </PullToRefresh>
+  );
+};
+
 
 export default function App() {
+  const [initDone, setInitDone] = useState(false);
+
   useEffect(() => {
     initSyncManager();
     
@@ -146,6 +197,9 @@ export default function App() {
       // 2. Mengatur warna status bar HP agar menyatu dengan warna aplikasi Warkop
       StatusBar.setStyle({ style: Style.Light }).catch(() => {});
       StatusBar.setBackgroundColor({ color: '#F9F5F0' }).catch(() => {});
+
+      // 3. Konfirmasi ke CapacitorUpdater bahwa aplikasi berhasil dimuat (mencegah auto-rollback OTA)
+      CapacitorUpdater.notifyAppReady().catch(() => {});
     }
 
     // Inisialisasi Database SQLite & Layanan Sinkronisasi
@@ -167,7 +221,7 @@ export default function App() {
           <OfflineBanner />
           <div className="flex-1 min-h-0 relative">
             <BrowserRouter>
-              <AppRoutes />
+              <AppWrapper />
             </BrowserRouter>
           </div>
         </div>

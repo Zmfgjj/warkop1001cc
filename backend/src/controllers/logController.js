@@ -273,3 +273,39 @@ exports.clearServerCache = async (req, res) => {
     res.status(500).json({ message: 'Gagal membersihkan cache server' });
   }
 };
+
+// Restart server (PM2 or VPS Reboot)
+exports.restartServer = async (req, res) => {
+  try {
+    const { type } = req.body || {}; // 'pm2' or 'vps'
+    const isVps = type === 'vps';
+    
+    const userId = req.user ? req.user.id : null;
+    const username = req.user ? (req.user.username || req.user.nama || 'USER') : 'SYSTEM';
+    
+    const actionDesc = isVps 
+      ? 'Melakukan REBOOT sistem VPS Server (Reset Uptime)' 
+      : 'Melakukan restart layanan aplikasi (PM2)';
+      
+    await db.query(
+      `INSERT INTO activity_logs (user_id, username, action_type, table_name, description) 
+       VALUES (?, ?, 'RESTART_SERVER', 'system', ?)`,
+      [userId, username, actionDesc]
+    );
+
+    const resMessage = isVps
+      ? 'Perintah REBOOT VPS dikirim. Mesin server sedang dimuat ulang (memakan waktu 30-60 detik)...'
+      : 'Perintah restart PM2 dikirim. Layanan sedang dimuat ulang dalam 2-5 detik...';
+
+    res.json({ message: resMessage });
+
+    // Delay command slightly so the HTTP response reaches the client safely
+    setTimeout(() => {
+      const cmd = isVps ? 'reboot' : 'pm2 restart all';
+      exec(cmd).catch(err => console.error('Restart error:', err));
+    }, 1000);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Gagal merestart server' });
+  }
+};

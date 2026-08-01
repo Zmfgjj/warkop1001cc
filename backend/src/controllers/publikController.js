@@ -38,7 +38,6 @@ exports.getMenuPublik = async (req, res) => {
       SELECT m.*, k.id as kategori_id, k.nama as kategori_nama, COALESCE(k.urutan, 999) as kategori_urutan
       FROM menu m
       LEFT JOIN kategori k ON m.kategori_id = k.id
-      WHERE m.tersedia = 1
       ORDER BY kategori_urutan, m.nama
     `);
 

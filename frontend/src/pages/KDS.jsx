@@ -1,6 +1,6 @@
 import { useAuth } from '../hooks/useAuth'
 import { useState, useEffect, useRef } from 'react'
-import { MonitorPlay, ShoppingBag, Utensils, Clock, CheckCircle, Check, Circle, FileText, Coffee, ChevronDown, ChevronUp } from 'lucide-react';
+import { MonitorPlay, ShoppingBag, Utensils, Clock, CheckCircle, Check, Circle, FileText, Coffee, ChevronDown, ChevronUp, X } from 'lucide-react';
 import api from '../api/auth'
 import { useSocket, useDebouncedCallback } from '../hooks/useSocket'
 import MobileLayout from '../components/MobileLayout'
@@ -12,7 +12,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics'
 export default function KDS() {
   const { user, canEdit: userCanEdit } = useAuth()
   const { showAlert } = useAlert()
-  const { socket } = useSocket()
+  const { socket, connected, reconnect } = useSocket()
   const [pesananList, setPesananList] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedNote, setSelectedNote] = useState(null)
@@ -20,8 +20,13 @@ export default function KDS() {
   const [kdsMode, setKdsModeState] = useState(() => localStorage.getItem('kds_mode') || 'dapur')
   const [audioEnabled, setAudioEnabledState] = useState(() => localStorage.getItem('kds_audio') === 'true')
   const [expandedOrders, setExpandedOrders] = useState([])
+  const [showAudioModal, setShowAudioModal] = useState(false)
   const audioObjRef = useRef(new Audio('/sounds/order-alert.mp3'))
+  const reminderObjRef = useRef(new Audio('/sounds/order-alert.mp3'))
+  const [serverAudioUrl, setServerAudioUrl] = useState('/sounds/order-alert.mp3')
+  const [serverReminderUrl, setServerReminderUrl] = useState('/sounds/order-alert.mp3')
   const previousIdsRef = useRef(new Set())
+  const playedAlarmsRef = useRef(new Set())
   
   const [alarmEnabled, setAlarmEnabledState] = useState(() => localStorage.getItem('kds_alarm_enabled') !== 'false')
 
@@ -31,26 +36,9 @@ export default function KDS() {
   }
 
   const playLateAlarmSound = () => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const playTone = (freq, time, duration) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(freq, time);
-        gain.gain.setValueAtTime(0, time);
-        gain.gain.linearRampToValueAtTime(0.12, time + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + duration);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(time);
-        osc.stop(time + duration);
-      };
-      const now = ctx.currentTime;
-      playTone(880, now, 0.15);
-      playTone(880, now + 0.2, 0.15);
-    } catch (e) {
-      console.log('Late alarm audio failed:', e);
+    if (audioEnabled) {
+      reminderObjRef.current.currentTime = 0;
+      reminderObjRef.current.play().catch(e => console.log('Reminder audio error:', e));
     }
   }
 
@@ -147,6 +135,58 @@ export default function KDS() {
     return () => clearInterval(interval);
   }, [debouncedFetch]);
 
+  // Unlock Audio on first interaction to fix browser autoplay policy
+  useEffect(() => {
+    const unlockAudio = () => {
+      if (audioObjRef.current) {
+        audioObjRef.current.play().then(() => audioObjRef.current.pause()).catch(() => {});
+      }
+      if (reminderObjRef.current) {
+        reminderObjRef.current.play().then(() => reminderObjRef.current.pause()).catch(() => {});
+      }
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+    };
+    
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio);
+    
+    return () => {
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+    };
+  }, []);
+
+  // Fetch custom audio from server
+  useEffect(() => {
+    const fetchAudioUrl = async () => {
+      try {
+        const res = await api.get(`/settings/kds-audio?mode=${kdsMode}&type=notif`);
+        let url = res.data.url;
+        if (url && url.startsWith('/uploads')) {
+          url = Capacitor.isNativePlatform() ? `http://202.155.157.13:3000${url}` : url;
+        }
+        if (url) {
+          setServerAudioUrl(url);
+          audioObjRef.current.src = url;
+        }
+
+        const resRem = await api.get(`/settings/kds-audio?mode=${kdsMode}&type=reminder`);
+        let urlRem = resRem.data.url;
+        if (urlRem && urlRem.startsWith('/uploads')) {
+          urlRem = Capacitor.isNativePlatform() ? `http://202.155.157.13:3000${urlRem}` : urlRem;
+        }
+        if (urlRem) {
+          setServerReminderUrl(urlRem);
+          reminderObjRef.current.src = urlRem;
+        }
+      } catch (err) {
+        console.error('Failed to fetch KDS audio:', err);
+      }
+    };
+    fetchAudioUrl();
+  }, [kdsMode]);
+
   // Audio Notification Logic
   useEffect(() => {
     if (pesananList.length === 0) return;
@@ -232,7 +272,7 @@ export default function KDS() {
   
   const lateInfo = getLateOrdersInfo();
 
-  // Late order alarm (orders pending/processing for >= 10 minutes)
+  // Late order alarm (orders pending/processing for >= 5 minutes, beep every 5 mins)
   useEffect(() => {
     if (!userCanEdit('kds') || !alarmEnabled) return;
 
@@ -242,12 +282,16 @@ export default function KDS() {
 
       for (const p of filteredPesanan) {
         const createdTime = new Date(p.created_at).getTime();
-        const elapsedMinutes = (now - createdTime) / 60000;
+        const elapsedMinutes = Math.floor((now - createdTime) / 60000);
         const hasActiveItems = p.items.some(i => i.status !== 'selesai');
 
-        if (hasActiveItems && elapsedMinutes >= 10) {
-          hasLate = true;
-          break;
+        if (hasActiveItems && elapsedMinutes > 0 && elapsedMinutes % 5 === 0) {
+          const key = `${p.id}-${elapsedMinutes}`;
+          if (!playedAlarmsRef.current.has(key)) {
+            hasLate = true;
+            playedAlarmsRef.current.add(key);
+            break;
+          }
         }
       }
 
@@ -257,9 +301,9 @@ export default function KDS() {
     };
 
     checkLateOrders();
-    const interval = setInterval(checkLateOrders, 15000); // Check every 15 seconds
+    const interval = setInterval(checkLateOrders, 10000); // Check every 10 seconds
     return () => clearInterval(interval);
-  }, [filteredPesanan, alarmEnabled, userCanEdit]);
+  }, [filteredPesanan, alarmEnabled, userCanEdit, audioEnabled]);
 
   const updateStatusItem = async (detailId, pesananId, status) => {
     // Optimistic UI update
@@ -353,11 +397,25 @@ export default function KDS() {
         </div>
 
         <div className="flex items-center gap-4">
+          {!connected && (
+            <button
+              onClick={reconnect}
+              className="px-3 md:px-4 py-2 rounded-full font-bold text-xs md:text-sm bg-red-600 hover:bg-red-700 text-white transition-all shadow-sm flex items-center gap-1 animate-pulse"
+            >
+              🔄 Reconnect
+            </button>
+          )}
           <button
             onClick={requestPrinterPermission}
             className="px-3 md:px-4 py-2 rounded-full font-bold text-xs md:text-sm bg-[#634930] hover:bg-[#4d3925] text-white transition-all shadow-sm flex items-center gap-1"
           >
             🔌 Printer
+          </button>
+          <button
+            onClick={() => setShowAudioModal(true)}
+            className="px-3 md:px-4 py-2 rounded-full font-bold text-xs md:text-sm bg-[#8B6F47] hover:bg-[#634930] text-white transition-all shadow-sm flex items-center gap-1"
+          >
+            🎵 Nada
           </button>
           <button
             onClick={() => {
@@ -407,6 +465,54 @@ export default function KDS() {
           )}
         </div>
 
+        {/* Action Bar - Selalu tampil walau pesanan kosong */}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            <button onClick={() => setKdsMode('semua')} className="px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all whitespace-nowrap" style={{ backgroundColor: kdsMode === 'semua' ? '#634930' : '#fff', color: kdsMode === 'semua' ? '#fff' : '#634930', border: '1px solid #634930' }}>Semua</button>
+            <button onClick={() => setKdsMode('dapur')} className="px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all whitespace-nowrap flex items-center gap-1" style={{ backgroundColor: kdsMode === 'dapur' ? '#634930' : '#fff', color: kdsMode === 'dapur' ? '#fff' : '#634930', border: '1px solid #634930' }}><Utensils size={14}/> Dapur</button>
+            <button onClick={() => setKdsMode('bar')} className="px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all whitespace-nowrap flex items-center gap-1" style={{ backgroundColor: kdsMode === 'bar' ? '#634930' : '#fff', color: kdsMode === 'bar' ? '#fff' : '#634930', border: '1px solid #634930' }}><Coffee size={14}/> Bar</button>
+          </div>
+          <div className="flex items-center gap-2">
+            {!connected && (
+              <button
+                onClick={reconnect}
+                className="lg:hidden px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full flex items-center gap-1 transition-all shadow-sm animate-pulse"
+              >
+                🔄 Reconnect
+              </button>
+            )}
+            {(user?.role === 'owner' || user?.role === 'manager' || user?.role === 'admin') && (
+              <button
+                onClick={() => setAlarmEnabled(!alarmEnabled)}
+                className="lg:hidden px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full flex items-center gap-1 transition-all shadow-sm"
+              >
+                {alarmEnabled ? '🔔 Alarm' : '🔕 Alarm'}
+              </button>
+            )}
+            <button onClick={requestPrinterPermission} className="lg:hidden px-3 py-2 bg-[#634930] hover:bg-[#4d3925] text-white text-xs font-bold rounded-full flex items-center gap-1 transition-all shadow-sm">
+              🔌 Printer
+            </button>
+            <button
+              onClick={() => setShowAudioModal(true)}
+              className="lg:hidden px-3 py-2 bg-[#8B6F47] hover:bg-[#634930] text-white text-xs font-bold rounded-full flex items-center gap-1 transition-all shadow-sm"
+            >
+              🎵 Nada
+            </button>
+            <button
+              onClick={() => {
+                setAudioEnabled(!audioEnabled);
+                if (!audioEnabled) {
+                  audioObjRef.current.play().then(() => audioObjRef.current.pause()).catch(() => {});
+                  reminderObjRef.current.play().then(() => reminderObjRef.current.pause()).catch(() => {});
+                }
+              }}
+              className={`lg:hidden px-3 py-2 text-xs font-bold rounded-full transition-all shadow-sm ${audioEnabled ? 'bg-[#22B214] text-white' : 'bg-gray-200 text-gray-600'}`}
+            >
+              {audioEnabled ? '🔊' : '🔇'}
+            </button>
+          </div>
+        </div>
+
         {loading ? (
           <div className="flex items-center justify-center py-24">
             <p style={{ color: '#8B6F47' }}>Memuat pesanan...</p>
@@ -417,26 +523,6 @@ export default function KDS() {
           </div>
         ) : (
           <div>
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                <button onClick={() => setKdsMode('semua')} className="px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all whitespace-nowrap" style={{ backgroundColor: kdsMode === 'semua' ? '#634930' : '#fff', color: kdsMode === 'semua' ? '#fff' : '#634930', border: '1px solid #634930' }}>Semua</button>
-                <button onClick={() => setKdsMode('dapur')} className="px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all whitespace-nowrap flex items-center gap-1" style={{ backgroundColor: kdsMode === 'dapur' ? '#634930' : '#fff', color: kdsMode === 'dapur' ? '#fff' : '#634930', border: '1px solid #634930' }}><Utensils size={14}/> Dapur</button>
-                <button onClick={() => setKdsMode('bar')} className="px-4 py-2 rounded-full font-bold text-xs shadow-sm transition-all whitespace-nowrap flex items-center gap-1" style={{ backgroundColor: kdsMode === 'bar' ? '#634930' : '#fff', color: kdsMode === 'bar' ? '#fff' : '#634930', border: '1px solid #634930' }}><Coffee size={14}/> Bar</button>
-              </div>
-              <div className="flex items-center gap-2">
-                {(user?.role === 'owner' || user?.role === 'manager' || user?.role === 'admin') && (
-                  <button
-                    onClick={() => setAlarmEnabled(!alarmEnabled)}
-                    className="lg:hidden px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-full flex items-center gap-1 transition-all shadow-sm"
-                  >
-                    {alarmEnabled ? '🔔 Alarm' : '🔕 Alarm'}
-                  </button>
-                )}
-                <button onClick={requestPrinterPermission} className="lg:hidden px-3 py-2 bg-[#634930] hover:bg-[#4d3925] text-white text-xs font-bold rounded-full flex items-center gap-1 transition-all shadow-sm">
-                  🔌 Printer
-                </button>
-              </div>
-            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 md:gap-5 pb-8">
             {filteredPesanan.map(pesanan => {
               const createdTime = new Date(pesanan.created_at).getTime();
@@ -637,6 +723,149 @@ export default function KDS() {
             >
               TUTUP
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Audio Settings Modal */}
+      {showAudioModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col">
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                🎵 Pengaturan Suara KDS
+              </h3>
+              <button onClick={() => setShowAudioModal(false)} className="text-gray-400 hover:text-red-500">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-gray-600 mb-4">
+                Pilih file audio (MP3/WAV/M4A) dari perangkat Anda untuk mengganti nada dering pesanan masuk pada mode <strong>{kdsMode}</strong>. Suara akan tersimpan di Server.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Bagian Notif */}
+                <div className="border border-gray-200 p-4 rounded-xl">
+                  <h4 className="font-bold text-sm text-gray-700 mb-2">Suara Pesanan Baru</h4>
+                  <p className="text-xs text-gray-500 mb-4">Bunyi ketika ada pesanan baru masuk.</p>
+                  <input 
+                    type="file" 
+                    accept="audio/*"
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) {
+                        showAlert('Ukuran file terlalu besar! Maksimal 5MB.', 'Gagal', 'error');
+                        return;
+                      }
+                      
+                      const formData = new FormData();
+                      formData.append('audio', file);
+                      formData.append('mode', kdsMode);
+                      formData.append('type', 'notif');
+
+                      try {
+                        const res = await api.post('/settings/kds-audio', formData);
+                        
+                        let url = res.data.url;
+                        if (url.startsWith('/uploads')) {
+                          url = Capacitor.isNativePlatform() ? `http://202.155.157.13:3000${url}` : url;
+                        }
+                        
+                        setServerAudioUrl(url);
+                        audioObjRef.current.src = url;
+                        showAlert(`Suara pesanan baru berhasil diperbarui!`, 'Sukses', 'success');
+                      } catch (err) {
+                        console.error('Upload error:', err);
+                        showAlert('Gagal mengupload suara ke server', 'Error', 'error');
+                      }
+                    }}
+                    className="w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-700 hover:file:bg-amber-100 mb-4"
+                  />
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => {
+                        audioObjRef.current.currentTime = 0;
+                        audioObjRef.current.play().catch(e => console.log(e));
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#22B214] text-white hover:bg-[#1c9810]"
+                    >
+                      Test Suara Baru
+                    </button>
+                    <button
+                      onClick={() => {
+                        audioObjRef.current.src = '/sounds/order-alert.mp3';
+                        showAlert('Suara sementara dikembalikan ke bawaan pabrik.', 'Info', 'info');
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    >
+                      Kembalikan Default
+                    </button>
+                  </div>
+                </div>
+
+                {/* Bagian Reminder */}
+                <div className="border border-gray-200 p-4 rounded-xl">
+                  <h4 className="font-bold text-sm text-gray-700 mb-2">Suara Pengingat</h4>
+                  <p className="text-xs text-gray-500 mb-4">Bunyi setiap 5 menit jika ada order belum selesai.</p>
+                  <input 
+                    type="file" 
+                    accept="audio/*"
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) {
+                        showAlert('Ukuran file terlalu besar! Maksimal 5MB.', 'Gagal', 'error');
+                        return;
+                      }
+                      
+                      const formData = new FormData();
+                      formData.append('audio', file);
+                      formData.append('mode', kdsMode);
+                      formData.append('type', 'reminder');
+
+                      try {
+                        const res = await api.post('/settings/kds-audio', formData);
+                        
+                        let url = res.data.url;
+                        if (url.startsWith('/uploads')) {
+                          url = Capacitor.isNativePlatform() ? `http://202.155.157.13:3000${url}` : url;
+                        }
+                        
+                        setServerReminderUrl(url);
+                        reminderObjRef.current.src = url;
+                        showAlert(`Suara pengingat berhasil diperbarui!`, 'Sukses', 'success');
+                      } catch (err) {
+                        console.error('Upload error:', err);
+                        showAlert('Gagal mengupload suara ke server', 'Error', 'error');
+                      }
+                    }}
+                    className="w-full text-xs text-gray-500 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 mb-4"
+                  />
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => {
+                        reminderObjRef.current.currentTime = 0;
+                        reminderObjRef.current.play().catch(e => console.log(e));
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-500 text-white hover:bg-blue-600"
+                    >
+                      Test Suara Pengingat
+                    </button>
+                    <button
+                      onClick={() => {
+                        reminderObjRef.current.src = '/sounds/order-alert.mp3';
+                        showAlert('Suara pengingat dikembalikan ke bawaan pabrik.', 'Info', 'info');
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    >
+                      Kembalikan Default
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

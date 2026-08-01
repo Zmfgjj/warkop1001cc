@@ -111,9 +111,7 @@ export default function ManajemenMenu() {
         formData.append('gambar', formTambah.gambar)
       }
       
-      const res = await api.post('/menu', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
+      const res = await api.post('/menu', formData)
       setShowTambah(false)
       setFormTambah({ nama: '', harga: '', harga_diskon: '', hpp: '', kategori_id: kategoriList[0]?.id || '', gambar: null, gambarPreview: '', deskripsi: '', variants: [] })
       fetchMenu()
@@ -147,9 +145,7 @@ export default function ManajemenMenu() {
         formData.append('gambar', formEdit.gambarPreview)
       }
       
-      await api.put(`/menu/${editTarget.id}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
+      await api.put(`/menu/${editTarget.id}`, formData)
       setShowEdit(false)
       setEditTarget(null)
       fetchMenu()
@@ -290,8 +286,8 @@ export default function ManajemenMenu() {
                   {/* Content Area */}
                   <div className="p-4 flex-1 flex flex-col justify-between">
                     <div>
-                      <h3 className="font-bold text-base text-stone-800 leading-tight mb-1 group-hover:text-[#5C4033] transition-colors line-clamp-2">{menu.nama}</h3>
-                      {menu.deskripsi && (
+                      <h3 className="font-bold text-base text-stone-800 leading-snug mb-1 group-hover:text-[#5C4033] transition-colors">{menu.nama}</h3>
+                      {menu.deskripsi && menu.deskripsi !== '-' && menu.deskripsi.trim() !== '' && (
                         <p className="text-xs text-stone-500 line-clamp-2 mb-2 leading-relaxed">{menu.deskripsi}</p>
                       )}
                     </div>

@@ -43,6 +43,15 @@ export default function Laporan() {
   const [tahunTahunan, setTahunTahunan] = useState(new Date().getFullYear())
   const [dataTahunan, setDataTahunan] = useState(null)
 
+  // Cetak Ulang Modal
+  const [printTarget, setPrintTarget] = useState(null)
+  const [printOptions, setPrintOptions] = useState({
+    kasir: true,
+    pelanggan: true,
+    dapur: false,
+    bar: false
+  })
+
   // Histori
   const [dariHistori, setDariHistori] = useState(new Date().toISOString().split('T')[0])
   const [sampaiHistori, setSampaiHistori] = useState(new Date().toISOString().split('T')[0])
@@ -133,7 +142,14 @@ export default function Laporan() {
     }
   }
 
-  const handlePrintReceipt = async (p) => {
+  const handlePrintReceipt = (p) => {
+    setPrintTarget(p);
+    setPrintOptions({ kasir: true, pelanggan: true, dapur: false, bar: false });
+  }
+
+  const executePrint = async () => {
+    if (!printTarget) return;
+    const p = printTarget;
     const subtotal = (p.items || []).reduce((sum, it) => sum + it.qty * it.harga, 0);
     const discount_value = p.discount_value || Math.max(0, subtotal - p.total);
     const strukData = {
@@ -161,8 +177,17 @@ export default function Laporan() {
       discount_name: p.discount_name || 'Promo',
       discount_value
     }
-    const thermalOk = await cetakStrukThermal(strukData, ['kasir', 'pelanggan']).catch(() => false);
-    if (!thermalOk) cetakStruk(strukData, ['kasir', 'pelanggan']);
+    
+    const selectedTargets = Object.keys(printOptions).filter(k => printOptions[k]);
+    if (selectedTargets.length === 0) {
+      showAlert('Pilih minimal 1 jenis struk', 'Perhatian', 'warning');
+      return;
+    }
+
+    const thermalOk = await cetakStrukThermal(strukData, selectedTargets).catch(() => false);
+    if (!thermalOk) cetakStruk(strukData, selectedTargets);
+    
+    setPrintTarget(null);
   }
 
   const fRp = (n) => `Rp ${Number(n).toLocaleString('id-ID')}`
@@ -1191,6 +1216,44 @@ export default function Laporan() {
                   Simpan
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal Cetak Ulang */}
+      {printTarget && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl">
+            <h3 className="font-bold text-lg text-[#634930] mb-2">Pilih Struk</h3>
+            <p className="text-xs text-gray-500 mb-4">Pilih struk untuk dicetak ulang (Order #{String(printTarget.id).padStart(4, '0')}).</p>
+            
+            <div className="space-y-3 mb-6">
+              {['kasir', 'pelanggan', 'dapur', 'bar'].map(opt => (
+                <label key={opt} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={printOptions[opt]}
+                    onChange={(e) => setPrintOptions(prev => ({ ...prev, [opt]: e.target.checked }))}
+                    className="w-5 h-5 rounded text-[#634930] focus:ring-[#634930]"
+                  />
+                  <span className="text-sm font-bold text-gray-700 capitalize">Struk {opt}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button 
+                onClick={() => setPrintTarget(null)} 
+                className="flex-1 py-3 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all text-sm"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={executePrint} 
+                className="flex-1 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-[#634930] to-[#8B6F47] hover:opacity-90 transition-all shadow-md text-sm"
+              >
+                Cetak
+              </button>
             </div>
           </div>
         </div>
