@@ -133,6 +133,11 @@ function generateStrukHTML({ pesananId, items, subtotal, ppn, ppnRate, total, me
 }
 
 function getFilteredItems(items, type) {
+  // Kasir, pelanggan, dan meja selalu menampilkan semua item
+  if (type === 'kasir' || type === 'pelanggan' || type === 'meja') {
+    return items;
+  }
+
   return items.filter(i => {
     const dest1 = i.kategori_print_destination; // null, 'dapur', 'bar', 'semua'
     const dest2 = i.kategori2_print_destination; // null, 'dapur', 'bar', 'semua'
@@ -157,7 +162,7 @@ function getFilteredItems(items, type) {
     }
 
     if (type === 'bar') {
-      const isBar = k => k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew') || k.includes('non coffee') || k.includes('non-coffee') || k.includes('coklat') || k.includes('chocolate') || k.includes('susu') || k.includes('blend') || k.includes('yakult') || k.includes('squash') || k.includes('bar') || k.includes('coffe');
+      const isBar = k => k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew') || k.includes('non coffee') || k.includes('non-coffee') || k.includes('coklat') || k.includes('chocolate') || k.includes('susu') || k.includes('blend') || k.includes('yakult') || k.includes('squash') || k.includes('bar') || k.includes('coffe') || k.includes('juice') || k.includes('jus') || k.includes('ice') || k.includes('es') || k.includes('frappe') || k.includes('smoothie') || k.includes('spesial') || k.includes('special');
       return isBar(k1) || isBar(k2);
     }
 
@@ -472,7 +477,7 @@ async function _cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
             }
 
             // Konversi string ESC/POS → byte array (supaya \x00 di CUT command tidak terpotong)
-            const byteArray = Array.from(receiptStr).map(c => c.charCodeAt(0) & 0xFF);
+            const byteArray = new Uint8Array(Array.from(receiptStr).map(c => c.charCodeAt(0) & 0xFF));
 
             if (!macGroups[mac]) {
               macGroups[mac] = [];
@@ -494,7 +499,8 @@ async function _cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
             try {
               for (let j = 0; j < bytes.length; j += CHUNK_SIZE) {
                 const chunk = bytes.slice(j, j + CHUNK_SIZE);
-                await new Promise((ok, fail) => window.bluetoothSerial.write(chunk, ok, fail));
+                // Convert to ArrayBuffer for cordova-plugin-bluetooth-serial
+                await new Promise((ok, fail) => window.bluetoothSerial.write(chunk.buffer, ok, fail));
                 await new Promise(r => setTimeout(r, CHUNK_DELAY));
               }
               res();

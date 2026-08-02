@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import api from '../api/auth';
 
-export const CURRENT_APP_VERSION = '1.0.32';
+export const CURRENT_APP_VERSION = '1.0.37';
 
 export default function UpdateChecker() {
   const [updateInfo, setUpdateInfo] = useState(null);
