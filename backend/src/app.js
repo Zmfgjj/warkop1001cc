@@ -153,9 +153,9 @@ app.get('/', (req, res) => {
 // Update Checker API
 app.get('/api/version', (req, res) => {
   res.json({
-    latest_version: process.env.APP_VERSION || '1.0.26', // Ganti di .env atau di sini saat rilis update baru
-    bundle_url: 'https://warkop1001cc.cloud/bundle.zip', // OTA Bundle (Hot Code Push)
-    download_url: 'https://warkop1001cc.cloud/warkop.apk', // Full APK (sideload fallback)
+    latest_version: process.env.APP_VERSION || '1.0.37',
+    bundle_url: 'https://warkop1001cc.cloud/bundle.zip?v=1.0.37',
+    download_url: 'https://warkop1001cc.cloud/warkop.apk',
     force_update: false,
     message: 'Ada update baru! Klik Update & Restart untuk langsung memasang tanpa install ulang APK.'
   });
