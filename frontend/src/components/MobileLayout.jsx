@@ -13,6 +13,7 @@ export const allMenuItems = [
   { icon: <MessageCircle size={20} />, label: 'CRM (Pelanggan)', path: '/kasir/crm', module: 'crm' },
   { icon: <MonitorPlay size={20} />, label: 'KDS', path: '/kasir/kds', module: 'kds' },
   { icon: <BarChart3 size={20} />, label: 'Laporan', path: '/kasir/laporan', module: 'laporan' },
+  { icon: <Activity size={20} />, label: 'Import Data', path: '/kasir/import-data', module: 'import_data' },
   { icon: <Users size={20} />, label: 'User Manage', path: '/kasir/user-manage', module: 'user_manage' },
   { icon: <Activity size={20} />, label: 'Logs & Monitoring', path: '/kasir/monitoring', module: 'logs_monitoring' },
   { icon: <Shield size={20} />, label: 'Hak dan Role Akses', path: '/kasir/role-manage', module: 'role_manage' },

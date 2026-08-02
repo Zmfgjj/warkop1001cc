@@ -12,12 +12,51 @@ exports.getKategori = async (req, res) => {
   }
 };
 
+exports.tambahKategori = async (req, res) => {
+  try {
+    const { nama, urutan, print_destination } = req.body;
+    await db.query('INSERT INTO kategori (nama, urutan, print_destination) VALUES (?, ?, ?)', 
+      [nama, urutan || 0, print_destination || 'dapur']);
+    res.json({ message: 'Kategori berhasil ditambahkan' });
+  } catch (err) {
+    console.error(err); res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.updateKategori = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nama, urutan, print_destination } = req.body;
+    await db.query('UPDATE kategori SET nama = ?, urutan = ?, print_destination = ? WHERE id = ?', 
+      [nama, urutan || 0, print_destination || 'dapur', id]);
+    res.json({ message: 'Kategori berhasil diupdate' });
+  } catch (err) {
+    console.error(err); res.status(500).json({ message: 'Server error' });
+  }
+};
+
+exports.hapusKategori = async (req, res) => {
+  try {
+    const { id } = req.params;
+    // Cek apakah ada menu yang menggunakan kategori ini
+    const [menus] = await db.query('SELECT id FROM menu WHERE kategori_id = ?', [id]);
+    if (menus.length > 0) {
+      return res.status(400).json({ message: 'Kategori tidak bisa dihapus karena masih digunakan oleh menu.' });
+    }
+    await db.query('DELETE FROM kategori WHERE id = ?', [id]);
+    res.json({ message: 'Kategori berhasil dihapus' });
+  } catch (err) {
+    console.error(err); res.status(500).json({ message: 'Server error' });
+  }
+};
+
 exports.getMenu = async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT m.*, k.nama as kategori_nama 
+      SELECT m.*, k.nama as kategori_nama, k.print_destination as kategori_print_destination, k2.nama as kategori2_nama, k2.print_destination as kategori2_print_destination
       FROM menu m 
       LEFT JOIN kategori k ON m.kategori_id = k.id
+      LEFT JOIN kategori k2 ON m.kategori2_id = k2.id
       ORDER BY k.urutan, m.nama
     `);
 
@@ -78,7 +117,7 @@ exports.tambahMenu = async (req, res) => {
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
-    const { kategori_id, nama, deskripsi, harga, hpp } = req.body;
+    const { kategori_id, kategori2_id, nama, deskripsi, harga, hpp } = req.body;
     let variants = [];
     try {
       if (req.body.variants) {
@@ -98,9 +137,6 @@ exports.tambahMenu = async (req, res) => {
       return res.status(400).json({ message: 'Harga tidak valid' });
     }
     
-    console.log('📝 Tambah menu request:', { nama, harga, kategori_id });
-    console.log('📂 File received:', req.file ? { name: req.file.filename, size: req.file.size } : 'No file');
-    
     if (req.file) {
       const webpFilename = `${req.file.filename.split('.')[0]}.webp`;
       const webpPath = path.join(req.file.destination, webpFilename);
@@ -110,18 +146,16 @@ exports.tambahMenu = async (req, res) => {
         .webp({ quality: 80 })
         .toFile(webpPath);
         
-      // Delete original file
       if (req.file.path !== webpPath) {
         fs.unlinkSync(req.file.path);
       }
       
       gambar = `/uploads/${webpFilename}`;
-      console.log('✅ Gambar path:', gambar);
     }
     
     const [result] = await conn.query(
-      'INSERT INTO menu (kategori_id, nama, deskripsi, harga, harga_diskon, hpp, gambar) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [kategori_id, nama, deskripsi || null, harga, req.body.harga_diskon || 0, hpp || 0, gambar]
+      'INSERT INTO menu (kategori_id, kategori2_id, nama, deskripsi, harga, harga_diskon, hpp, gambar) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [kategori_id, kategori2_id || null, nama, deskripsi || null, harga, req.body.harga_diskon || 0, hpp || 0, gambar]
     );
 
     const menuId = result.insertId;
@@ -139,10 +173,9 @@ exports.tambahMenu = async (req, res) => {
 
     await conn.commit();
     
-    // Emit real-time event
     const io = req.app.get('io');
     const [menuBaru] = await db.query(
-      'SELECT m.*, k.nama as kategori_nama FROM menu m LEFT JOIN kategori k ON m.kategori_id = k.id WHERE m.id = ?',
+      'SELECT m.*, k.nama as kategori_nama, k.print_destination as kategori_print_destination, k2.nama as kategori2_nama, k2.print_destination as kategori2_print_destination FROM menu m LEFT JOIN kategori k ON m.kategori_id = k.id LEFT JOIN kategori k2 ON m.kategori2_id = k2.id WHERE m.id = ?',
       [menuId]
     );
     io.emit('menuAdded', menuBaru[0]);
@@ -162,7 +195,7 @@ exports.updateMenu = async (req, res) => {
   try {
     await conn.beginTransaction();
     const { id } = req.params;
-    const { kategori_id, nama, deskripsi, harga, hpp, tersedia } = req.body;
+    const { kategori_id, kategori2_id, nama, deskripsi, harga, hpp, tersedia } = req.body;
     let variants = [];
     try {
       if (req.body.variants) {
@@ -171,7 +204,7 @@ exports.updateMenu = async (req, res) => {
     } catch (e) {
       console.error('Error parsing variants:', e);
     }
-    let gambar = req.body.gambar; // Keep existing if no new file
+    let gambar = req.body.gambar;
 
     if (!nama || !harga || !kategori_id) {
       await conn.rollback();
@@ -191,7 +224,6 @@ exports.updateMenu = async (req, res) => {
         .webp({ quality: 80 })
         .toFile(webpPath);
         
-      // Delete original file
       if (req.file.path !== webpPath) {
         fs.unlinkSync(req.file.path);
       }
@@ -200,11 +232,10 @@ exports.updateMenu = async (req, res) => {
     }
     
     await conn.query(
-      'UPDATE menu SET kategori_id=?, nama=?, deskripsi=?, harga=?, harga_diskon=?, hpp=?, gambar=?, tersedia=? WHERE id=?',
-      [kategori_id, nama, deskripsi || null, harga, req.body.harga_diskon || 0, hpp || 0, gambar, tersedia, id]
+      'UPDATE menu SET kategori_id=?, kategori2_id=?, nama=?, deskripsi=?, harga=?, harga_diskon=?, hpp=?, gambar=?, tersedia=? WHERE id=?',
+      [kategori_id, kategori2_id || null, nama, deskripsi || null, harga, req.body.harga_diskon || 0, hpp || 0, gambar, tersedia, id]
     );
     
-    // Update variants: delete old and insert new
     await conn.query('DELETE FROM menu_varian WHERE menu_id = ?', [id]);
     if (variants && variants.length > 0) {
       for (const v of variants) {
@@ -219,10 +250,9 @@ exports.updateMenu = async (req, res) => {
 
     await conn.commit();
 
-    // Emit real-time event
     const io = req.app.get('io');
     const [menuUpdated] = await db.query(
-      'SELECT m.*, k.nama as kategori_nama FROM menu m LEFT JOIN kategori k ON m.kategori_id = k.id WHERE m.id = ?',
+      'SELECT m.*, k.nama as kategori_nama, k.print_destination as kategori_print_destination, k2.nama as kategori2_nama, k2.print_destination as kategori2_print_destination FROM menu m LEFT JOIN kategori k ON m.kategori_id = k.id LEFT JOIN kategori k2 ON m.kategori2_id = k2.id WHERE m.id = ?',
       [id]
     );
     io.emit('menuUpdated', menuUpdated[0]);
@@ -241,7 +271,6 @@ exports.hapusMenu = async (req, res) => {
     const { id } = req.params;
     await db.query('DELETE FROM menu WHERE id = ?', [id]);
     
-    // Emit real-time event
     const io = req.app.get('io');
     io.emit('menuDeleted', { id: parseInt(id) });
     
@@ -263,7 +292,6 @@ exports.updateBulkPromo = async (req, res) => {
     }
 
     if (action === 'clear') {
-      // Set harga_diskon = 0 and clear times
       await db.query(`UPDATE menu SET harga_diskon = 0, promo_mulai_jam = NULL, promo_selesai_jam = NULL WHERE id IN (?)`, [menu_ids]);
     } else if (action === 'set') {
       if (!value || Number(value) < 0) {
@@ -287,13 +315,14 @@ exports.updateBulkPromo = async (req, res) => {
       return res.status(400).json({ message: 'Aksi tidak valid' });
     }
 
-    // Trigger update for clients
     const io = req.app.get('io');
-    const [updatedMenus] = await db.query(
-      `SELECT m.*, k.nama as kategori_nama FROM menu m LEFT JOIN kategori k ON m.kategori_id = k.id WHERE m.id IN (?)`,
-      [menu_ids]
-    );
-    updatedMenus.forEach(menu => io.emit('menuUpdated', menu));
+    if (io && menu_ids && menu_ids.length > 0) {
+      const [updatedMenus] = await db.query(
+        `SELECT m.*, k.nama as kategori_nama, k.print_destination as kategori_print_destination, k2.nama as kategori2_nama, k2.print_destination as kategori2_print_destination FROM menu m LEFT JOIN kategori k ON m.kategori_id = k.id LEFT JOIN kategori k2 ON m.kategori2_id = k2.id WHERE m.id IN (?)`,
+        [menu_ids]
+      );
+      updatedMenus.forEach(menu => io.emit('menuUpdated', menu));
+    }
 
     res.json({ message: 'Promo berhasil diperbarui' });
   } catch (err) {
@@ -330,10 +359,10 @@ exports.createCampaignPromo = async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      const [updatedMenus] = await db.query(
-        `SELECT m.*, k.nama as kategori_nama FROM menu m LEFT JOIN kategori k ON m.kategori_id = k.id WHERE m.id IN (?)`,
-        [menu_ids]
-      );
+        const [updatedMenus] = await db.query(
+          `SELECT m.*, k.nama as kategori_nama, k.print_destination as kategori_print_destination, k2.nama as kategori2_nama, k2.print_destination as kategori2_print_destination FROM menu m LEFT JOIN kategori k ON m.kategori_id = k.id LEFT JOIN kategori k2 ON m.kategori2_id = k2.id WHERE m.id IN (?)`,
+          [menu_ids]
+        );
       const [allPromos] = await db.query(`
         SELECT pm.menu_id, p.id, p.nama, p.tipe_promo, p.nilai_promo, p.mulai_jam, p.selesai_jam, p.hari
         FROM promosi_menu pm
@@ -403,10 +432,10 @@ exports.deleteCampaignPromo = async (req, res) => {
 
     const io = req.app.get('io');
     if (io && menuIds.length > 0) {
-      const [updatedMenus] = await db.query(
-        `SELECT m.*, k.nama as kategori_nama FROM menu m LEFT JOIN kategori k ON m.kategori_id = k.id WHERE m.id IN (?)`,
-        [menuIds]
-      );
+        const [updatedMenus] = await db.query(
+          `SELECT m.*, k.nama as kategori_nama, k.print_destination as kategori_print_destination, k2.nama as kategori2_nama, k2.print_destination as kategori2_print_destination FROM menu m LEFT JOIN kategori k ON m.kategori_id = k.id LEFT JOIN kategori k2 ON m.kategori2_id = k2.id WHERE m.id IN (?)`,
+          [menuIds]
+        );
       const [allPromos] = await db.query(`
         SELECT pm.menu_id, p.id, p.nama, p.tipe_promo, p.nilai_promo, p.mulai_jam, p.selesai_jam, p.hari
         FROM promosi_menu pm

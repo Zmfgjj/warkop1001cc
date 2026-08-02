@@ -153,7 +153,7 @@ app.get('/', (req, res) => {
 // Update Checker API
 app.get('/api/version', (req, res) => {
   res.json({
-    latest_version: process.env.APP_VERSION || '1.0.11', // Ganti di .env atau di sini saat rilis update baru
+    latest_version: process.env.APP_VERSION || '1.0.26', // Ganti di .env atau di sini saat rilis update baru
     bundle_url: 'https://warkop1001cc.cloud/bundle.zip', // OTA Bundle (Hot Code Push)
     download_url: 'https://warkop1001cc.cloud/warkop.apk', // Full APK (sideload fallback)
     force_update: false,

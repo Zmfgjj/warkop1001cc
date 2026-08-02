@@ -223,7 +223,8 @@ export default function KasirPOS() {
     }
     
     const mk = m.kategori_nama || m.kategori || ''
-    const matchKat = kategori === 'semua' ? true : mk.toLowerCase() === kategori.toLowerCase()
+    const mk2 = m.kategori2_nama || ''
+    const matchKat = kategori === 'semua' ? true : (mk.toLowerCase() === kategori.toLowerCase() || mk2.toLowerCase() === kategori.toLowerCase())
     return matchKat && searchMatch;
   });
 
@@ -235,7 +236,7 @@ export default function KasirPOS() {
       if (ex) return prev.map(o => o.menu_id === menu.id ? { ...o, qty: o.qty + 1 } : o)
       const promo = getActivePromo(menu);
       const baseHarga = promo ? promo.calculatedPrice : menu.harga;
-      return [...prev, { menu_id: menu.id, nama: menu.nama, harga: baseHarga, qty: 1, catatan: '', gambar: menu.gambar, kategori: menu.kategori || menu.kategori_nama || '' }]
+      return [...prev, { menu_id: menu.id, nama: menu.nama, harga: baseHarga, qty: 1, catatan: '', gambar: menu.gambar, kategori: menu.kategori || menu.kategori_nama || '', kategori2: menu.kategori2_nama || '', kategori_print_destination: menu.kategori_print_destination || null, kategori2_print_destination: menu.kategori2_print_destination || null }]
     })
   }
   const kurangItem = (menu_id) => {
@@ -320,7 +321,7 @@ export default function KasirPOS() {
       const pesananData = {
         meja_id: tipeOrder === 'dine-in' ? parseInt(selectedMejaId) : null,
         tipe: tipeOrder,
-        items: finalOrder.map(o => ({ menu_id: o.menu_id, qty: o.qty, catatan: o.catatan, kategori: o.kategori })),
+        items: finalOrder.map(o => ({ menu_id: o.menu_id, qty: o.qty, catatan: o.catatan, kategori: o.kategori, kategori2: o.kategori2 })),
         pembayaran: { metode: metodeBayar.toLowerCase(), jumlah: finalTotal }, // payload offline
         nama_pelanggan: namaPelanggan.trim() || null,
         no_telepon: nomorHp.trim() || null,

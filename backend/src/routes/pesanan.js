@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const pesananController = require('../controllers/pesananController');
+const importController = require('../controllers/importController');
 const auth = require('../middleware/auth');
 
+router.post('/import', auth({ module: 'laporan', action: 'edit' }), importController.importPesananLama);
 router.get('/', auth({ module: ['pos', 'kds'], action: 'view' }), pesananController.getPesanan);
 router.post('/', auth({ module: ['pos', 'kds'], action: 'edit' }), pesananController.buatPesanan);
 router.post('/reservasi', auth({ module: ['pos', 'kds'], action: 'edit' }), pesananController.buatReservasi);

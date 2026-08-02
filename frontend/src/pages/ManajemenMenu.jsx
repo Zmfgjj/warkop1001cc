@@ -20,19 +20,26 @@ export default function ManajemenMenu() {
 
   // Modal tambah menu
   const [showTambah, setShowTambah] = useState(false)
-  const [formTambah, setFormTambah] = useState({ nama: '', harga: '', harga_diskon: '', hpp: '', kategori_id: '', gambar: null, gambarPreview: '', deskripsi: '', variants: [] })
+  const [formTambah, setFormTambah] = useState({ nama: '', harga: '', harga_diskon: '', hpp: '', kategori_id: '', kategori2_id: '', gambar: null, gambarPreview: '', deskripsi: '', variants: [] })
   const [loadingTambah, setLoadingTambah] = useState(false)
 
   // Modal edit menu
   const [showEdit, setShowEdit] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
-  const [formEdit, setFormEdit] = useState({ nama: '', harga: '', harga_diskon: '', hpp: '', kategori_id: '', gambar: null, gambarPreview: '', deskripsi: '', variants: [], tersedia: true })
+  const [formEdit, setFormEdit] = useState({ nama: '', harga: '', harga_diskon: '', hpp: '', kategori_id: '', kategori2_id: '', gambar: null, gambarPreview: '', deskripsi: '', variants: [], tersedia: true })
   const [loadingEdit, setLoadingEdit] = useState(false)
 
   // Modal hapus
   const [showHapus, setShowHapus] = useState(false)
   const [hapusTarget, setHapusTarget] = useState(null)
   const [loadingHapus, setLoadingHapus] = useState(false)
+
+  // Modal kategori
+  const [showKategori, setShowKategori] = useState(false)
+  const [kategoriForm, setKategoriForm] = useState({ id: null, nama: '', urutan: 0, print_destination: 'dapur' })
+  const [loadingKategori, setLoadingKategori] = useState(false)
+
+  const canEdit = userCanEdit('manajemen_menu', 'edit') || user?.role === 'admin' || user?.role === 'owner' || user?.role === 'investor'
 
   useEffect(() => { 
     fetchKategori()
@@ -79,6 +86,40 @@ export default function ManajemenMenu() {
     }
   }
 
+  const handleSimpanKategori = async () => {
+    if (!kategoriForm.nama) return showAlert('Nama kategori wajib diisi!', 'Perhatian', 'warning')
+    setLoadingKategori(true)
+    try {
+      if (kategoriForm.id) {
+        await api.put(`/menu/kategori/${kategoriForm.id}`, kategoriForm)
+        showAlert('Kategori berhasil diupdate!', 'Sukses')
+      } else {
+        await api.post('/menu/kategori', kategoriForm)
+        showAlert('Kategori berhasil ditambahkan!', 'Sukses')
+      }
+      setKategoriForm({ id: null, nama: '', urutan: 0, print_destination: 'dapur' })
+      fetchKategori()
+    } catch (err) {
+      showAlert(err.response?.data?.message || 'Gagal menyimpan kategori', 'Error', 'error')
+    } finally {
+      setLoadingKategori(false)
+    }
+  }
+
+  const handleHapusKategori = async (id) => {
+    if (!window.confirm('Yakin ingin menghapus kategori ini?')) return
+    setLoadingKategori(true)
+    try {
+      await api.delete(`/menu/kategori/${id}`)
+      showAlert('Kategori berhasil dihapus!', 'Sukses')
+      fetchKategori()
+    } catch (err) {
+      showAlert(err.response?.data?.message || 'Gagal menghapus kategori', 'Error', 'error')
+    } finally {
+      setLoadingKategori(false)
+    }
+  }
+
   const fetchMenu = async () => {
     setLoading(true)
     try {
@@ -90,8 +131,6 @@ export default function ManajemenMenu() {
       setLoading(false)
     }
   }
-
-  const canEdit = userCanEdit('manajemen_menu')
 
   const handleTambahMenu = async () => {
     if (!formTambah.nama || !formTambah.harga || !formTambah.kategori_id) {
@@ -105,6 +144,9 @@ export default function ManajemenMenu() {
       formData.append('harga_diskon', formTambah.harga_diskon || 0)
       formData.append('hpp', formTambah.hpp || 0)
       formData.append('kategori_id', formTambah.kategori_id)
+      if (formTambah.kategori2_id) {
+        formData.append('kategori2_id', formTambah.kategori2_id)
+      }
       formData.append('deskripsi', formTambah.deskripsi)
       formData.append('variants', JSON.stringify(formTambah.variants))
       if (formTambah.gambar) {
@@ -113,7 +155,7 @@ export default function ManajemenMenu() {
       
       const res = await api.post('/menu', formData)
       setShowTambah(false)
-      setFormTambah({ nama: '', harga: '', harga_diskon: '', hpp: '', kategori_id: kategoriList[0]?.id || '', gambar: null, gambarPreview: '', deskripsi: '', variants: [] })
+      setFormTambah({ nama: '', harga: '', harga_diskon: '', hpp: '', kategori_id: kategoriList[0]?.id || '', kategori2_id: '', gambar: null, gambarPreview: '', deskripsi: '', variants: [] })
       fetchMenu()
     } catch (err) {
       console.error('❌ Error tambah menu:', err.response?.data)
@@ -135,6 +177,11 @@ export default function ManajemenMenu() {
       formData.append('harga_diskon', formEdit.harga_diskon || 0)
       formData.append('hpp', formEdit.hpp || 0)
       formData.append('kategori_id', formEdit.kategori_id)
+      if (formEdit.kategori2_id) {
+        formData.append('kategori2_id', formEdit.kategori2_id)
+      } else {
+        formData.append('kategori2_id', '')
+      }
       formData.append('deskripsi', formEdit.deskripsi)
       formData.append('variants', JSON.stringify(formEdit.variants))
       formData.append('tersedia', formEdit.tersedia ? 1 : 0)
@@ -170,7 +217,6 @@ export default function ManajemenMenu() {
     }
   }
 
-
   const openEditModal = (menu) => {
     setEditTarget(menu)
     setFormEdit({ 
@@ -179,6 +225,7 @@ export default function ManajemenMenu() {
       harga_diskon: menu.harga_diskon || 0,
       hpp: menu.hpp || 0,
       kategori_id: menu.kategori_id, 
+      kategori2_id: menu.kategori2_id || '',
       gambar: null,
       gambarPreview: menu.gambar,
       deskripsi: menu.deskripsi || '',
@@ -235,6 +282,12 @@ export default function ManajemenMenu() {
             
             {canEdit && (
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowKategori(true)}
+                  className="flex items-center gap-2 px-6 py-3 rounded-2xl font-medium text-amber-50 bg-[#8B6F47] hover:bg-[#725a3a] transition-all duration-300 shadow-lg shadow-[#8B6F47]/20 hover:shadow-[#8B6F47]/30 hover:-translate-y-0.5 active:scale-95"
+                >
+                  ⚙️ Kelola Kategori
+                </button>
                 <button
                   onClick={() => setShowTambah(true)}
                   className="flex items-center gap-2 px-6 py-3 rounded-2xl font-medium text-amber-50 bg-[#5C4033] hover:bg-[#4A3320] transition-all duration-300 shadow-lg shadow-[#5C4033]/20 hover:shadow-[#5C4033]/30 hover:-translate-y-0.5 active:scale-95"
@@ -395,8 +448,22 @@ export default function ManajemenMenu() {
                   onChange={(e) => setFormTambah({ ...formTambah, kategori_id: e.target.value })}
                   className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm appearance-none"
                 >
-                  <option value="" disabled>Pilih kategori yang sesuai</option>
+                  <option value="" disabled>Pilih kategori utama</option>
                   {kategoriList.map((kat) => (
+                    <option key={kat.id} value={kat.id}>{kat.nama}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-stone-600 mb-1.5">Kategori Tambahan <span className="text-stone-400 font-normal">(Opsional)</span></label>
+                <select
+                  value={formTambah.kategori2_id}
+                  onChange={(e) => setFormTambah({ ...formTambah, kategori2_id: e.target.value })}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all text-sm appearance-none"
+                >
+                  <option value="">Tidak ada kategori tambahan</option>
+                  {kategoriList.filter(k => String(k.id) !== String(formTambah.kategori_id)).map((kat) => (
                     <option key={kat.id} value={kat.id}>{kat.nama}</option>
                   ))}
                 </select>
@@ -673,33 +740,100 @@ export default function ManajemenMenu() {
 
       {/* Modal Hapus */}
       {showHapus && (
-        <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
-          <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-center">
-            <div className="w-20 h-20 rounded-full bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-5">
-              <Trash2 size={40} />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center">
+            <div className="w-20 h-20 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Trash2 size={36} />
             </div>
-            <h2 className="text-2xl font-bold text-stone-800 mb-2">Hapus Menu?</h2>
-            <p className="text-stone-500 mb-8 text-sm">
-              Anda yakin ingin menghapus <strong>{hapusTarget?.nama}</strong>? Tindakan ini bersifat permanen dan tidak bisa dibatalkan.
-            </p>
-            <div className="flex gap-3">
+            <h3 className="text-2xl font-bold text-stone-800 mb-2">Hapus Menu?</h3>
+            <p className="text-stone-500 mb-8">Apakah anda yakin ingin menghapus <span className="font-bold text-stone-700">{hapusTarget?.nama}</span>? Tindakan ini tidak dapat dibatalkan.</p>
+            <div className="flex gap-4">
               <button
-                onClick={() => setShowHapus(false)}
-                className="flex-1 px-4 py-3 rounded-xl font-semibold text-stone-600 bg-stone-100 hover:bg-stone-200 transition-all duration-200 active:scale-95"
+                onClick={() => { setShowHapus(false); setHapusTarget(null) }}
+                className="flex-1 px-6 py-3 rounded-2xl font-bold text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors"
               >
                 Batal
               </button>
               <button
                 onClick={handleHapusMenu}
                 disabled={loadingHapus}
-                className="flex-1 px-4 py-3 rounded-xl font-semibold text-white bg-red-500 hover:bg-red-600 transition-all duration-200 disabled:opacity-50 shadow-md shadow-red-500/20 active:scale-95"
+                className="flex-1 px-6 py-3 rounded-2xl font-bold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50"
               >
-                {loadingHapus ? 'Menghapus...' : 'Ya, Hapus'}
+                {loadingHapus ? 'Menghapus...' : 'Hapus Menu'}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Modal Kategori */}
+      {showKategori && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+            <div className="px-8 py-6 border-b border-stone-100 flex justify-between items-center bg-stone-50/50 rounded-t-3xl">
+              <h2 className="text-2xl font-black text-[#5C4033]">Kelola Kategori</h2>
+              <button onClick={() => setShowKategori(false)} className="text-stone-400 hover:text-stone-600 font-bold p-2 hover:bg-stone-100 rounded-xl transition-colors">✕</button>
+            </div>
+            <div className="p-8 overflow-y-auto flex-1 bg-stone-50/30">
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 mb-8">
+                <h3 className="font-bold text-stone-700 mb-4">{kategoriForm.id ? 'Edit Kategori' : 'Tambah Kategori Baru'}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-stone-600 mb-1.5">Nama Kategori</label>
+                    <input type="text" value={kategoriForm.nama} onChange={e => setKategoriForm({...kategoriForm, nama: e.target.value})} className="w-full px-4 py-2 border rounded-xl" placeholder="Contoh: Minuman" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-600 mb-1.5">Target Printer</label>
+                    <select value={kategoriForm.print_destination} onChange={e => setKategoriForm({...kategoriForm, print_destination: e.target.value})} className="w-full px-4 py-2 border rounded-xl">
+                      <option value="dapur">Dapur (Kitchen)</option>
+                      <option value="bar">Bar (Minuman)</option>
+                      <option value="semua">Keduanya (Dapur & Bar)</option>
+                      <option value="tidak_cetak">Tidak Dicetak</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-stone-600 mb-1.5">Urutan (Opsional)</label>
+                    <input type="number" value={kategoriForm.urutan} onChange={e => setKategoriForm({...kategoriForm, urutan: e.target.value})} className="w-full px-4 py-2 border rounded-xl" placeholder="0" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleSimpanKategori} disabled={loadingKategori} className="px-6 py-2 bg-[#5C4033] text-white rounded-xl font-bold hover:bg-[#4A3320] transition-colors">{loadingKategori ? 'Menyimpan...' : 'Simpan'}</button>
+                  {kategoriForm.id && <button onClick={() => setKategoriForm({ id: null, nama: '', urutan: 0, print_destination: 'dapur' })} className="px-6 py-2 bg-stone-200 text-stone-700 rounded-xl font-bold hover:bg-stone-300 transition-colors">Batal Edit</button>}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-stone-100 text-stone-600 text-sm">
+                    <tr>
+                      <th className="px-6 py-4 font-bold">Nama Kategori</th>
+                      <th className="px-6 py-4 font-bold">Target Printer</th>
+                      <th className="px-6 py-4 font-bold">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {kategoriList.map(kat => (
+                      <tr key={kat.id} className="hover:bg-stone-50 transition-colors">
+                        <td className="px-6 py-4 font-medium text-stone-800">{kat.nama}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${kat.print_destination === 'bar' ? 'bg-blue-100 text-blue-700' : kat.print_destination === 'semua' ? 'bg-purple-100 text-purple-700' : kat.print_destination === 'tidak_cetak' ? 'bg-stone-200 text-stone-600' : 'bg-orange-100 text-orange-700'}`}>
+                            {kat.print_destination === 'bar' ? 'Bar' : kat.print_destination === 'semua' ? 'Dapur & Bar' : kat.print_destination === 'tidak_cetak' ? 'Tidak Dicetak' : 'Dapur'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 flex gap-2">
+                          <button onClick={() => setKategoriForm(kat)} className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"><Edit2 size={16} /></button>
+                          <button onClick={() => handleHapusKategori(kat.id)} className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors"><Trash2 size={16} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </MobileLayout>
   )
 }

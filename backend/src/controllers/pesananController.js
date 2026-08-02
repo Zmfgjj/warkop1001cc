@@ -190,8 +190,8 @@ exports.buatPesanan = async (req, res) => {
       const isOffline = kasir_id !== null;
       nomor_antrean = await getNomorAntrean(conn, isOffline);
 
-      // Jika sync offline, status langsung 'selesai' dan payment_status 'paid'
-      const statusValue = is_offline_sync ? 'selesai' : 'pending';
+      // Jika sync offline, biarkan status 'pending' agar muncul di KDS, tetapi payment_status 'paid'
+      const statusValue = 'pending';
       const paymentStatusValue = is_offline_sync ? 'paid' : 'unpaid';
 
       const [result] = await conn.query(
@@ -200,7 +200,7 @@ exports.buatPesanan = async (req, res) => {
       );
       pesanan_id = result.insertId;
 
-      const itemStatusValue = is_offline_sync ? 'selesai' : 'pending';
+      const itemStatusValue = 'pending';
       for (const item of validatedItems) {
         await conn.query(
           'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, catatan, status) VALUES (?, ?, ?, ?, ?, ?)',
@@ -329,10 +329,11 @@ exports.getPesanan = async (req, res) => {
     if (rows.length > 0) {
       const ids = rows.map(r => r.id);
       const [allDetails] = await db.query(`
-        SELECT dp.*, mn.nama as nama_menu, k.nama as kategori_nama
+        SELECT dp.*, mn.nama as nama_menu, k.nama as kategori_nama, k.print_destination as kategori_print_destination, k2.nama as kategori2_nama, k2.print_destination as kategori2_print_destination
         FROM detail_pesanan dp
         LEFT JOIN menu mn ON dp.menu_id = mn.id
         LEFT JOIN kategori k ON mn.kategori_id = k.id
+        LEFT JOIN kategori k2 ON mn.kategori2_id = k2.id
         WHERE dp.pesanan_id IN (?)
       `, [ids]);
 

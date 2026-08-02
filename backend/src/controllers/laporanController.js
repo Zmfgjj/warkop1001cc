@@ -535,12 +535,14 @@ exports.historiPembelian = async (req, res) => {
     // Get detail items for all pesanan in one batch query
     if (rows.length > 0) {
       const ids = rows.map(r => r.id);
-      const [allDetails] = await db.query(`
-        SELECT dp.qty, dp.harga, dp.catatan, dp.pesanan_id, mn.nama as nama_menu
-        FROM detail_pesanan dp
-        LEFT JOIN menu mn ON dp.menu_id = mn.id
-        WHERE dp.pesanan_id IN (?)
-      `, [ids]);
+        const [allDetails] = await db.query(`
+          SELECT dp.qty, dp.harga, dp.catatan, dp.pesanan_id, mn.nama as nama_menu, k.nama as kategori_nama, k.print_destination as kategori_print_destination, k2.nama as kategori2_nama
+          FROM detail_pesanan dp
+          LEFT JOIN menu mn ON dp.menu_id = mn.id
+          LEFT JOIN kategori k ON mn.kategori_id = k.id
+          LEFT JOIN kategori k2 ON mn.kategori2_id = k2.id
+          WHERE dp.pesanan_id IN (?)
+        `, [ids]);
 
       const detailMap = {};
       for (const d of allDetails) {

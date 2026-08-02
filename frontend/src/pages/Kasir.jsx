@@ -16,6 +16,13 @@ export default function Kasir() {
   const [loading, setLoading] = useState(true)
   const [detailPesanan, setDetailPesanan] = useState(null)
   const [showDetail, setShowDetail] = useState(false)
+  const [stats, setStats] = useState({ 
+    pendapatan: 0, 
+    pesanan: 0, 
+    persentase: 0,
+    dineIn: 0,
+    takeAway: 0
+  })
 
   useEffect(() => {
     fetchDashboard()
@@ -24,12 +31,45 @@ export default function Kasir() {
   const fetchDashboard = async () => {
     setLoading(true)
     try {
-      const [resPesanan, resMeja] = await Promise.all([
+      // Get today and yesterday dates (local YYYY-MM-DD)
+      const now = new Date();
+      now.setHours(now.getHours() + 7); // Handle UTC if needed, but toISOString is UTC, let's use local
+      const today = new Date();
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const pad = (n) => String(n).padStart(2, '0');
+      const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+      const yesterdayStr = `${yesterday.getFullYear()}-${pad(yesterday.getMonth() + 1)}-${pad(yesterday.getDate())}`;
+
+      const [resPesanan, resMeja, resToday, resYesterday] = await Promise.all([
         api.get('/pesanan'),
         api.get('/meja'),
+        api.get('/laporan/ringkasan', { params: { tanggal: todayStr } }).catch(() => ({ data: { pendapatan: 0, total_pesanan: 0 } })),
+        api.get('/laporan/ringkasan', { params: { tanggal: yesterdayStr } }).catch(() => ({ data: { pendapatan: 0 } })),
       ])
       setPesanan(resPesanan.data)
       setMeja(resMeja.data)
+      
+      // Calculate daily stats
+      const dToday = resToday.data || { pendapatan: 0, total_pesanan: 0 };
+      const dYesterday = resYesterday.data || { pendapatan: 0 };
+      const pendapatanHariIni = Number(dToday.pendapatan || 0);
+      const pendapatanKemarin = Number(dYesterday.pendapatan || 0);
+      let persentase = 0;
+      if (pendapatanKemarin > 0) {
+        persentase = Math.round(((pendapatanHariIni - pendapatanKemarin) / pendapatanKemarin) * 100);
+      } else if (pendapatanHariIni > 0) {
+        persentase = 100;
+      }
+      
+      setStats({
+        pendapatan: pendapatanHariIni,
+        pesanan: Number(dToday.total_pesanan || 0),
+        persentase,
+        dineIn: resPesanan.data.filter(p => p.tipe === 'dine-in').length,
+        takeAway: resPesanan.data.filter(p => p.tipe === 'take-away').length
+      });
     } catch (err) {
       console.error('Gagal fetch dashboard:', err)
     } finally {
@@ -78,11 +118,6 @@ export default function Kasir() {
 
   const mejaTersedia = meja.filter(m => m.status === 'kosong').length
   const pesananDiproses = pesanan.filter(p => p.status === 'diproses' || p.status === 'pending')
-  const totalTransaksi = pesanan.reduce((sum, p) => sum + Number(p.total || 0), 0)
-
-  // Metrik Tambahan
-  const totalDineIn = pesanan.filter(p => p.tipe === 'dine-in').length
-  const totalTakeAway = pesanan.filter(p => p.tipe === 'take-away').length
 
   return (
     <MobileLayout activeMenu="Dashboard">
@@ -143,7 +178,7 @@ export default function Kasir() {
                   <div>
                     <p className="text-amber-100 text-sm font-semibold mb-1">Total Pendapatan</p>
                     <p className="text-2xl md:text-3xl font-black">
-                      Rp {totalTransaksi.toLocaleString('id-ID')}
+                      Rp {stats.pendapatan.toLocaleString('id-ID')}
                     </p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
@@ -151,7 +186,9 @@ export default function Kasir() {
                   </div>
                 </div>
                 <div className="mt-4 md:mt-6 flex items-center gap-2 text-sm text-amber-50">
-                  <span className="bg-white/20 px-2 py-0.5 rounded text-xs font-bold">+12%</span>
+                  <span className={`bg-white/20 px-2 py-0.5 rounded text-xs font-bold ${stats.persentase < 0 ? 'text-red-200' : 'text-white'}`}>
+                    {stats.persentase > 0 ? '+' : ''}{stats.persentase}%
+                  </span>
                   <span className="opacity-80">dari kemarin</span>
                 </div>
               </div>
@@ -162,7 +199,7 @@ export default function Kasir() {
                 <div className="flex justify-between items-start relative z-10">
                   <div>
                     <p className="text-orange-50 text-sm font-semibold mb-1">Total Pesanan</p>
-                    <p className="text-2xl md:text-3xl font-black">{pesanan.length}</p>
+                    <p className="text-2xl md:text-3xl font-black">{stats.pesanan}</p>
                   </div>
                   <div className="p-3 bg-white/20 rounded-2xl backdrop-blur-sm">
                     <ReceiptText size={28} className="text-white" />
@@ -170,10 +207,10 @@ export default function Kasir() {
                 </div>
                 <div className="mt-4 md:mt-6 flex items-center gap-3 text-sm">
                   <div className="flex gap-1 items-center bg-white/20 px-2 py-0.5 rounded text-xs font-bold">
-                    <span>Dine-in: {totalDineIn}</span>
+                    <span>Aktif Dine-in: {stats.dineIn}</span>
                   </div>
                   <div className="flex gap-1 items-center bg-white/20 px-2 py-0.5 rounded text-xs font-bold">
-                    <span>Take-away: {totalTakeAway}</span>
+                    <span>Aktif TA: {stats.takeAway}</span>
                   </div>
                 </div>
               </div>

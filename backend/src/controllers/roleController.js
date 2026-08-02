@@ -2,7 +2,7 @@ const db = require('../config/database');
 const { clearPermCache } = require('../middleware/auth');
 
 // All available modules for the permission matrix
-const ALL_MODULES = ['dashboard', 'pos', 'manajemen_menu', 'manajemen_promo', 'manajemen_meja', 'kds', 'laporan', 'user_manage', 'bonus_karyawan', 'crm', 'manajemen_stock', 'logs_monitoring', 'role_manage'];
+const ALL_MODULES = ['dashboard', 'pos', 'manajemen_menu', 'manajemen_promo', 'manajemen_meja', 'kds', 'laporan', 'import_data', 'user_manage', 'bonus_karyawan', 'crm', 'manajemen_stock', 'logs_monitoring', 'role_manage'];
 
 // Get all roles
 exports.getRoles = async (req, res) => {

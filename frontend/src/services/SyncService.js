@@ -1,5 +1,6 @@
 import { Network } from '@capacitor/network';
 import { dbService } from './DatabaseService';
+import { getOfflineOrders, removeOfflineOrder } from '../utils/offlineStore';
 import axios from 'axios';
 
 // Konfigurasi endpoint base url (asumsikan kita baca dari env)
@@ -58,12 +59,14 @@ class SyncService {
 
     try {
       const unsyncedOrders = await dbService.getUnsyncedOrders();
-      if (unsyncedOrders.length === 0) {
+      const localOfflineOrders = await getOfflineOrders();
+      
+      if (unsyncedOrders.length === 0 && localOfflineOrders.length === 0) {
         this.isSyncing = false;
         return;
       }
 
-      console.log(`[SyncService] Found ${unsyncedOrders.length} unsynced order(s)`);
+      console.log(`[SyncService] Found ${unsyncedOrders.length} DB order(s) and ${localOfflineOrders.length} LocalStorage order(s)`);
 
       const token = localStorage.getItem('token');
       if (!token) {
@@ -107,9 +110,45 @@ class SyncService {
             console.log(`[SyncService] Order ${order.local_id} synced successfully`);
           }
         } catch (err) {
-          console.error(`[SyncService] Failed to sync order ${order.local_id}`, err);
+          console.error(`[SyncService] Failed to sync DB order ${order.local_id}`, err);
           // Stop syncing if backend is down or network failed midway to prevent duplicate processing issues
           break; 
+        }
+      }
+
+      for (const order of localOfflineOrders) {
+        try {
+          const payload = {
+            local_id: order.local_id,
+            meja_id: order.meja_id || null,
+            kasir_id: order.kasir_id,
+            tipe: order.tipe,
+            catatan: order.catatan || null,
+            items: order.items.map(item => ({
+              menu_id: item.menu_id,
+              qty: item.qty,
+              harga: item.harga,
+              catatan: item.catatan || null
+            })),
+            is_offline_sync: true,
+            pembayaran: {
+              metode: order.pembayaran?.metode || order.metode_bayar || 'tunai',
+              jumlah: order.pembayaran?.jumlah || order.jumlah_bayar || order.total
+            },
+            nama_pelanggan: order.nama_pelanggan || null,
+            no_telepon: order.no_telepon || null,
+            discount_name: order.discount_name || order.diskon_nama || null,
+            discount_value: order.discount_value || order.diskon_nilai || 0
+          };
+
+          const response = await axios.post(`${apiUrl}/pesanan`, payload, { headers });
+          if (response.status === 200 || response.status === 201) {
+            await removeOfflineOrder(order._offlineId);
+            console.log(`[SyncService] LocalStorage Order ${order._offlineId} synced successfully`);
+          }
+        } catch (err) {
+          console.error(`[SyncService] Failed to sync LocalStorage order ${order._offlineId}`, err);
+          break;
         }
       }
     } catch (err) {

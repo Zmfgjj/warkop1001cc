@@ -61,14 +61,23 @@ export default function KDS() {
     )
   }
 
+  const initialFetchDoneRef = useRef(false);
+
   const fetchPesanan = async () => {
     setLoading(true)
     try {
       const res = await api.get('/pesanan')
-      setPesananList(res.data.filter(p => 
+      const activeList = res.data.filter(p => 
         (p.status === 'pending' || p.status === 'diproses') &&
         (p.payment_status === 'paid' || p.is_open_bill === 1)
-      ))
+      );
+
+      if (!initialFetchDoneRef.current) {
+        previousIdsRef.current = new Set(activeList.map(p => p.id));
+        initialFetchDoneRef.current = true;
+      }
+      
+      setPesananList(activeList)
     } catch (err) {
       console.error('Gagal fetch pesanan:', err)
     } finally {
@@ -88,9 +97,20 @@ export default function KDS() {
     const onOfflineSync = async (data) => {
       // Saring item yang relevan untuk KDS ini (Dapur / Bar)
       const relevantItems = (data.items || []).filter(i => {
-        const k = (i.kategori_nama || i.kategori || '').toLowerCase();
-        if (kdsMode === 'dapur') return k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie');
-        if (kdsMode === 'bar') return k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew');
+        if (i.kategori_print_destination || i.kategori2_print_destination) {
+          const isDapur = i.kategori_print_destination === 'dapur' || i.kategori_print_destination === 'semua' || i.kategori2_print_destination === 'dapur' || i.kategori2_print_destination === 'semua';
+          const isBar = i.kategori_print_destination === 'bar' || i.kategori_print_destination === 'semua' || i.kategori2_print_destination === 'bar' || i.kategori2_print_destination === 'semua';
+          if (kdsMode === 'dapur') return isDapur;
+          if (kdsMode === 'bar') return isBar;
+          return true;
+        }
+        const k1 = (i.kategori_nama || i.kategori || '').toLowerCase();
+        const k2 = (i.kategori2_nama || i.kategori2 || '').toLowerCase();
+        const isDapur = k => k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie') || k.includes('dapur') || k.includes('add on') || k.includes('others');
+        const isBar = k => k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew') || k.includes('bar') || k.includes('coffe');
+        
+        if (kdsMode === 'dapur') return isDapur(k1) || isDapur(k2);
+        if (kdsMode === 'bar') return isBar(k1) || isBar(k2);
         return true; // 'semua'
       });
 
@@ -189,16 +209,10 @@ export default function KDS() {
 
   // Audio Notification Logic
   useEffect(() => {
-    if (pesananList.length === 0) return;
+    if (!initialFetchDoneRef.current) return;
     
     const currentIds = new Set(pesananList.map(p => p.id));
     const previousIds = previousIdsRef.current;
-
-    // Skip first load
-    if (previousIds.size === 0) {
-      previousIdsRef.current = currentIds;
-      return;
-    }
 
     // Detect new orders
     const newOrders = pesananList.filter(p => !previousIds.has(p.id));
@@ -211,9 +225,20 @@ export default function KDS() {
           break;
         }
         const hasRelevantItem = p.items.some(i => {
-          const k = (i.kategori_nama || i.kategori || '').toLowerCase();
-          if (kdsMode === 'dapur') return k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie');
-          if (kdsMode === 'bar') return k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew');
+          if (i.kategori_print_destination || i.kategori2_print_destination) {
+            const isDapur = i.kategori_print_destination === 'dapur' || i.kategori_print_destination === 'semua' || i.kategori2_print_destination === 'dapur' || i.kategori2_print_destination === 'semua';
+            const isBar = i.kategori_print_destination === 'bar' || i.kategori_print_destination === 'semua' || i.kategori2_print_destination === 'bar' || i.kategori2_print_destination === 'semua';
+            if (kdsMode === 'dapur') return isDapur;
+            if (kdsMode === 'bar') return isBar;
+            return true;
+          }
+          const k1 = (i.kategori_nama || i.kategori || '').toLowerCase();
+          const k2 = (i.kategori2_nama || i.kategori2 || '').toLowerCase();
+          const isDapur = k => k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie') || k.includes('dapur') || k.includes('add on') || k.includes('others');
+          const isBar = k => k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew') || k.includes('bar') || k.includes('coffe');
+          
+          if (kdsMode === 'dapur') return isDapur(k1) || isDapur(k2);
+          if (kdsMode === 'bar') return isBar(k1) || isBar(k2);
           return false;
         });
         if (hasRelevantItem) {
@@ -239,9 +264,13 @@ export default function KDS() {
   const filteredPesanan = pesananList.map(p => {
     if (kdsMode === 'semua') return p;
     const filteredItems = p.items.filter(i => {
-      const k = (i.kategori_nama || i.kategori || '').toLowerCase();
-      if (kdsMode === 'dapur') return k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie');
-      if (kdsMode === 'bar') return k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew');
+      const k1 = (i.kategori_nama || i.kategori || '').toLowerCase();
+      const k2 = (i.kategori2_nama || i.kategori2 || '').toLowerCase();
+      const isDapur = k => k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie') || k.includes('dapur');
+      const isBar = k => k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew') || k.includes('bar');
+      
+      if (kdsMode === 'dapur') return isDapur(k1) || isDapur(k2);
+      if (kdsMode === 'bar') return isBar(k1) || isBar(k2);
       return true;
     });
     return { ...p, items: filteredItems };
@@ -274,7 +303,7 @@ export default function KDS() {
 
   // Late order alarm (orders pending/processing for >= 5 minutes, beep every 5 mins)
   useEffect(() => {
-    if (!userCanEdit('kds') || !alarmEnabled) return;
+    if (!alarmEnabled) return;
 
     const checkLateOrders = () => {
       let hasLate = false;
@@ -303,7 +332,7 @@ export default function KDS() {
     checkLateOrders();
     const interval = setInterval(checkLateOrders, 10000); // Check every 10 seconds
     return () => clearInterval(interval);
-  }, [filteredPesanan, alarmEnabled, userCanEdit, audioEnabled]);
+  }, [filteredPesanan, alarmEnabled, audioEnabled]);
 
   const updateStatusItem = async (detailId, pesananId, status) => {
     // Optimistic UI update
@@ -864,6 +893,7 @@ export default function KDS() {
                     </button>
                   </div>
                 </div>
+
               </div>
             </div>
           </div>

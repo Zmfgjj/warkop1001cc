@@ -42,7 +42,18 @@ export const getOfflineOrders = async () => {
   }
 };
 
-// Hapus antrian (setelah sync)
+// Hapus pesanan offline tertentu
+export const removeOfflineOrder = async (offlineId) => {
+  try {
+    const currentQueue = JSON.parse(localStorage.getItem('offlineOrders') || '[]');
+    const newQueue = currentQueue.filter(o => o._offlineId !== offlineId);
+    localStorage.setItem('offlineOrders', JSON.stringify(newQueue));
+  } catch (e) {
+    console.error("Gagal removeOfflineOrder", e);
+  }
+};
+
+// Hapus semua antrian (opsional)
 export const clearOfflineOrders = async () => {
   localStorage.removeItem('offlineOrders');
 };

@@ -9,6 +9,14 @@ import MobileLayout from '../components/MobileLayout'
 import { useAlert } from '../context/AlertContext'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts'
 
+// Helper untuk mendapatkan tanggal lokal (WIB/sesuai zona waktu HP/PC) dalam format YYYY-MM-DD
+// agar tidak ada bug mundur 1 hari jika diakses dari jam 00:00 - 07:00 pagi akibat zona waktu UTC.
+const getLocalDateString = () => {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().split('T')[0];
+}
+
 export default function Laporan() {
   const { user, isInvestor, canEdit: userCanEdit } = useAuth()
   const { showAlert } = useAlert()
@@ -31,7 +39,7 @@ export default function Laporan() {
   }
   
   // Harian
-  const [tanggalHarian, setTanggalHarian] = useState(new Date().toISOString().split('T')[0])
+  const [tanggalHarian, setTanggalHarian] = useState(getLocalDateString())
   const [dataHarian, setDataHarian] = useState(null)
 
   // Bulanan
@@ -53,8 +61,8 @@ export default function Laporan() {
   })
 
   // Histori
-  const [dariHistori, setDariHistori] = useState(new Date().toISOString().split('T')[0])
-  const [sampaiHistori, setSampaiHistori] = useState(new Date().toISOString().split('T')[0])
+  const [dariHistori, setDariHistori] = useState(getLocalDateString())
+  const [sampaiHistori, setSampaiHistori] = useState(getLocalDateString())
   const [dataHistori, setDataHistori] = useState(null)
   const [halamanHistori, setHalamanHistori] = useState(1)
   // New Filters for Histori
@@ -159,7 +167,9 @@ export default function Laporan() {
         nama: it.nama_menu,
         harga: it.harga,
         qty: it.qty,
-        catatan: it.catatan
+        catatan: it.catatan,
+        kategori_nama: it.kategori_nama,
+        kategori_print_destination: it.kategori_print_destination
       })),
       subtotal,
       ppn: 0,
@@ -1015,7 +1025,7 @@ export default function Laporan() {
                   </div>
                   
                   <div className="flex gap-3 mt-6 pt-5 border-t border-gray-100 justify-end">
-                    <button onClick={() => { setFilterMetode('semua'); setSearchHistori(''); setDariHistori(new Date().toISOString().split('T')[0]); setSampaiHistori(new Date().toISOString().split('T')[0]); }} className="px-6 py-2.5 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all text-sm">
+                    <button onClick={() => { setFilterMetode('semua'); setSearchHistori(''); setDariHistori(getLocalDateString()); setSampaiHistori(getLocalDateString()); }} className="px-6 py-2.5 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-all text-sm">
                       Reset
                     </button>
                     <button onClick={() => { setHalamanHistori(1); fetchHistori(1) }} className="px-8 py-2.5 rounded-xl font-bold text-white transition-all shadow-md bg-gradient-to-r from-[#634930] to-[#8B6F47] text-sm">
