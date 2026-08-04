@@ -106,7 +106,7 @@ export default function KDS() {
         }
         const k1 = (i.kategori_nama || i.kategori || '').toLowerCase();
         const k2 = (i.kategori2_nama || i.kategori2 || '').toLowerCase();
-        const isDapur = k => k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie') || k.includes('dapur') || k.includes('add on') || k.includes('others');
+        const isDapur = k => k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie') || k.includes('dapur') || k.includes('add on') || k.includes('others') || k.includes('cemilan') || k.includes('camilan') || k.includes('gorengan') || k.includes('cireng');
         const isBar = k => k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew') || k.includes('bar') || k.includes('coffe');
         
         if (kdsMode === 'dapur') return isDapur(k1) || isDapur(k2);
@@ -234,7 +234,7 @@ export default function KDS() {
           }
           const k1 = (i.kategori_nama || i.kategori || '').toLowerCase();
           const k2 = (i.kategori2_nama || i.kategori2 || '').toLowerCase();
-          const isDapur = k => k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie') || k.includes('dapur') || k.includes('add on') || k.includes('others');
+          const isDapur = k => k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie') || k.includes('dapur') || k.includes('add on') || k.includes('others') || k.includes('cemilan') || k.includes('camilan') || k.includes('gorengan') || k.includes('cireng');
           const isBar = k => k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew') || k.includes('bar') || k.includes('coffe');
           
           if (kdsMode === 'dapur') return isDapur(k1) || isDapur(k2);
@@ -264,10 +264,17 @@ export default function KDS() {
   const filteredPesanan = pesananList.map(p => {
     if (kdsMode === 'semua') return p;
     const filteredItems = p.items.filter(i => {
+      if (i.kategori_print_destination || i.kategori2_print_destination) {
+        const isDapur = i.kategori_print_destination === 'dapur' || i.kategori_print_destination === 'semua' || i.kategori2_print_destination === 'dapur' || i.kategori2_print_destination === 'semua';
+        const isBar = i.kategori_print_destination === 'bar' || i.kategori_print_destination === 'semua' || i.kategori2_print_destination === 'bar' || i.kategori2_print_destination === 'semua';
+        if (kdsMode === 'dapur') return isDapur;
+        if (kdsMode === 'bar') return isBar;
+        return true;
+      }
       const k1 = (i.kategori_nama || i.kategori || '').toLowerCase();
       const k2 = (i.kategori2_nama || i.kategori2 || '').toLowerCase();
-      const isDapur = k => k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie') || k.includes('dapur');
-      const isBar = k => k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew') || k.includes('bar');
+      const isDapur = k => k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie') || k.includes('dapur') || k.includes('add on') || k.includes('others') || k.includes('cemilan') || k.includes('camilan') || k.includes('gorengan') || k.includes('cireng');
+      const isBar = k => k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew') || k.includes('bar') || k.includes('coffe');
       
       if (kdsMode === 'dapur') return isDapur(k1) || isDapur(k2);
       if (kdsMode === 'bar') return isBar(k1) || isBar(k2);
@@ -696,7 +703,7 @@ export default function KDS() {
                 )}
 
                 {/* Card Footer */}
-                {userCanEdit('kds') && kdsMode !== 'semua' && (
+                {userCanEdit('kds') && (
                   <div className="px-4 md:px-5 py-3 md:py-4 flex justify-end bg-gray-50 border-t" style={{ borderColor: '#EDE0CC' }}>
                     <button
                       onClick={() => updateStatusPesanan(pesanan.id, 'selesai')}

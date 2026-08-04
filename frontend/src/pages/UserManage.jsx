@@ -19,9 +19,6 @@ export default function UserManage() {
   const navigate = useNavigate()
   const [userList, setUserList] = useState([])
   const [loading, setLoading] = useState(true)
-  const [ppn, setPpn] = useState(2)
-  const [ppnEditing, setPpnEditing] = useState(false)
-  const [newPpn, setNewPpn] = useState(2)
   const [roleList, setRoleList] = useState([])
 
   // Modal tambah user
@@ -73,7 +70,6 @@ export default function UserManage() {
 
   useEffect(() => { 
     fetchUser()
-    fetchPPN()
     fetchRoleList()
   }, [])
 
@@ -86,27 +82,6 @@ export default function UserManage() {
       console.error('Gagal fetch user:', err)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const fetchPPN = async () => {
-    try {
-      const res = await api.get('/settings/ppn')
-      setPpn(res.data.ppn)
-      setNewPpn(res.data.ppn)
-    } catch (err) {
-      console.error('Gagal fetch PPN:', err)
-    }
-  }
-
-  const handleSavePPN = async () => {
-    try {
-      await api.put('/settings/ppn', { ppn: parseFloat(newPpn) })
-      setPpn(parseFloat(newPpn))
-      setPpnEditing(false)
-      showAlert('PPN berhasil diubah', 'Sukses')
-    } catch (err) {
-      showAlert(err.response?.data?.message || 'Gagal update PPN', 'Gagal', 'error')
     }
   }
 
@@ -223,74 +198,10 @@ export default function UserManage() {
       <div className="flex-1 p-4 md:p-6 xl:p-10 overflow-y-auto">
         <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
 
-          {/* Top Grid: PPN Settings & Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          {/* Top Grid: Stats & Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               
-              {/* PPN Settings Card */}
-              <div className="lg:col-span-1 rounded-2xl p-4 shadow-sm border flex flex-col justify-center" style={{ backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }}>
-                <div className="flex items-start justify-between mb-1">
-                  <div>
-                      <Settings size={18} className="text-[#0284C7]" /> Pajak (PPN)
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-500 text-sm font-black shadow-inner">
-                    %
-                  </div>
-                </div>
-                <p className="text-[10px] text-[#0369A1] mb-2 leading-tight">Berlaku untuk semua transaksi POS</p>
-                
-                <div className="mt-auto">
-                  {!ppnEditing ? (
-                    <div className="flex items-center justify-between bg-white/60 p-2.5 rounded-xl">
-                      <p className="text-2xl font-black text-[#0284C7]">{ppn}<span className="text-lg text-blue-400">%</span></p>
-                      {userCanEdit('user_manage') && (
-                        <button
-                          onClick={() => setPpnEditing(true)}
-                          className="px-4 py-1.5 rounded-lg font-bold text-white transition-all shadow-sm hover:shadow-md hover:-translate-y-0.5 text-xs"
-                          style={{ backgroundColor: '#0284C7' }}
-                        >
-                          Ubah
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-2 bg-white/80 p-2.5 rounded-xl">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          value={newPpn}
-                          onChange={(e) => setNewPpn(e.target.value)}
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          className="px-2 py-1.5 rounded-lg border w-full text-base font-black focus:outline-none focus:border-[#0284C7] text-center"
-                          style={{ borderColor: '#BAE6FD', color: '#0284C7' }}
-                        />
-                      </div>
-                      <div className="flex gap-1.5">
-                         <button
-                          onClick={handleSavePPN}
-                          className="flex-1 py-1 rounded-md font-bold text-white transition-all shadow-sm text-xs"
-                          style={{ backgroundColor: '#10B981' }}
-                        >
-                          Simpan
-                        </button>
-                        <button
-                          onClick={() => {
-                            setPpnEditing(false)
-                            setNewPpn(ppn)
-                          }}
-                          className="flex-1 py-1 rounded-md font-bold transition-all shadow-sm bg-gray-100 text-gray-600 hover:bg-gray-200 text-xs"
-                        >
-                          Batal
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
               {/* Stats, QR Code & Add Button */}
-              <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 <div className="rounded-2xl p-4 shadow-sm flex flex-col justify-center border relative overflow-hidden group bg-white border-[#EDE0CC]">
                   <div className="absolute -right-4 -bottom-4 w-16 h-16 bg-amber-50 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 relative z-10">Total Anggota</p>
@@ -326,7 +237,7 @@ export default function UserManage() {
                     <span className="font-bold text-white text-sm tracking-wide">Tambah User</span>
                   </button>
                 )}
-              </div>
+              {/* End Stats Grid */}
 
             </div>
 

@@ -37,9 +37,6 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
-router.get('/ppn', auth(), settingsController.getPPN);
-router.put('/ppn', auth({ module: 'user_manage', action: 'edit' }), settingsController.setPPN);
-
 router.get('/kds-audio', auth(), settingsController.getKdsAudio);
 router.post('/kds-audio', auth(), upload.single('audio'), settingsController.uploadKdsAudio);
 

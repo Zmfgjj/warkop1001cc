@@ -61,14 +61,19 @@ exports.ringkasan = async (req, res) => {
       GROUP BY pb.metode
     `, [startDate, endDate]);
 
-    // PPN rate from settings
-    const [ppnRows] = await db.query("SELECT nilai FROM settings WHERE `key` = 'ppn' LIMIT 1");
-    const ppnRate = ppnRows.length > 0 ? parseFloat(ppnRows[0].nilai) : 11;
-
     const grossRevenue = Number(pendapatan[0].total);
-    const ppnAmount = Math.round(grossRevenue * (ppnRate / 100));
-    const netRevenue = grossRevenue - ppnAmount;
     const aov = pesanan[0].total > 0 ? Math.round(grossRevenue / pesanan[0].total) : 0;
+
+    // HPP Harian
+    const [hppRows] = await db.query(`
+      SELECT SUM(dp.qty * COALESCE(m.hpp, 0)) as total_hpp
+      FROM detail_pesanan dp
+      LEFT JOIN menu m ON dp.menu_id = m.id
+      LEFT JOIN pesanan p ON dp.pesanan_id = p.id
+      WHERE p.status = 'selesai'
+      AND p.created_at >= ? AND p.created_at <= ?
+    `, [startDate, endDate]);
+    const grossProfit = grossRevenue - (hppRows[0]?.total_hpp || 0);
 
     // Penjualan per menu (detail menu + hpp + profit)
     const [menuDetail] = await db.query(`
@@ -100,9 +105,8 @@ exports.ringkasan = async (req, res) => {
     res.json({
       tanggal: filter,
       pendapatan: grossRevenue,
-      ppn_rate: ppnRate,
-      ppn_amount: ppnAmount,
-      net_revenue: netRevenue,
+      gross_profit: grossProfit,
+      net_revenue: grossRevenue, // Keep net_revenue same as grossRevenue just in case frontend needs it temporarily
       total_pesanan: pesanan[0].total,
       total_kunjungan: kunjungan[0].total_kunjungan || 0,
       unik_kunjungan: kunjungan[0].unik_kunjungan || 0,
@@ -220,11 +224,18 @@ exports.laporanBulanan = async (req, res) => {
       GROUP BY pb.metode
     `, [startOfMonth, endOfMonth]);
 
-    // PPN rate
-    const [ppnRows] = await db.query("SELECT nilai FROM settings WHERE `key` = 'ppn' LIMIT 1");
-    const ppnRate = ppnRows.length > 0 ? parseFloat(ppnRows[0].nilai) : 11;
-    const ppnAmount = Math.round(totalBulan * (ppnRate / 100));
-    const netRevenue = totalBulan - ppnAmount;
+    const netRevenue = totalBulan;
+
+    // HPP Bulanan
+    const [hppRows] = await db.query(`
+      SELECT SUM(dp.qty * COALESCE(m.hpp, 0)) as total_hpp
+      FROM detail_pesanan dp
+      LEFT JOIN menu m ON dp.menu_id = m.id
+      LEFT JOIN pesanan p ON dp.pesanan_id = p.id
+      WHERE p.status = 'selesai'
+      AND p.created_at >= ? AND p.created_at <= ?
+    `, [startOfMonth, endOfMonth]);
+    const grossProfit = totalBulan - (hppRows[0]?.total_hpp || 0);
 
     // Penjualan per menu bulan ini
     const [menuDetail] = await db.query(`
@@ -252,8 +263,7 @@ exports.laporanBulanan = async (req, res) => {
       total_pendapatan: totalBulan,
       total_pesanan: totalPesananBulan,
       total_kunjungan: totalKunjunganBulan,
-      ppn_rate: ppnRate,
-      ppn_amount: ppnAmount,
+      gross_profit: grossProfit,
       net_revenue: netRevenue,
       metode_pembayaran: metodePembayaran,
       menu_detail: menuDetail,
@@ -345,14 +355,20 @@ exports.laporanTahunan = async (req, res) => {
       GROUP BY pb.metode
     `, [startOfYear, endOfYear]);
 
-    // PPN rate
-    const [ppnRows] = await db.query("SELECT nilai FROM settings WHERE `key` = 'ppn' LIMIT 1");
-    const ppnRate = ppnRows.length > 0 ? parseFloat(ppnRows[0].nilai) : 11;
-    
     const grossRevenue = Number(pendapatanTahunan[0].total);
-    const ppnAmount = Math.round(grossRevenue * (ppnRate / 100));
-    const netRevenue = grossRevenue - ppnAmount;
+    const netRevenue = grossRevenue;
     const aov = pesananTahunan[0].total > 0 ? Math.round(grossRevenue / pesananTahunan[0].total) : 0;
+
+    // HPP Tahunan
+    const [hppRows] = await db.query(`
+      SELECT SUM(dp.qty * COALESCE(m.hpp, 0)) as total_hpp
+      FROM detail_pesanan dp
+      LEFT JOIN menu m ON dp.menu_id = m.id
+      LEFT JOIN pesanan p ON dp.pesanan_id = p.id
+      WHERE p.status = 'selesai'
+      AND p.created_at >= ? AND p.created_at <= ?
+    `, [startOfYear, endOfYear]);
+    const grossProfit = grossRevenue - (hppRows[0]?.total_hpp || 0);
 
     // Penjualan per menu tahun ini
     const [menuDetail] = await db.query(`
@@ -379,8 +395,7 @@ exports.laporanTahunan = async (req, res) => {
       total_pendapatan: grossRevenue,
       total_pesanan: pesananTahunan[0].total,
       aov,
-      ppn_rate: ppnRate,
-      ppn_amount: ppnAmount,
+      gross_profit: grossProfit,
       net_revenue: netRevenue,
       metode_pembayaran: metodePembayaran,
       menu_detail: menuDetail,
@@ -420,14 +435,9 @@ exports.laporanMenu = async (req, res) => {
       ORDER BY total_terjual DESC
     `, [startDate, endDate]);
 
-    // Get PPN rate
-    const [ppnRows] = await db.query("SELECT nilai FROM settings WHERE `key` = 'ppn' LIMIT 1");
-    const ppnRate = ppnRows.length > 0 ? parseFloat(ppnRows[0].nilai) : 11;
-
     res.json({
       dari: dari_filter,
       sampai: sampai_filter,
-      ppn: ppnRate,
       data: rows
     });
 
@@ -507,7 +517,7 @@ exports.historiPembelian = async (req, res) => {
 
     // 3. Get list pesanan dengan HPP per pesanan
     const [rows] = await db.query(`
-      SELECT DISTINCT p.id, p.meja_id, p.tipe, p.catatan, p.total, p.status, p.created_at,
+      SELECT DISTINCT p.id, p.local_id, p.meja_id, p.tipe, p.catatan, p.total, p.status, p.created_at,
         m.nomor as nomor_meja,
         u.nama as nama_kasir,
         pb.metode as metode_bayar,

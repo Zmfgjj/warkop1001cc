@@ -11,6 +11,7 @@ router.delete('/kategori/:id', auth({ module: 'manajemen_menu', action: 'edit' }
 
 router.get('/', auth(), menuController.getMenu);
 router.post('/', auth({ module: 'manajemen_menu', action: 'edit' }), upload.single('gambar'), menuController.tambahMenu);
+router.put('/hpp/bulk', auth({ module: 'manajemen_menu', action: 'edit' }), menuController.updateBulkHPP);
 router.put('/promo/bulk', auth({ module: 'manajemen_menu', action: 'edit' }), menuController.updateBulkPromo);
 router.post('/promo/campaign', auth({ module: 'manajemen_promo', action: 'edit' }), menuController.createCampaignPromo);
 router.get('/promo/campaign', auth({ module: 'manajemen_promo', action: 'view' }), menuController.getCampaignPromos);

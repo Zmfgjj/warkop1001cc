@@ -8,7 +8,9 @@ import * as XLSX from 'xlsx-js-style'
 import MobileLayout from '../components/MobileLayout'
 import { useAlert } from '../context/AlertContext'
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts'
-
+import { Capacitor } from '@capacitor/core'
+import { Filesystem, Directory } from '@capacitor/filesystem'
+import { Share } from '@capacitor/share'
 // Helper untuk mendapatkan tanggal lokal (WIB/sesuai zona waktu HP/PC) dalam format YYYY-MM-DD
 // agar tidak ada bug mundur 1 hari jika diakses dari jam 00:00 - 07:00 pagi akibat zona waktu UTC.
 const getLocalDateString = () => {
@@ -169,11 +171,11 @@ export default function Laporan() {
         qty: it.qty,
         catatan: it.catatan,
         kategori_nama: it.kategori_nama,
-        kategori_print_destination: it.kategori_print_destination
+        kategori_print_destination: it.kategori_print_destination,
+        kategori2_nama: it.kategori2_nama,
+        kategori2_print_destination: it.kategori2_print_destination
       })),
       subtotal,
-      ppn: 0,
-      ppnRate: 11,
       total: p.total,
       metodeBayar: p.metode_bayar === 'cash' ? 'Tunai' : (p.metode_bayar || 'QRIS'),
       jumlahBayar: p.total,
@@ -206,17 +208,40 @@ export default function Laporan() {
   // EXPORT UTILITIES (Single Sheet Template)
   // =========================================================================
   
-  const exportToExcel = (sheets, filename) => {
-    const wb = XLSX.utils.book_new()
-    if (Array.isArray(sheets)) {
-      sheets.forEach(s => {
-        XLSX.utils.book_append_sheet(wb, s.ws, s.name)
-      })
-    } else {
-      const ws = XLSX.utils.json_to_sheet(sheets)
-      XLSX.utils.book_append_sheet(wb, ws, 'Laporan')
+  const exportToExcel = async (sheets, filename) => {
+    try {
+      const wb = XLSX.utils.book_new()
+      if (Array.isArray(sheets)) {
+        sheets.forEach(s => {
+          XLSX.utils.book_append_sheet(wb, s.ws, s.name)
+        })
+      } else {
+        const ws = XLSX.utils.json_to_sheet(sheets)
+        XLSX.utils.book_append_sheet(wb, ws, 'Laporan')
+      }
+
+      if (Capacitor.isNativePlatform()) {
+        const base64 = XLSX.write(wb, { bookType: 'xlsx', type: 'base64' });
+        const path = `${filename}.xlsx`;
+        
+        const result = await Filesystem.writeFile({
+          path,
+          data: base64,
+          directory: Directory.Documents
+        });
+
+        await Share.share({
+          title: filename,
+          url: result.uri,
+          dialogTitle: 'Bagikan atau Simpan Laporan'
+        });
+      } else {
+        XLSX.writeFile(wb, `${filename}.xlsx`);
+      }
+    } catch (err) {
+      console.error('Gagal export laporan:', err);
+      showAlert('Gagal mengekspor laporan: ' + err.message, 'Error', 'error');
     }
-    XLSX.writeFile(wb, `${filename}.xlsx`)
   }
 
   // -------------------------------------------------------------
@@ -258,7 +283,6 @@ export default function Laporan() {
     if (!dataHarian) return showAlert('Tidak ada data untuk diexport', 'Gagal', 'error')
     const d = dataHarian
     const gross = Number(d.pendapatan)
-    const ppnRate = d.ppn_rate || 11
 
     const ringkasan = [
       [createCell('LAPORAN POS HARIAN – WARKOP 1001 CC', styleTitle), '', '', ''],
@@ -270,7 +294,6 @@ export default function Laporan() {
       ['Gross Revenue (Total Penjualan Kotor)', createCell(gross, styleCurrency)],
       ['Total Diskon / Promo', createCell(0, styleCurrency)],
       ['Service Charge', createCell(0, styleCurrency)],
-      [`PPN (${ppnRate}%)`, createCell(d.ppn_amount || 0, styleCurrency)],
       [createCell('Net Revenue (Pendapatan Bersih)', styleBold), createCell(d.net_revenue || gross, styleCurrencyBold)],
       ['Jumlah Transaksi', createCell(d.total_pesanan, styleCenter)],
       ['Average Order Value (AOV)', createCell(d.aov || 0, styleCurrency)],
@@ -289,18 +312,16 @@ export default function Laporan() {
     ;(d.menu_terlaris || []).forEach(m => ringkasan.push([m.nama, createCell(`${m.total_terjual} porsi`, styleCenter)]))
 
     ringkasan.push([])
-    ringkasan.push([createCell('D. PENJUALAN PER MENU (HPP & PROFIT)', styleSubHeader)])
-    ringkasan.push([createCell('Menu', styleHeader), createCell('Kategori', styleHeader), createCell('HPP', styleHeader), createCell('Harga Jual', styleHeader), createCell('Terjual', styleHeader), createCell('Omset', styleHeader), createCell('Total HPP', styleHeader), createCell('Profit', styleHeader)])
+    ringkasan.push([createCell('D. PENJUALAN PER MENU (HPP & GROSS PROFIT)', styleSubHeader)])
+    ringkasan.push([createCell('Menu', styleHeader), createCell('Kategori', styleHeader), createCell('HPP', styleHeader), createCell('Harga Jual', styleHeader), createCell('Terjual', styleHeader), createCell('Omset', styleHeader), createCell('Total HPP', styleHeader), createCell('Gross Profit', styleHeader)])
     ;(d.menu_detail || []).forEach(m => {
       const omset = Number(m.total_pendapatan)
       const hppTotal = Number(m.total_hpp || 0)
-      const ppnMenu = omset * ((ppnRate || 0) / 100)
-      ringkasan.push([m.nama, m.kategori || '-', createCell(Number(m.hpp), styleCurrency), createCell(Number(m.harga_jual), styleCurrency), createCell(Number(m.total_terjual), styleCenter), createCell(omset, styleCurrency), createCell(hppTotal, styleCurrency), createCell(omset - ppnMenu - hppTotal, styleCurrency)])
+      ringkasan.push([m.nama, m.kategori || '-', createCell(Number(m.hpp), styleCurrency), createCell(Number(m.harga_jual), styleCurrency), createCell(Number(m.total_terjual), styleCenter), createCell(omset, styleCurrency), createCell(hppTotal, styleCurrency), createCell(omset - hppTotal, styleCurrency)])
     })
     const totalOmsetMenu = (d.menu_detail || []).reduce((s, m) => s + Number(m.total_pendapatan), 0)
     const totalHppMenu = (d.menu_detail || []).reduce((s, m) => s + Number(m.total_hpp || 0), 0)
-    const totalPpnMenu = totalOmsetMenu * ((ppnRate || 0) / 100)
-    ringkasan.push([createCell('TOTAL', styleBold), '', '', '', '', createCell(totalOmsetMenu, styleCurrencyBold), createCell(totalHppMenu, styleCurrencyBold), createCell(totalOmsetMenu - totalPpnMenu - totalHppMenu, styleCurrencyBold)])
+    ringkasan.push([createCell('TOTAL', styleBold), '', '', '', '', createCell(totalOmsetMenu, styleCurrencyBold), createCell(totalHppMenu, styleCurrencyBold), createCell(totalOmsetMenu - totalHppMenu, styleCurrencyBold)])
 
     const ws = XLSX.utils.aoa_to_sheet(ringkasan)
     ws['!cols'] = [{ wch: 35 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 18 }]
@@ -314,7 +335,6 @@ export default function Laporan() {
     const d = dataBulanan
     const bulanNama = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
     const gross = Number(d.total_pendapatan)
-    const ppnRate = d.ppn_rate || 11
 
     const rows = [
       [createCell('LAPORAN POS BULANAN – WARKOP 1001 CC', styleTitle), '', '', ''],
@@ -324,7 +344,6 @@ export default function Laporan() {
       [createCell('A. RINGKASAN PENJUALAN', styleSubHeader)],
       [createCell('Keterangan', styleHeader), createCell('Nilai (Rp)', styleHeader)],
       ['Gross Revenue', createCell(gross, styleCurrency)],
-      [`PPN (${ppnRate}%)`, createCell(d.ppn_amount || 0, styleCurrency)],
       [createCell('Net Revenue', styleBold), createCell(d.net_revenue || gross, styleCurrencyBold)],
       ['Total Transaksi', createCell(d.total_pesanan || 0, styleCenter)],
       ['Average Order Value', createCell(gross > 0 && d.total_pesanan > 0 ? Math.round(gross / d.total_pesanan) : 0, styleCurrency)],
@@ -347,18 +366,16 @@ export default function Laporan() {
     ]))
 
     rows.push([])
-    rows.push([createCell('D. PENJUALAN PER MENU (HPP & PROFIT)', styleSubHeader)])
-    rows.push([createCell('Menu', styleHeader), createCell('Kategori', styleHeader), createCell('HPP', styleHeader), createCell('Harga Jual', styleHeader), createCell('Terjual', styleHeader), createCell('Omset', styleHeader), createCell('Total HPP', styleHeader), createCell('Profit', styleHeader)])
+    rows.push([createCell('D. PENJUALAN PER MENU (HPP & GROSS PROFIT)', styleSubHeader)])
+    rows.push([createCell('Menu', styleHeader), createCell('Kategori', styleHeader), createCell('HPP', styleHeader), createCell('Harga Jual', styleHeader), createCell('Terjual', styleHeader), createCell('Omset', styleHeader), createCell('Total HPP', styleHeader), createCell('Gross Profit', styleHeader)])
     ;(d.menu_detail || []).forEach(m => {
       const omset = Number(m.total_pendapatan)
       const hppTotal = Number(m.total_hpp || 0)
-      const ppnMenu = omset * ((ppnRate || 0) / 100)
-      rows.push([m.nama, m.kategori || '-', createCell(Number(m.hpp), styleCurrency), createCell(Number(m.harga_jual), styleCurrency), createCell(Number(m.total_terjual), styleCenter), createCell(omset, styleCurrency), createCell(hppTotal, styleCurrency), createCell(omset - ppnMenu - hppTotal, styleCurrency)])
+      rows.push([m.nama, m.kategori || '-', createCell(Number(m.hpp), styleCurrency), createCell(Number(m.harga_jual), styleCurrency), createCell(Number(m.total_terjual), styleCenter), createCell(omset, styleCurrency), createCell(hppTotal, styleCurrency), createCell(omset - hppTotal, styleCurrency)])
     })
     const totalOmsetMenu = (d.menu_detail || []).reduce((s, m) => s + Number(m.total_pendapatan), 0)
     const totalHppMenu = (d.menu_detail || []).reduce((s, m) => s + Number(m.total_hpp || 0), 0)
-    const totalPpnMenu = totalOmsetMenu * ((ppnRate || 0) / 100)
-    rows.push([createCell('TOTAL', styleBold), '', '', '', '', createCell(totalOmsetMenu, styleCurrencyBold), createCell(totalHppMenu, styleCurrencyBold), createCell(totalOmsetMenu - totalPpnMenu - totalHppMenu, styleCurrencyBold)])
+    rows.push([createCell('TOTAL', styleBold), '', '', '', '', createCell(totalOmsetMenu, styleCurrencyBold), createCell(totalHppMenu, styleCurrencyBold), createCell(totalOmsetMenu - totalHppMenu, styleCurrencyBold)])
 
     const ws = XLSX.utils.aoa_to_sheet(rows)
     ws['!cols'] = [{ wch: 35 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 18 }]
@@ -418,12 +435,11 @@ export default function Laporan() {
   // UI COMPONENTS
   // =========================================================================
 
-  const renderMenuDetailTable = (menuData, ppnRate, sectionLabel) => {
+  const renderMenuDetailTable = (menuData, sectionLabel) => {
     if (!menuData || menuData.length === 0) return null
     const totalOmset = menuData.reduce((s, m) => s + Number(m.total_pendapatan), 0)
     const totalHpp = menuData.reduce((s, m) => s + Number(m.total_hpp || 0), 0)
-    const totalPpn = totalOmset * ((ppnRate || 0) / 100)
-    const totalProfit = totalOmset - totalPpn - totalHpp
+    const totalProfit = totalOmset - totalHpp
     const isManagement = user?.role === 'owner' || user?.role === 'manager' || user?.role === 'admin'
 
     return (
@@ -448,8 +464,7 @@ export default function Laporan() {
               {menuData.map((m, i) => {
                 const omset = Number(m.total_pendapatan)
                 const hppTotal = Number(m.total_hpp || 0)
-                const ppnMenu = omset * ((ppnRate || 0) / 100)
-                const profit = omset - ppnMenu - hppTotal
+                const profit = omset - hppTotal
                 return (
                   <tr key={i} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                     <td className="py-3.5 font-bold text-[#634930]">{m.nama} <br/><span className="text-xs text-gray-400 font-normal">{m.kategori || '-'}</span></td>
@@ -543,17 +558,13 @@ export default function Laporan() {
                       <div className="bg-white rounded-3xl p-7 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100">
                         <h2 className="font-bold text-xl text-[#634930] mb-6">A. Executive Summary</h2>
                         <div className="space-y-4">
-                          <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                            <span className="font-medium text-gray-500">Gross Revenue (Kotor)</span>
-                            <span className="font-bold text-gray-700">{fRp(dataHarian.pendapatan)}</span>
-                          </div>
-                          <div className="flex justify-between items-center pb-3 border-b border-gray-100">
-                            <span className="font-medium text-gray-500">PPN ({dataHarian.ppn_rate || 11}%)</span>
-                            <span className="font-bold text-orange-500">{fRp(dataHarian.ppn_amount || 0)}</span>
-                          </div>
                           <div className="flex justify-between items-center py-4 px-5 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl shadow-inner text-white mt-4">
-                            <span className="font-bold">Net Revenue (Bersih)</span>
-                            <span className="font-black text-2xl">{fRp(dataHarian.net_revenue || dataHarian.pendapatan)}</span>
+                            <span className="font-bold">Total Penjualan / Omset</span>
+                            <span className="font-black text-2xl">{fRp(dataHarian.pendapatan)}</span>
+                          </div>
+                          <div className="flex justify-between items-center py-4 px-5 bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl shadow-inner text-white mt-4">
+                            <span className="font-bold">Gross Profit (Omset Murni)</span>
+                            <span className="font-black text-2xl">{fRp(dataHarian.gross_profit || 0)}</span>
                           </div>
                           <div className="grid grid-cols-3 gap-3 pt-2">
                             <div className="bg-amber-50 rounded-2xl p-3 border border-amber-100 text-center">
@@ -664,7 +675,7 @@ export default function Laporan() {
                       </div>
                     </div>
 
-                    {renderMenuDetailTable(dataHarian.menu_detail, dataHarian.ppn_rate, 'C')}
+                    {renderMenuDetailTable(dataHarian.menu_detail, 'C')}
                   </div>
                 ) : null}
               </div>
@@ -790,12 +801,13 @@ export default function Laporan() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="bg-gradient-to-br from-[#634930] to-[#8B6F47] rounded-3xl p-6 text-white shadow-lg relative overflow-hidden group">
                          <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
-                         <p className="text-amber-100 text-sm font-semibold mb-2 relative z-10">Net Revenue Bulanan</p>
-                         <p className="text-3xl font-black relative z-10">{fRp(dataBulanan.net_revenue || dataBulanan.total_pendapatan)}</p>
+                         <p className="text-amber-100 text-sm font-semibold mb-2 relative z-10">Total Penjualan</p>
+                         <p className="text-3xl font-black relative z-10">{fRp(dataBulanan.total_pendapatan)}</p>
                       </div>
-                      <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
-                         <p className="text-gray-400 text-sm font-bold uppercase mb-2">Gross Revenue</p>
-                         <p className="text-2xl font-black text-[#634930]">{fRp(dataBulanan.total_pendapatan)}</p>
+                      <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden group">
+                         <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
+                         <p className="text-emerald-100 text-sm font-semibold mb-2 relative z-10">Gross Profit (Omset Murni)</p>
+                         <p className="text-2xl font-black relative z-10">{fRp(dataBulanan.gross_profit || 0)}</p>
                       </div>
                       <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
                          <p className="text-gray-400 text-sm font-bold uppercase mb-2">Transaksi Selesai</p>
@@ -905,7 +917,7 @@ export default function Laporan() {
                       </div>
                     </div>
 
-                    {renderMenuDetailTable(dataBulanan.menu_detail, dataBulanan.ppn_rate, 'B')}
+                    {renderMenuDetailTable(dataBulanan.menu_detail, 'B')}
                   </div>
                 ) : null}
               </div>
@@ -936,12 +948,13 @@ export default function Laporan() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div className="bg-gradient-to-br from-[#634930] to-[#8B6F47] rounded-3xl p-6 text-white shadow-lg relative overflow-hidden group">
                          <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
-                         <p className="text-amber-100 text-sm font-semibold mb-2 relative z-10">Net Revenue Tahunan</p>
-                         <p className="text-3xl font-black relative z-10">{fRp(dataTahunan.net_revenue)}</p>
+                         <p className="text-amber-100 text-sm font-semibold mb-2 relative z-10">Total Penjualan</p>
+                         <p className="text-3xl font-black relative z-10">{fRp(dataTahunan.total_pendapatan)}</p>
                       </div>
-                      <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
-                         <p className="text-gray-400 text-sm font-bold uppercase mb-2">Gross Revenue</p>
-                         <p className="text-2xl font-black text-[#634930]">{fRp(dataTahunan.total_pendapatan)}</p>
+                      <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden group">
+                         <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform"></div>
+                         <p className="text-emerald-100 text-sm font-semibold mb-2 relative z-10">Gross Profit (Omset Murni)</p>
+                         <p className="text-2xl font-black relative z-10">{fRp(dataTahunan.gross_profit || 0)}</p>
                       </div>
                       <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm">
                          <p className="text-gray-400 text-sm font-bold uppercase mb-2">Transaksi Selesai</p>
@@ -983,7 +996,7 @@ export default function Laporan() {
                       </div>
                     </div>
 
-                    {renderMenuDetailTable(dataTahunan.menu_detail, dataTahunan.ppn_rate, 'Y')}
+                    {renderMenuDetailTable(dataTahunan.menu_detail, 'Y')}
                   </div>
                 ) : null}
               </div>
@@ -1113,7 +1126,7 @@ export default function Laporan() {
                                   <span className="text-xs text-gray-400 font-medium">{timeStr}</span>
                                   <span className="text-xs text-gray-500 font-bold">{dateStr}</span>
                                 </div>
-                                <p className="text-sm font-black text-[#634930]">No : #{String(p.id).padStart(4, '0')}</p>
+                                <p className="text-sm font-black text-[#634930]">No : #{String(p.id).padStart(4, '0')} {p.local_id && <span className="text-xs text-orange-500 ml-2 border border-orange-200 bg-orange-50 px-1.5 py-0.5 rounded">(Offline: {p.local_id.substring(0, 8).toUpperCase()})</span>}</p>
                                 <div className="text-xs font-medium text-gray-600">
                                   <span>Pelanggan : <span className="font-bold">{p.nama_pelanggan || 'Umum'}</span></span>
                                   {p.nomor_meja && <span className="ml-2.5 bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded text-[10px] font-bold">Meja {p.nomor_meja}</span>}

@@ -32,7 +32,6 @@ export default function KasirPOS() {
   const [loading, setLoading] = useState(true)
   const [loadingBayar, setLoadingBayar] = useState(false)
   const [tipeOrder, setTipeOrder] = useState('dine-in')
-  const [ppnRate, setPpnRate] = useState(2)
   const [showOrderPanel, setShowOrderPanel] = useState(false)
   const [namaPelanggan, setNamaPelanggan] = useState('')
   const [nomorHp, setNomorHp] = useState('')
@@ -93,7 +92,7 @@ export default function KasirPOS() {
     }
   }
 
-  useEffect(() => { fetchKategori(); fetchData(); fetchPPN(); fetchMeja(); fetchPromos() }, [isOnline])
+  useEffect(() => { fetchKategori(); fetchData(); fetchMeja(); fetchPromos() }, [isOnline])
 
   useEffect(() => {
     if (!socket || !isOnline) return
@@ -128,17 +127,7 @@ export default function KasirPOS() {
     } finally { setLoading(false) }
   }
   
-  const fetchPPN = async () => { 
-    try { 
-      const res = await api.get('/settings/ppn')
-      setPpnRate(res.data.ppn)
-      saveMasterData('ppnRate', res.data.ppn) 
-    } catch {
-      const offlinePpn = await getMasterData('ppnRate')
-      if (offlinePpn) setPpnRate(offlinePpn)
-    } 
-  }
-  
+
   const fetchMeja = async () => { 
     try { 
       const res = await api.get('/meja')
@@ -250,7 +239,6 @@ export default function KasirPOS() {
   const getQty = (menu_id) => order.find(o => o.menu_id === menu_id)?.qty || 0
 
   const subtotal = order.reduce((sum, o) => sum + o.harga * o.qty, 0)
-  const ppn = 0 // PPN sudah include di harga, tidak dihitung terpisah di kasir
   const total = tipePelanggan === 'CAKRA' ? 0 : Math.max(0, subtotal - (Number(discountValue) || 0))
   const kembali = jumlahBayar ? Math.max(0, parseInt(jumlahBayar.replace(/\D/g, '') || 0) - total) : 0
   const totalItems = order.reduce((s, o) => s + o.qty, 0)
@@ -326,7 +314,8 @@ export default function KasirPOS() {
         nama_pelanggan: namaPelanggan.trim() || null,
         no_telepon: nomorHp.trim() || null,
         discount_name: discountName.trim() || null,
-        discount_value: Number(discountValue) || 0
+        discount_value: Number(discountValue) || 0,
+        created_at: new Date().toISOString()
       }
 
       const tbl = mejaList.find(m => String(m.id) === String(selectedMejaId));
@@ -334,7 +323,7 @@ export default function KasirPOS() {
 
       const strukData = { 
         pesananId: 'TMP-' + Date.now(), 
-        items: finalOrder, subtotal: finalSubtotal, ppn, ppnRate, total: finalTotal, metodeBayar, 
+        items: finalOrder, subtotal: finalSubtotal, total: finalTotal, metodeBayar, 
         jumlahBayar: parseInt(jumlahBayar.replace(/\D/g, '') || 0), kembali: finalKembali, 
         meja: tipeOrder === 'dine-in' ? nomorMeja : null, 
         tipe: tipeOrder, kasir: user?.username, tanggal: new Date(),

@@ -15,10 +15,14 @@ export const AuthProvider = ({ children }) => {
         setUser(data.user)
       } catch (err) {
         const offlineUser = getOfflineUser();
-        if (offlineUser && (!navigator.onLine || !err.response)) {
+        // Hanya logout paksa jika token benar-benar tidak valid/expired (401) atau akses ditolak (403)
+        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          setUser(null);
+        } else if (offlineUser) {
+          // Jika offline atau server error (500, 502, timeout), tetap gunakan data offline
           setUser(offlineUser);
         } else {
-          setUser(null)
+          setUser(null);
         }
       } finally {
         setLoading(false)

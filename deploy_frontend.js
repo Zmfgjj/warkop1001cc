@@ -15,7 +15,7 @@ execSync('scp -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no fronte
 
 // Create and upload OTA bundle.zip
 console.log('Creating OTA bundle.zip on VPS directly...');
-execSync('ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@202.155.157.13 "mkdir -p /tmp/ota/dist && cp -r /var/www/frontend/assets /var/www/frontend/index.html /var/www/frontend/manifest.json /var/www/frontend/sw.js /var/www/frontend/logo* /tmp/ota/dist/ && cp /var/www/frontend/capacitor.config.json /tmp/ota/ && cd /tmp/ota && zip -r /var/www/landing_page/bundle.zip dist capacitor.config.json && rm -rf /tmp/ota"');
+execSync('ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@202.155.157.13 "mkdir -p /tmp/ota && cp -r /var/www/frontend/assets /var/www/frontend/index.html /var/www/frontend/manifest.json /var/www/frontend/sw.js /var/www/frontend/logo* /tmp/ota/ && cp /var/www/frontend/capacitor.config.json /tmp/ota/ && cd /tmp/ota && rm -f /var/www/landing_page/bundle.zip && zip -r /var/www/landing_page/bundle.zip * && rm -rf /tmp/ota"');
 
 // Fix permissions so nginx (www-data) can read all files
 console.log('Fixing file permissions...');

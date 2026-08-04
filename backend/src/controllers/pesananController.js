@@ -36,7 +36,7 @@ async function getNomorAntrean(conn, isOffline) {
 exports.buatPesanan = async (req, res) => {
   const conn = await db.getConnection();
   try {
-    const { local_id, meja_id, tipe, catatan, items, is_offline_sync, pembayaran, nama_pelanggan, no_telepon, discount_name, discount_value } = req.body;
+    const { local_id, created_at, meja_id, tipe, catatan, items, is_offline_sync, pembayaran, nama_pelanggan, no_telepon, discount_name, discount_value, nomor_antrean: antreanClient } = req.body;
     
     // Cek idempotency: jika local_id sudah ada, kembalikan sukses (mencegah duplikat saat retry sync)
     if (local_id) {
@@ -144,7 +144,11 @@ exports.buatPesanan = async (req, res) => {
            [item.menu_id]
         );
         menu[0].promosi = promos;
-        const itemHarga = getActivePrice(menu[0]);
+        let itemHarga = getActivePrice(menu[0]);
+        // Trust frontend price if it's a Spin Prize
+        if (item.catatan && item.catatan.includes('Hadiah Spin Wheel')) {
+          itemHarga = Number(item.harga) || itemHarga;
+        }
         totalBaru += itemHarga * item.qty;
         validatedItems.push({ 
           ...item, 
@@ -188,19 +192,24 @@ exports.buatPesanan = async (req, res) => {
     } else {
       total = Math.max(0, totalBaru - (Number(discount_value) || 0));
       const isOffline = kasir_id !== null;
-      nomor_antrean = await getNomorAntrean(conn, isOffline);
+      if (is_offline_sync && antreanClient) {
+        nomor_antrean = antreanClient;
+      } else {
+        nomor_antrean = await getNomorAntrean(conn, isOffline);
+      }
 
-      // Jika sync offline, biarkan status 'pending' agar muncul di KDS, tetapi payment_status 'paid'
-      const statusValue = 'pending';
+      // Jika sync offline, transaksi sudah selesai di kasir (sudah dicetak struk & dibayar)
+      // Jadi langsung masuk ke status 'selesai', bukan 'pending' agar masuk Laporan Pendapatan.
+      const statusValue = is_offline_sync ? 'selesai' : 'pending';
       const paymentStatusValue = is_offline_sync ? 'paid' : 'unpaid';
 
       const [result] = await conn.query(
-        'INSERT INTO pesanan (local_id, meja_id, kasir_id, tipe, catatan, total, nomor_antrean, status, payment_status, nama_pelanggan, no_telepon, discount_name, discount_value) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [local_id || null, meja_id, kasir_id, tipe, catatan, total, nomor_antrean, statusValue, paymentStatusValue, nama_pelanggan || null, no_telepon || null, discount_name || null, Number(discount_value) || 0]
+        'INSERT INTO pesanan (local_id, created_at, meja_id, kasir_id, tipe, catatan, total, nomor_antrean, status, payment_status, nama_pelanggan, no_telepon, discount_name, discount_value) VALUES (?, COALESCE(?, CURRENT_TIMESTAMP), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [local_id || null, created_at ? new Date(created_at) : null, meja_id, kasir_id, tipe, catatan, total, nomor_antrean, statusValue, paymentStatusValue, nama_pelanggan || null, no_telepon || null, discount_name || null, Number(discount_value) || 0]
       );
       pesanan_id = result.insertId;
 
-      const itemStatusValue = 'pending';
+      const itemStatusValue = is_offline_sync ? 'selesai' : 'pending';
       for (const item of validatedItems) {
         await conn.query(
           'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, catatan, status) VALUES (?, ?, ?, ?, ?, ?)',
@@ -212,8 +221,8 @@ exports.buatPesanan = async (req, res) => {
       if (is_offline_sync && pembayaran) {
         const metodeSafe = (pembayaran.metode || 'tunai').toString().toLowerCase();
         await conn.query(
-          'INSERT INTO pembayaran (pesanan_id, metode, jumlah, status) VALUES (?, ?, ?, "sukses")',
-          [pesanan_id, metodeSafe, pembayaran.jumlah || total]
+          'INSERT INTO pembayaran (pesanan_id, metode, jumlah, status, created_at) VALUES (?, ?, ?, "sukses", COALESCE(?, CURRENT_TIMESTAMP))',
+          [pesanan_id, metodeSafe, pembayaran.jumlah || total, created_at ? new Date(created_at) : null]
         );
       }
 

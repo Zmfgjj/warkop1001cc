@@ -1,12 +1,8 @@
 import { Network } from '@capacitor/network';
+import { App } from '@capacitor/app';
 import { dbService } from './DatabaseService';
 import { getOfflineOrders, removeOfflineOrder } from '../utils/offlineStore';
-import axios from 'axios';
-
-// Konfigurasi endpoint base url (asumsikan kita baca dari env)
-const getApiUrl = () => {
-  return import.meta.env.VITE_API_URL || 'https://warkop1001cc.cloud/api';
-};
+import api from '../api/auth';
 
 class SyncService {
   constructor() {
@@ -22,6 +18,14 @@ class SyncService {
       this.networkStatus = status;
       if (status.connected) {
         console.log('[SyncService] Kembali online! Memulai sinkronisasi pesanan offline...');
+        this.syncOrders();
+      }
+    });
+
+    // Listen to App state to trigger sync on resume from background
+    App.addListener('appStateChange', ({ isActive }) => {
+      console.log('[SyncService] App state changed. isActive:', isActive);
+      if (isActive && (this.networkStatus.connected || navigator.onLine)) {
         this.syncOrders();
       }
     });
@@ -68,16 +72,6 @@ class SyncService {
 
       console.log(`[SyncService] Found ${unsyncedOrders.length} DB order(s) and ${localOfflineOrders.length} LocalStorage order(s)`);
 
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.warn('[SyncService] No auth token found, cannot sync yet.');
-        this.isSyncing = false;
-        return;
-      }
-
-      const headers = { Authorization: `Bearer ${token}` };
-      const apiUrl = getApiUrl();
-
       for (const order of unsyncedOrders) {
         try {
           // Format payload to match expected backend format for /api/pesanan
@@ -101,17 +95,27 @@ class SyncService {
             nama_pelanggan: order.nama_pelanggan || null,
             no_telepon: order.no_telepon || null,
             discount_name: order.diskon_nama || null,
-            discount_value: order.diskon_nilai || 0
+            discount_value: order.diskon_nilai || 0,
+            created_at: order.created_at || new Date().toISOString(),
+            nomor_antrean: order.nomor_antrean || null
           };
 
-          const response = await axios.post(`${apiUrl}/pesanan`, payload, { headers });
+          const response = await api.post(`/pesanan`, payload);
           if (response.status === 200 || response.status === 201) {
             await dbService.markAsSynced(order.local_id);
             console.log(`[SyncService] Order ${order.local_id} synced successfully`);
           }
         } catch (err) {
           console.error(`[SyncService] Failed to sync DB order ${order.local_id}`, err);
-          // Stop syncing if backend is down or network failed midway to prevent duplicate processing issues
+          
+          if (err.response && err.response.status >= 400 && err.response.status < 500) {
+            console.warn(`[SyncService] Order ${order.local_id} permanently rejected by server (4xx). Skipping to unblock queue.`);
+            // Jika ingin menghapus order yang korup agar tidak spam: await dbService.markAsSynced(order.local_id);
+            // Untuk saat ini kita continue saja agar tidak memblokir antrian.
+            continue;
+          }
+
+          // Stop syncing if backend is down (5xx) or network failed midway to prevent duplicate processing issues
           break; 
         }
       }
@@ -138,16 +142,24 @@ class SyncService {
             nama_pelanggan: order.nama_pelanggan || null,
             no_telepon: order.no_telepon || null,
             discount_name: order.discount_name || order.diskon_nama || null,
-            discount_value: order.discount_value || order.diskon_nilai || 0
+            discount_value: order.discount_value || order.diskon_nilai || 0,
+            created_at: order.created_at || new Date().toISOString(),
+            nomor_antrean: order.nomor_antrean || null
           };
 
-          const response = await axios.post(`${apiUrl}/pesanan`, payload, { headers });
+          const response = await api.post(`/pesanan`, payload);
           if (response.status === 200 || response.status === 201) {
             await removeOfflineOrder(order._offlineId);
             console.log(`[SyncService] LocalStorage Order ${order._offlineId} synced successfully`);
           }
         } catch (err) {
           console.error(`[SyncService] Failed to sync LocalStorage order ${order._offlineId}`, err);
+
+          if (err.response && err.response.status >= 400 && err.response.status < 500) {
+            console.warn(`[SyncService] LocalStorage Order ${order._offlineId} permanently rejected by server (4xx). Skipping to unblock queue.`);
+            continue;
+          }
+
           break;
         }
       }

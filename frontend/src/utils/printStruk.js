@@ -13,7 +13,7 @@ function formatTanggal(date) {
 }
 
 // // Generate HTML struk untuk window.print()
-function generateStrukHTML({ pesananId, items, subtotal, ppn, ppnRate, total, metodeBayar, jumlahBayar, kembali, meja, tipe, kasir, tanggal, copyLabel, type, nama_pelanggan, no_telepon, discount_name, discount_value }) {
+function generateStrukHTML({ pesananId, items, subtotal, total, metodeBayar, jumlahBayar, kembali, meja, tipe, kasir, tanggal, copyLabel, type, nama_pelanggan, no_telepon, discount_name, discount_value }) {
   const isDapurOrBar = type === 'dapur' || type === 'bar';
   const isMeja = type === 'meja';
   
@@ -447,7 +447,7 @@ async function _cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
         receipt += 'bagian dari cerita 1001cc.' + LF + LF
         receipt += 'follow kami @warkop1001cc' + LF
         
-        receipt += LF + LF + LF + LF + LF
+        receipt += LF + LF
         receipt += CUT
       }
       receipts.push({ type, data: receipt });
@@ -467,9 +467,10 @@ async function _cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
           
           for (const { type, data: receiptStr } of receipts) {
             let mac = null;
-            if (type === 'dapur') mac = localStorage.getItem('printer_mac_dapur');
-            else if (type === 'bar') mac = localStorage.getItem('printer_mac_bar');
-            else mac = localStorage.getItem('printer_mac_kasir') || localStorage.getItem('printer_mac');
+            const fallbackMac = localStorage.getItem('printer_mac_kasir') || localStorage.getItem('printer_mac');
+            if (type === 'dapur') mac = localStorage.getItem('printer_mac_dapur') || fallbackMac;
+            else if (type === 'bar') mac = localStorage.getItem('printer_mac_bar') || fallbackMac;
+            else mac = fallbackMac;
 
             if (!mac) {
               console.warn(`Printer untuk '${type}' belum diatur, dilewati.`);
@@ -524,12 +525,15 @@ async function _cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
                 } catch (e) {
                   console.error('[BT] Error saat menulis ke printer:', e);
                 }
-                window.bluetoothSerial.disconnect(() => {}, () => {});
-                res();
+                // Perbaikan: Tunggu sampai proses disconnect benar-benar tuntas + beri napas 2 detik
+                window.bluetoothSerial.disconnect(
+                  () => { setTimeout(res, 2000); }, 
+                  () => { setTimeout(res, 2000); }
+                );
               }, (err) => {
                 console.error(`[BT] Gagal konek ke ${mac}:`, err);
                 if (retries > 0) {
-                  setTimeout(() => tryConnect(retries - 1), 1500);
+                  setTimeout(() => tryConnect(retries - 1), 2000);
                 } else {
                   console.warn(`[BT] Menyerah koneksi ke ${mac}.`);
                   res();
@@ -538,7 +542,7 @@ async function _cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
             };
             // Pastikan tidak ada koneksi aktif sebelum memulai
             window.bluetoothSerial.disconnect(
-              () => setTimeout(() => tryConnect(CONNECT_RETRY), 800),
+              () => setTimeout(() => tryConnect(CONNECT_RETRY), 1500),
               () => tryConnect(CONNECT_RETRY)
             );
           });

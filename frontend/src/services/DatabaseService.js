@@ -70,14 +70,14 @@ class DatabaseService {
     try {
       const qOrder = `INSERT INTO local_orders (
         local_id, meja_id, kasir_id, tipe, catatan, total, diskon_nama, diskon_nilai,
-        nama_pelanggan, no_telepon, metode_bayar, jumlah_bayar, kembali, synced
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`;
+        nama_pelanggan, no_telepon, metode_bayar, jumlah_bayar, kembali, synced, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`;
       
       const vOrder = [
         orderData.local_id, orderData.meja_id || null, orderData.kasir_id || null, orderData.tipe, 
         orderData.catatan || null, orderData.total, orderData.discount_name || null, orderData.discount_value || 0,
         orderData.nama_pelanggan || null, orderData.no_telepon || null, orderData.metodeBayar || null, 
-        orderData.jumlahBayar || 0, orderData.kembali || 0
+        orderData.jumlahBayar || 0, orderData.kembali || 0, orderData.created_at || new Date().toISOString()
       ];
 
       await this.db.run(qOrder, vOrder);
