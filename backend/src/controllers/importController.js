@@ -2,7 +2,7 @@ const db = require('../config/database');
 
 exports.importPesananLama = async (req, res) => {
   const { tanggal, total, pelanggan, tipe, catatan, items } = req.body;
-  if (!tanggal || !total || !items || items.length === 0) return res.status(400).json({ message: 'Tanggal, Total, dan Items wajib diisi' });
+  if (!tanggal || total === undefined || total === null || !items || items.length === 0) return res.status(400).json({ message: 'Tanggal, Total, dan Items wajib diisi' });
 
   const conn = await db.getConnection();
   try {

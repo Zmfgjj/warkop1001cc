@@ -7,6 +7,7 @@ export default function ImportData() {
   const { canEdit } = useAuth();
   const [menus, setMenus] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   
   const [formData, setFormData] = useState({
     tanggal: '',
@@ -28,8 +29,27 @@ export default function ImportData() {
   const fetchMenus = async () => {
     try {
       const res = await api.get('/menu');
-      setMenus(res.data);
-      if (res.data.length > 0) setSelectedMenu(res.data[0].id);
+      let dataMenu = res.data;
+      
+      const spinPrizes = [
+        { id: 'spin-lychee', nama: '[PROMO SPIN] Lychee', harga: 10000, kategori: 'minuman' },
+        { id: 'spin-tulang-rangu', nama: '[PROMO SPIN] Tulang Rangu / Baso Aci', harga: 13000, kategori: 'makanan' },
+        { id: 'spin-siomay', nama: '[PROMO SPIN] Siomay', harga: 10000, kategori: 'makanan' },
+        { id: 'spin-mango', nama: '[PROMO SPIN] Mango', harga: 10000, kategori: 'minuman' },
+        { id: 'spin-seblak', nama: '[PROMO SPIN] Seblak', harga: 15000, kategori: 'makanan' },
+        { id: 'spin-cireng', nama: '[PROMO SPIN] Cireng Isi / Gemoy', harga: 12000, kategori: 'makanan' },
+        { id: 'spin-es-teh', nama: '[PROMO SPIN] Es Teh', harga: 5000, kategori: 'minuman' },
+        { id: 'spin-singkong', nama: '[PROMO SPIN] Singkong', harga: 10000, kategori: 'makanan' },
+        { id: 'spin-kentang', nama: '[PROMO SPIN] Kentang', harga: 10000, kategori: 'makanan' },
+        { id: 'spin-peach', nama: '[PROMO SPIN] Peach', harga: 10000, kategori: 'minuman' },
+        { id: 'spin-macaroni', nama: '[PROMO SPIN] Macaroni / Schotel', harga: 13000, kategori: 'makanan' },
+        { id: 'spin-cireng-rujak', nama: '[PROMO SPIN] Cireng Rujak', harga: 10000, kategori: 'makanan' },
+      ];
+
+      dataMenu = [...dataMenu, ...spinPrizes];
+      
+      setMenus(dataMenu);
+      if (dataMenu.length > 0) setSelectedMenu(dataMenu[0].id);
     } catch (err) {
       console.error('Gagal fetch menu:', err);
     }
@@ -43,15 +63,26 @@ export default function ImportData() {
     e.preventDefault();
     if (!selectedMenu || qty < 1) return;
     
-    const menuObj = menus.find(m => m.id === Number(selectedMenu));
+    const menuObj = menus.find(m => String(m.id) === String(selectedMenu));
     if (!menuObj) return;
     
+    let menuIdToSave = menuObj.id;
+    let catatanSpin = '';
+
+    // Jika item promo spin, coba cari ID aslinya
+    if (typeof menuObj.id === 'string' && menuObj.id.startsWith('spin-')) {
+      catatanSpin = 'Hadiah Spin Wheel (>100k) - Harga Promo';
+      const p = menuObj.nama.toLowerCase().replace('[promo spin] ', '');
+      const realMenu = menus.find(m => typeof m.id === 'number' && m.nama.toLowerCase().includes(p));
+      menuIdToSave = realMenu ? realMenu.id : menus[0]?.id; // Default ke menu pertama jika tidak ketemu
+    }
+    
     const newItem = {
-      menu_id: menuObj.id,
+      menu_id: menuIdToSave,
       nama_menu: menuObj.nama,
       harga: Number(menuObj.harga),
       qty: Number(qty),
-      catatan: ''
+      catatan: catatanSpin
     };
     
     setItems([...items, newItem]);
@@ -64,7 +95,9 @@ export default function ImportData() {
     setItems(newItems);
   };
 
-  const totalTagihan = items.reduce((sum, item) => sum + (item.harga * item.qty), 0);
+  const isCakra = formData.pelanggan.toLowerCase().includes('cakra');
+  const subtotalTagihan = items.reduce((sum, item) => sum + (item.harga * item.qty), 0);
+  const totalTagihan = isCakra ? 0 : subtotalTagihan;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -80,11 +113,17 @@ export default function ImportData() {
 
     setLoading(true);
     try {
-      await api.post('/pesanan/import', {
+      const orderData = {
         ...formData,
         total: totalTagihan,
         items: items
-      });
+      };
+      
+      if (isCakra) {
+        orderData.catatan = orderData.catatan ? `${orderData.catatan} (Diskon 100% Tim Cakra)` : 'Diskon 100% Tim Cakra';
+      }
+
+      await api.post('/pesanan/import', orderData);
       alert('Pesanan masa lalu berhasil dimasukkan ke riwayat!');
       setFormData({
         tanggal: '',
@@ -159,26 +198,42 @@ export default function ImportData() {
           <div className="bg-white p-5 md:p-6 rounded-xl border border-gray-200 flex flex-col">
             <h2 className="font-bold text-gray-700 mb-4 border-b pb-2">Pilih Menu</h2>
             
-            <form onSubmit={handleAddItem} className="flex gap-2 mb-4">
-              <select 
-                value={selectedMenu}
-                onChange={(e) => setSelectedMenu(e.target.value)}
-                className="flex-1 px-3 py-2 rounded border border-gray-300 focus:border-blue-500 focus:outline-none text-sm"
-              >
-                {menus.map(m => (
-                  <option key={m.id} value={m.id}>{m.nama} - Rp {Number(m.harga).toLocaleString('id-ID')}</option>
-                ))}
-              </select>
+            <form onSubmit={handleAddItem} className="flex flex-col gap-2 mb-4">
               <input 
-                type="number" 
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-                min="1"
-                className="w-20 px-3 py-2 rounded border border-gray-300 focus:border-blue-500 focus:outline-none text-sm"
+                type="text" 
+                placeholder="Cari menu..." 
+                value={searchTerm}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSearchTerm(val);
+                  const filtered = menus.filter(m => m.nama.toLowerCase().includes(val.toLowerCase()));
+                  if (filtered.length > 0) {
+                    setSelectedMenu(filtered[0].id);
+                  }
+                }}
+                className="w-full px-3 py-2 rounded border border-gray-300 focus:border-blue-500 focus:outline-none text-sm mb-1"
               />
-              <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 text-sm">
-                Tambah
-              </button>
+              <div className="flex gap-2">
+                <select 
+                  value={selectedMenu}
+                  onChange={(e) => setSelectedMenu(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded border border-gray-300 focus:border-blue-500 focus:outline-none text-sm"
+                >
+                  {menus.filter(m => m.nama.toLowerCase().includes(searchTerm.toLowerCase())).map(m => (
+                    <option key={m.id} value={m.id}>{m.nama} - Rp {Number(m.harga).toLocaleString('id-ID')}</option>
+                  ))}
+                </select>
+                <input 
+                  type="number" 
+                  value={qty}
+                  onChange={(e) => setQty(e.target.value)}
+                  min="1"
+                  className="w-20 px-3 py-2 rounded border border-gray-300 focus:border-blue-500 focus:outline-none text-sm"
+                />
+                <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded font-bold hover:bg-blue-700 text-sm">
+                  Tambah
+                </button>
+              </div>
             </form>
 
             {/* List Items */}
@@ -210,7 +265,19 @@ export default function ImportData() {
             <div className="border-t pt-4">
               <div className="flex justify-between items-center mb-4">
                 <span className="font-bold text-gray-700">Total Tagihan:</span>
-                <span className="font-black text-xl text-blue-700">Rp {totalTagihan.toLocaleString('id-ID')}</span>
+                <div className="text-right">
+                  {isCakra && (
+                    <div className="text-xs text-red-600 font-bold mb-1">Diskon 100% Tim Cakra</div>
+                  )}
+                  {isCakra ? (
+                    <div className="flex flex-col items-end">
+                      <span className="line-through text-gray-400 text-sm">Rp {subtotalTagihan.toLocaleString('id-ID')}</span>
+                      <span className="font-black text-xl text-blue-700">Rp 0</span>
+                    </div>
+                  ) : (
+                    <span className="font-black text-xl text-blue-700">Rp {totalTagihan.toLocaleString('id-ID')}</span>
+                  )}
+                </div>
               </div>
               <button 
                 onClick={handleSubmit}
