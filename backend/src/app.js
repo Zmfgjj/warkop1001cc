@@ -11,6 +11,7 @@ require('dotenv').config();
 
 const db = require('./config/database');
 const waGateway = require('./services/waGateway');
+const { autoCompleteOldOrders } = require('./controllers/pesananController');
 
 const rateLimit = require('express-rate-limit');
 
@@ -103,6 +104,8 @@ const crmRoutes = require('./routes/crm');
 app.use('/api/crm', crmRoutes);
 const logRoutes = require('./routes/logs');
 app.use('/api/logs', logRoutes);
+const memberRoutes = require('./routes/member');
+app.use('/api/members', memberRoutes);
 
 // Diagnostic route for uploads
 app.get('/api/diagnose-uploads', (req, res) => {
@@ -152,7 +155,7 @@ app.get('/', (req, res) => {
 
 // Update Checker API
 app.get('/api/version', (req, res) => {
-  const latest_version = process.env.APP_VERSION || '1.0.49';
+  const latest_version = process.env.APP_VERSION || '1.0.58';
   res.json({
     latest_version: latest_version,
     bundle_url: `https://warkop1001cc.cloud/bundle.zip?v=${latest_version}`,
@@ -177,6 +180,12 @@ io.on('connection', (socket) => {
     console.log('❌ Client disconnected:', socket.id);
   });
 });
+
+// Auto-complete orders that have been pending/diproses for more than 1 hour
+// Runs every 5 minutes
+setInterval(() => {
+  autoCompleteOldOrders(io);
+}, 5 * 60 * 1000);
 
 // Global error handler
 app.use((err, req, res, next) => {

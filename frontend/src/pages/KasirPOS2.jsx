@@ -43,6 +43,10 @@ export default function KasirPOS() {
   const [discountValue, setDiscountValue] = useState('')
   const [showPromoPanel, setShowPromoPanel] = useState(false)
   const [showCustDetails, setShowCustDetails] = useState(false)
+  const [memberInfo, setMemberInfo] = useState(null)
+  const [pointUsed, setPointUsed] = useState(0)
+  const [showMemberModal, setShowMemberModal] = useState(false)
+  const [newMemberForm, setNewMemberForm] = useState({ nama: '', nama_panggilan: '', no_hp: '', tgl_lahir: '' })
   const [showMejaDropdown, setShowMejaDropdown] = useState(false)
   const [expandedDescId, setExpandedDescId] = useState(null)
   const [showSpinModal, setShowSpinModal] = useState(false)
@@ -81,6 +85,46 @@ export default function KasirPOS() {
     const num = val.replace(/\D/g, '');
     if (!num) return '';
     return Number(num).toLocaleString('id-ID');
+  }
+
+  const checkMember = async () => {
+    if (!nomorHp) return showAlert('Masukkan Nomor HP terlebih dahulu', 'Perhatian');
+    try {
+      const res = await api.get(`/members/${nomorHp}`);
+      setMemberInfo(res.data);
+      setNamaPelanggan(res.data.nama_panggilan || res.data.nama);
+      let msg = `Member ditemukan! Poin: ${res.data.point}`;
+      if (res.data.tgl_lahir) {
+        const d = new Date(res.data.tgl_lahir);
+        const today = new Date();
+        if (d.getDate() === today.getDate() && d.getMonth() === today.getMonth()) {
+          const age = today.getFullYear() - d.getFullYear();
+          msg += `\n🎉 Customer ini sedang ulang tahun ke-${age} hari ini! 🎉`;
+        }
+      }
+      showAlert(msg, 'Sukses');
+    } catch (err) {
+      setMemberInfo(null);
+      if (err.response?.status === 404) {
+        setNewMemberForm({ ...newMemberForm, no_hp: nomorHp, nama: namaPelanggan, nama_panggilan: namaPelanggan.split(' ')[0] });
+        setShowMemberModal(true);
+      } else {
+        showAlert('Gagal cek member', 'Gagal');
+      }
+    }
+  }
+
+  const registerMember = async () => {
+    try {
+      const payload = { ...newMemberForm, nama: newMemberForm.nama_panggilan };
+      const res = await api.post('/members/register', payload);
+      setNamaPelanggan(payload.nama_panggilan || payload.nama);
+      showAlert(`Berhasil daftar! Silakan cek member lagi untuk dapat poin`, 'Sukses');
+      setShowMemberModal(false);
+      setNewMemberForm({ nama: '', nama_panggilan: '', no_hp: '', tgl_lahir: '' });
+    } catch (err) {
+      showAlert(err.response?.data?.message || 'Gagal daftar member', 'Gagal');
+    }
   }
 
   const fetchPromos = async () => {
@@ -239,7 +283,7 @@ export default function KasirPOS() {
   const getQty = (menu_id) => order.find(o => o.menu_id === menu_id)?.qty || 0
 
   const subtotal = order.reduce((sum, o) => sum + o.harga * o.qty, 0)
-  const total = tipePelanggan === 'CAKRA' ? 0 : Math.max(0, subtotal - (Number(discountValue) || 0))
+  const total = tipePelanggan === 'CAKRA' ? 0 : Math.max(0, subtotal - (Number(discountValue) || 0) - (Number(pointUsed) || 0))
   const kembali = jumlahBayar ? Math.max(0, parseInt(jumlahBayar.replace(/\D/g, '') || 0) - total) : 0
   const totalItems = order.reduce((s, o) => s + o.qty, 0)
 
@@ -303,7 +347,7 @@ export default function KasirPOS() {
 
       // Kalkulasi ulang total karena spin prize mungkin menambahkan item berbayar ke finalOrder
       const finalSubtotal = finalOrder.reduce((sum, o) => sum + o.harga * o.qty, 0);
-      const finalTotal = tipePelanggan === 'CAKRA' ? 0 : Math.max(0, finalSubtotal - (Number(discountValue) || 0));
+      const finalTotal = tipePelanggan === 'CAKRA' ? 0 : Math.max(0, finalSubtotal - (Number(discountValue) || 0) - (Number(pointUsed) || 0));
       const finalKembali = jumlahBayar ? Math.max(0, parseInt(jumlahBayar.replace(/\D/g, '') || 0) - finalTotal) : 0;
 
       const pesananData = {
@@ -315,6 +359,8 @@ export default function KasirPOS() {
         no_telepon: nomorHp.trim() || null,
         discount_name: discountName.trim() || null,
         discount_value: Number(discountValue) || 0,
+        member_id: memberInfo ? memberInfo.id : null,
+        point_used: Number(pointUsed) || 0,
         created_at: new Date().toISOString()
       }
 
@@ -330,7 +376,10 @@ export default function KasirPOS() {
         nama_pelanggan: namaPelanggan.trim() || null,
         no_telepon: nomorHp.trim() || null,
         discount_name: discountName.trim() || null,
-        discount_value: Number(discountValue) || 0
+        discount_value: Number(discountValue) || 0,
+        member_id: memberInfo ? memberInfo.id : null,
+        point_used: Number(pointUsed) || 0,
+        point_earned: memberInfo ? Math.floor(finalTotal / 1000) * 10 : 0
       }
 
       try {
@@ -403,7 +452,7 @@ export default function KasirPOS() {
         Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
       }
       
-      setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); setNamaPelanggan(''); setNomorHp(''); setSelectedMejaId(''); setTipePelanggan('Umum'); setDiscountName(''); setDiscountValue(''); setSelectedSpinPrizes([]); setShowSpinModal(false); fetchData()
+      setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); setNamaPelanggan(''); setNomorHp(''); setSelectedMejaId(''); setTipePelanggan('Umum'); setDiscountName(''); setDiscountValue(''); setMemberInfo(null); setPointUsed(0); setSelectedSpinPrizes([]); setShowSpinModal(false); fetchData()
     } catch (err) { 
       showAlert(err.response?.data?.message || 'Gagal memproses pembayaran', 'Gagal') 
     } finally { 
@@ -411,7 +460,7 @@ export default function KasirPOS() {
     }
   }
 
-  const handleCancel = () => { setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); setTipePelanggan('Umum'); setDiscountName(''); setDiscountValue(''); setSelectedSpinPrizes([]); setShowSpinModal(false); }
+  const handleCancel = () => { setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); setTipePelanggan('Umum'); setDiscountName(''); setDiscountValue(''); setMemberInfo(null); setPointUsed(0); setSelectedSpinPrizes([]); setShowSpinModal(false); }
 
   return (
     <MobileLayout activeMenu="Kasir (POS)" overflowClass="overflow-hidden flex flex-col">
@@ -637,10 +686,54 @@ export default function KasirPOS() {
                       <option value="CAKRA">👑 Staff (CAKRA)</option>
                     </select>
                   </div>
-                  <div>
+                  <div className="col-span-2 flex gap-2">
                     <input type="text" placeholder="No HP / WA" value={nomorHp} onChange={e => setNomorHp(e.target.value)}
-                      className="w-full text-[11px] px-2.5 py-1.5 rounded-lg focus:outline-none" style={{ backgroundColor: '#F5F0E8', color: '#634930', border: '1px solid #C4A882' }} />
+                      className="flex-1 text-[11px] px-2.5 py-1.5 rounded-lg focus:outline-none" style={{ backgroundColor: '#F5F0E8', color: '#634930', border: '1px solid #C4A882' }} />
+                    <button type="button" onClick={checkMember} className="px-3 py-1.5 rounded-lg text-[11px] font-bold text-white transition-all" style={{ backgroundColor: '#634930' }}>
+                      Cek Member
+                    </button>
                   </div>
+                  {memberInfo && (
+                    <div className="col-span-2 bg-[#F5F0E8] p-2 rounded-lg border border-[#C4A882] flex flex-col gap-1.5">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-[10px] font-bold text-[#634930]">{memberInfo.nama}</p>
+                          <p className="text-[9px] text-[#8B6F47]">Sisa Poin: {memberInfo.point.toLocaleString('id-ID')}</p>
+                        </div>
+                        {memberInfo.point > 0 && (
+                          <button type="button" onClick={() => {
+                            const usePoints = Math.min(memberInfo.point, Math.max(0, subtotal - (Number(discountValue) || 0)));
+                            setPointUsed(usePoints);
+                          }} className="px-2 py-1 text-[9px] bg-[#634930] text-white rounded font-bold">
+                            Max (Rp {Math.min(memberInfo.point, Math.max(0, subtotal - (Number(discountValue) || 0))).toLocaleString('id-ID')})
+                          </button>
+                        )}
+                      </div>
+                      {memberInfo.point > 0 && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <input 
+                            type="number" 
+                            placeholder="Input nominal poin..." 
+                            value={pointUsed || ''} 
+                            onChange={e => {
+                               let val = Number(e.target.value);
+                               const maxAllowed = Math.min(memberInfo.point, Math.max(0, subtotal - (Number(discountValue) || 0)));
+                               if (val > maxAllowed) val = maxAllowed;
+                               if (val < 0) val = 0;
+                               setPointUsed(val);
+                            }}
+                            className="w-full text-[11px] px-2.5 py-1.5 rounded-lg focus:outline-none" 
+                            style={{ backgroundColor: '#fff', color: '#634930', border: '1px solid #C4A882' }} 
+                          />
+                          {Number(pointUsed) > 0 && (
+                            <button type="button" onClick={() => setPointUsed(0)} className="px-2 py-1.5 text-[9px] bg-red-600 text-white rounded font-bold whitespace-nowrap">
+                              Batal
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className={tipeOrder === 'dine-in' ? 'col-span-1' : 'col-span-2'}>
                     <input type="text" placeholder="Nama Pelanggan" value={namaPelanggan} onChange={e => setNamaPelanggan(e.target.value)}
                       className="w-full text-[11px] px-2.5 py-1.5 rounded-lg focus:outline-none" style={{ backgroundColor: '#F5F0E8', color: '#634930', border: '1px solid #C4A882' }} />
@@ -729,7 +822,14 @@ export default function KasirPOS() {
             
             {/* Footer */}
             <div className="p-4 border-t" style={{ borderColor: '#EDE0CC' }}>
-              <div className="flex justify-between text-sm mb-2"><span className="font-bold" style={{ color: '#634930' }}>TOTAL Tagihan</span><span className="font-bold" style={{ color: '#634930' }}>Rp {total.toLocaleString('id-ID')}</span></div>
+              {Number(pointUsed) > 0 || Number(discountValue) > 0 ? (
+                <>
+                  <div className="flex justify-between text-xs mb-1"><span style={{ color: '#8B6F47' }}>Subtotal</span><span style={{ color: '#634930' }}>Rp {subtotal.toLocaleString('id-ID')}</span></div>
+                  {Number(discountValue) > 0 && <div className="flex justify-between text-xs mb-1"><span style={{ color: '#8B6F47' }}>Diskon ({discountName})</span><span className="text-red-500">-Rp {Number(discountValue).toLocaleString('id-ID')}</span></div>}
+                  {Number(pointUsed) > 0 && <div className="flex justify-between text-xs mb-1"><span style={{ color: '#8B6F47' }}>Tukar Poin</span><span className="text-red-500">-Rp {Number(pointUsed).toLocaleString('id-ID')}</span></div>}
+                </>
+              ) : null}
+              <div className="flex justify-between text-sm mb-2 mt-1"><span className="font-bold" style={{ color: '#634930' }}>TOTAL Tagihan</span><span className="font-bold" style={{ color: '#634930' }}>Rp {total.toLocaleString('id-ID')}</span></div>
               
               {/* Promo Toggle Button */}
               {!showPromoPanel ? (
@@ -1009,6 +1109,35 @@ export default function KasirPOS() {
         </div>
       )}
 
+      {/* Member Registration Modal */}
+      {showMemberModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-[#FDFBF7] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#C4A882]/30">
+            <div className="bg-[#634930] p-4 text-center">
+              <h2 className="text-lg font-bold text-white">Daftar Member Baru</h2>
+              <p className="text-white/80 text-xs">Nomor HP belum terdaftar, yuk daftar!</p>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#8B6F47] mb-1">Nomor HP / WA *</label>
+                <input type="text" value={newMemberForm.no_hp} onChange={e => setNewMemberForm({ ...newMemberForm, no_hp: e.target.value })} className="w-full p-2.5 rounded-xl bg-[#F5F0E8] border border-[#C4A882]/40 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#8B6F47] mb-1">Nama (Sapaan/Struk) *</label>
+                <input type="text" value={newMemberForm.nama_panggilan} onChange={e => setNewMemberForm({ ...newMemberForm, nama_panggilan: e.target.value })} className="w-full p-2.5 rounded-xl bg-[#F5F0E8] border border-[#C4A882]/40 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#8B6F47] mb-1">Tanggal Lahir (Opsional)</label>
+                <input type="date" value={newMemberForm.tgl_lahir} onChange={e => setNewMemberForm({ ...newMemberForm, tgl_lahir: e.target.value })} className="w-full p-2.5 rounded-xl bg-[#F5F0E8] border border-[#C4A882]/40 focus:outline-none" />
+              </div>
+              <div className="pt-2 flex gap-3">
+                <button onClick={() => setShowMemberModal(false)} className="flex-1 py-3 bg-[#EDE0CC] text-[#634930] font-bold rounded-xl">Batal</button>
+                <button onClick={registerMember} className="flex-1 py-3 bg-[#634930] text-white font-bold rounded-xl">Daftar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </MobileLayout>
   )

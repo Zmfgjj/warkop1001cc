@@ -25,3 +25,14 @@ Saat memperbarui aplikasi melalui OTA (tanpa menyusun ulang APK), Anda hanya per
 1. **Wajib menyertakan `capacitor.config.json`** ke dalam root file zip (misal: di-copy ke `/var/www/frontend/` sebelum di-zip). Plugin `CapacitorUpdater` akan gagal mengeksekusi OTA jika file konfigurasi ini tidak ada.
 2. File zip OTA **tidak boleh berisi APK**. Gunakan flag exclude saat melakukan kompresi (`-x '*.apk'`).
 3. Selalu ubah nilai `CURRENT_APP_VERSION` di `frontend/src/components/UpdateChecker.jsx` serta fallback di `backend/src/app.js` (atau `.env` di VPS) menjadi versi terbaru agar aplikasi bisa mendeteksinya.
+
+## CRITICAL RULE: Database Modifications & Bulk Updates
+**BIGGEST MISTAKE RECORDED (5 Aug 2026):** Never run bulk SQL updates using generic ranges (e.g. \id >= 360\) on production data based on assumptions. If the user asks to fix specific orders (e.g. "order 360-an"), ALWAYS verify the exact IDs first or use strict \IN (id1, id2)\ clauses. ALWAYS do a dry-run (SELECT) and explicitly ask for confirmation if the affected rows exceed the exact number requested.
+
+## Frontend Permissions Rule
+**CRITICAL RULE:**
+Saat mengunggah (deploy) file ke `/var/www/frontend` di VPS, **SELALU PASTIKAN** Anda mengatur hak akses (permissions) file agar Nginx dapat membacanya. Jika tidak, pengunjung akan terkena error 403 Forbidden.
+Gunakan perintah berikut setelah proses copy/unzip selesai:
+```bash
+chmod -R 755 /var/www/frontend && chown -R www-data:www-data /var/www/frontend
+```

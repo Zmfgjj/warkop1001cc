@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core'
 
 const isNative = Capacitor.isNativePlatform();
 const API_URL = isNative
-  ? 'http://202.155.157.13:3000/api' // Android APK langsung ke IP VPS
+  ? 'https://warkop1001cc.cloud/api' // Android APK langsung ke domain
   : '/api'; // Web app menggunakan relative path (Nginx reverse proxy)
 
 const api = axios.create({

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import MobileLayout from '../components/MobileLayout'
 import api from '../api/auth'
-import { Users, Search, MessageCircle, Calendar, Star, CheckSquare, Square, Send, Info, Smartphone, RefreshCw, LogOut, Trophy } from 'lucide-react'
+import { Users, Search, MessageCircle, Calendar, Star, CheckSquare, Square, Send, Info, Smartphone, RefreshCw, LogOut, Trophy, Activity, X } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { io } from 'socket.io-client'
 import { useAlert } from '../context/AlertContext'
@@ -24,7 +24,13 @@ export default function CRM() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterVisit, setFilterVisit] = useState(0) // 0: all, 5: >5, 10: >10
-  const [viewMode, setViewMode] = useState('bulanan') // 'bulanan' or 'total'
+  const [viewMode, setViewMode] = useState('bulanan') // 'bulanan', 'total', 'member'
+  
+  // Member States
+  const [members, setMembers] = useState([])
+  const [historyModal, setHistoryModal] = useState({ show: false, memberId: null, history: [], memberName: '' })
+  const [editMemberModal, setEditMemberModal] = useState({ show: false, data: { id: null, nama: '', nama_panggilan: '', no_hp: '', tgl_lahir: '' } })
+  const [deleteMemberModal, setDeleteMemberModal] = useState({ show: false, id: null, nama: '' })
   
   // Selection for Broadcast
   const [selectedPhones, setSelectedPhones] = useState([])
@@ -40,6 +46,7 @@ export default function CRM() {
 
   useEffect(() => {
     fetchCustomers()
+    fetchMembers()
     checkWaStatus()
     
     // Connect to Socket.IO for real-time QR updates
@@ -95,6 +102,51 @@ export default function CRM() {
     }
   }
 
+  const fetchMembers = async () => {
+    try {
+      const res = await api.get('/members');
+      setMembers(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const showHistory = async (member) => {
+    try {
+      const res = await api.get(`/members/${member.id}/history`);
+      setHistoryModal({ show: true, memberId: member.id, history: res.data, memberName: member.nama });
+    } catch (err) {
+      console.error(err);
+      showAlert('Gagal mengambil riwayat poin', 'Gagal');
+    }
+  };
+
+  const updateMember = async () => {
+    try {
+      const { id, nama_panggilan, no_hp, tgl_lahir } = editMemberModal.data;
+      const finalNama = nama_panggilan || editMemberModal.data.nama;
+      if (!finalNama || !no_hp) return showAlert('Nama dan No HP wajib diisi', 'Perhatian');
+      
+      await api.put(`/members/${id}`, { nama: finalNama, nama_panggilan: finalNama, no_hp, tgl_lahir });
+      showAlert('Member berhasil diupdate', 'Sukses');
+      setEditMemberModal({ show: false, data: {} });
+      fetchMembers();
+    } catch (err) {
+      showAlert(err.response?.data?.message || 'Gagal update member', 'Error');
+    }
+  };
+
+  const deleteMember = async () => {
+    try {
+      await api.delete(`/members/${deleteMemberModal.id}`);
+      showAlert('Member berhasil dihapus', 'Sukses');
+      setDeleteMemberModal({ show: false, id: null, nama: '' });
+      fetchMembers();
+    } catch (err) {
+      showAlert('Gagal menghapus member', 'Error');
+    }
+  };
+
   const filteredCustomers = customers
     .filter(c => {
       const matchSearch = (c.nama_pelanggan || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -114,6 +166,11 @@ export default function CRM() {
       }
     });
 
+  const filteredMembers = members.filter(m => 
+    (m.nama?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
+    (m.no_hp || '').includes(searchQuery)
+  );
+
   const toggleSelect = (phone) => {
     setSelectedPhones(prev => 
       prev.includes(phone) ? prev.filter(p => p !== phone) : [...prev, phone]
@@ -121,7 +178,8 @@ export default function CRM() {
   }
 
   const toggleSelectAll = () => {
-    const validPhones = filteredCustomers.filter(c => c.no_telepon_wa).map(c => c.no_telepon_wa)
+    const list = viewMode === 'member' ? filteredMembers.map(m => m.no_hp) : filteredCustomers.filter(c => c.no_telepon_wa).map(c => c.no_telepon_wa);
+    const validPhones = list.filter(Boolean);
     const allSelected = validPhones.every(p => selectedPhones.includes(p))
     
     if (allSelected && validPhones.length > 0) {
@@ -141,7 +199,8 @@ export default function CRM() {
     try {
       const targets = selectedPhones.map(phone => {
         const cust = customers.find(c => c.no_telepon_wa === phone)
-        return { phone, name: cust?.nama_pelanggan || 'Pelanggan Setia' }
+        const mem = members.find(m => m.no_hp === phone)
+        return { phone, name: mem?.nama || cust?.nama_pelanggan || 'Pelanggan Setia' }
       });
 
       const res = await api.post('/crm/broadcast-local', {
@@ -252,6 +311,16 @@ export default function CRM() {
           >
             <Trophy size={16} /> Riwayat Total (Akumulasi)
           </button>
+          <button
+            onClick={() => { setViewMode('member'); setSelectedPhones([]) }}
+            className={`flex-1 py-3 px-6 font-bold text-sm rounded-lg transition-all flex items-center justify-center gap-2 ${
+              viewMode === 'member'
+                ? 'bg-[#634930] text-white shadow-sm'
+                : 'text-[#8B6F47] hover:bg-stone-50'
+            }`}
+          >
+            <Star size={16} /> Member Loyalty
+          </button>
         </div>
 
         {/* Filters and Search */}
@@ -277,9 +346,13 @@ export default function CRM() {
                 </button>
               ))}
             </div>
-          ) : (
+          ) : viewMode === 'total' ? (
             <div className="text-xs font-bold text-[#8B6F47] bg-[#FFF5E5] px-4 py-2 rounded-full border border-[#EDE0CC]">
               🏆 Akumulasi Kunjungan Sepanjang Masa
+            </div>
+          ) : (
+            <div className="text-xs font-bold text-[#8B6F47] bg-[#FFF5E5] px-4 py-2 rounded-full border border-[#EDE0CC]">
+              ✨ Daftar Pelanggan dengan Membership Poin
             </div>
           )}
           
@@ -301,58 +374,73 @@ export default function CRM() {
             <div className="flex justify-center py-20 text-[#8B6F47]">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#634930]"></div>
             </div>
-          ) : filteredCustomers.length === 0 ? (
+          ) : (viewMode === 'member' ? filteredMembers.length === 0 : filteredCustomers.length === 0) ? (
             <div className="flex flex-col items-center justify-center py-20 text-center px-4">
               <div className="w-20 h-20 bg-stone-100 rounded-full flex items-center justify-center mb-4 text-stone-400">
                 <Users size={40} />
               </div>
-              <h3 className="text-lg font-bold text-stone-700">Tidak Ada Pelanggan</h3>
+              <h3 className="text-lg font-bold text-stone-700">Tidak Ada Data</h3>
               <p className="text-stone-500 text-sm mt-1 max-w-sm">
-                Belum ada data pelanggan yang sesuai dengan filter pencarian Anda.
+                Belum ada data yang sesuai dengan filter pencarian Anda.
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-stone-50 border-b border-stone-200">
-                    {canEdit('crm') && (
-                      <th className="py-3 px-4 w-12 text-center">
-                        <button onClick={toggleSelectAll} className="text-stone-400 hover:text-[#634930]">
-                           {filteredCustomers.length > 0 && filteredCustomers.filter(c => c.no_telepon_wa).every(c => selectedPhones.includes(c.no_telepon_wa)) 
-                             ? <CheckSquare size={20} className="text-[#634930]" /> 
-                             : <Square size={20} />}
-                        </button>
-                      </th>
-                    )}
-                    <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider">Nama & Kontak</th>
-                    {viewMode === 'bulanan' ? (
-                      <>
-                        <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-center">Kunjungan (Bulan Ini)</th>
-                        <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-right">Belanja (Bulan Ini)</th>
-                      </>
-                    ) : (
-                      <>
-                        <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-center">Total Kunjungan</th>
-                        <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-right">Total Belanja</th>
-                      </>
-                    )}
-                    <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-right">Kunjungan Terakhir</th>
-                  </tr>
+                  {viewMode === 'member' ? (
+                    <tr className="bg-stone-50 border-b border-stone-200">
+                      {canEdit('crm') && (
+                        <th className="py-3 px-4 w-12 text-center">
+                          <button onClick={toggleSelectAll} className="text-stone-400 hover:text-[#634930]">
+                            {filteredMembers.length > 0 && filteredMembers.filter(m => m.no_hp).every(m => selectedPhones.includes(m.no_hp)) 
+                              ? <CheckSquare size={20} className="text-[#634930]" /> 
+                              : <Square size={20} />}
+                          </button>
+                        </th>
+                      )}
+                      <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider">Nama & Kontak</th>
+                      <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-center">Total Poin</th>
+                      <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-right">Tgl Daftar</th>
+                      <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-center">Aksi</th>
+                    </tr>
+                  ) : (
+                    <tr className="bg-stone-50 border-b border-stone-200">
+                      {canEdit('crm') && (
+                        <th className="py-3 px-4 w-12 text-center">
+                          <button onClick={toggleSelectAll} className="text-stone-400 hover:text-[#634930]">
+                            {filteredCustomers.length > 0 && filteredCustomers.filter(c => c.no_telepon_wa).every(c => selectedPhones.includes(c.no_telepon_wa)) 
+                              ? <CheckSquare size={20} className="text-[#634930]" /> 
+                              : <Square size={20} />}
+                          </button>
+                        </th>
+                      )}
+                      <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider">Nama & Kontak</th>
+                      {viewMode === 'bulanan' ? (
+                        <>
+                          <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-center">Kunjungan (Bulan Ini)</th>
+                          <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-right">Belanja (Bulan Ini)</th>
+                        </>
+                      ) : (
+                        <>
+                          <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-center">Total Kunjungan</th>
+                          <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-right">Total Belanja</th>
+                        </>
+                      )}
+                      <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-right">Kunjungan Terakhir</th>
+                    </tr>
+                  )}
                 </thead>
                 <tbody className="divide-y divide-stone-100">
-                  {filteredCustomers.map((cust, idx) => {
-                    const isSelected = selectedPhones.includes(cust.no_telepon_wa)
-                    const isLoyal = Number(cust.total_kunjungan) >= 10
-                    return (
-                      <tr 
-                        key={idx} 
-                        className={`hover:bg-stone-50 transition-colors ${isSelected ? 'bg-amber-50/50' : ''}`}
-                      >
+                  {viewMode === 'member' ? (
+                    filteredMembers.map((m, idx) => {
+                      const isSelected = selectedPhones.includes(m.no_hp)
+                      return (
+                      <tr key={idx} className={`hover:bg-stone-50 transition-colors ${isSelected ? 'bg-amber-50/50' : ''}`}>
                         {canEdit('crm') && (
                           <td className="py-3 px-4 text-center">
-                            {cust.no_telepon_wa ? (
-                              <button onClick={() => toggleSelect(cust.no_telepon_wa)} className="text-stone-400">
+                            {m.no_hp ? (
+                              <button onClick={() => toggleSelect(m.no_hp)} className="text-stone-400">
                                 {isSelected ? <CheckSquare size={20} className="text-[#634930]" /> : <Square size={20} />}
                               </button>
                             ) : (
@@ -363,38 +451,112 @@ export default function CRM() {
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full bg-[#FFF5E5] flex items-center justify-center text-[#634930] font-bold">
-                              {(cust.nama_pelanggan || '?')[0].toUpperCase()}
+                              {(m.nama || '?')[0].toUpperCase()}
                             </div>
                             <div>
-                              <p className="font-bold text-sm text-stone-700 flex items-center gap-1">
-                                {cust.nama_pelanggan}
-                                {isLoyal && <Star size={14} className="text-amber-500 fill-amber-500" title="Pelanggan Loyal" />}
-                              </p>
-                              <p className="text-xs text-stone-500">{cust.no_telepon || '-'}</p>
+                              <p className="font-bold text-sm text-stone-700">{m.nama}</p>
+                              <p className="text-xs text-stone-500">{m.no_hp || '-'}</p>
                             </div>
                           </div>
                         </td>
                         <td className="py-3 px-4 text-center">
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                            isLoyal ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-600'
-                          }`}>
-                            {viewMode === 'bulanan' ? `${cust.kunjungan_bulan_ini || 0}x` : `${cust.total_kunjungan || 0}x`}
+                          <span className="bg-[#21B214]/10 text-[#21B214] text-xs font-black px-3 py-1 rounded-full">
+                            {m.point}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <span className="text-sm font-bold text-[#21B214]">
-                            {formatRupiah(viewMode === 'bulanan' ? (cust.belanja_bulan_ini || 0) : (cust.total_belanja || 0))}
+                          <span className="text-sm text-stone-600">
+                            {new Date(m.created_at).toLocaleDateString('id-ID')}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-right">
-                          <span className="text-sm text-stone-600 flex items-center justify-end gap-1">
-                            <Calendar size={14} className="text-stone-400" />
-                            {formatDate(cust.kunjungan_terakhir)}
-                          </span>
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button 
+                              onClick={() => showHistory(m)}
+                              title="Riwayat Poin"
+                              className="bg-[#634930]/10 text-[#634930] hover:bg-[#634930]/20 p-2 rounded-lg font-bold transition-colors"
+                            >
+                              <Activity size={16} />
+                            </button>
+                            {canEdit('crm') && (
+                              <>
+                                <button 
+                                  onClick={() => setEditMemberModal({ show: true, data: { ...m, tgl_lahir: m.tgl_lahir ? m.tgl_lahir.split('T')[0] : '' } })}
+                                  title="Edit Member"
+                                  className="bg-blue-100 text-blue-600 hover:bg-blue-200 p-2 rounded-lg font-bold transition-colors"
+                                >
+                                  <RefreshCw size={16} />
+                                </button>
+                                <button 
+                                  onClick={() => setDeleteMemberModal({ show: true, id: m.id, nama: m.nama })}
+                                  title="Hapus Member"
+                                  className="bg-red-100 text-red-600 hover:bg-red-200 p-2 rounded-lg font-bold transition-colors"
+                                >
+                                  <LogOut size={16} />
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
-                    )
-                  })}
+                      )
+                    })
+                  ) : (
+                    filteredCustomers.map((cust, idx) => {
+                      const isSelected = selectedPhones.includes(cust.no_telepon_wa)
+                      const isLoyal = Number(cust.total_kunjungan) >= 10
+                      return (
+                        <tr 
+                          key={idx} 
+                          className={`hover:bg-stone-50 transition-colors ${isSelected ? 'bg-amber-50/50' : ''}`}
+                        >
+                          {canEdit('crm') && (
+                            <td className="py-3 px-4 text-center">
+                              {cust.no_telepon_wa ? (
+                                <button onClick={() => toggleSelect(cust.no_telepon_wa)} className="text-stone-400">
+                                  {isSelected ? <CheckSquare size={20} className="text-[#634930]" /> : <Square size={20} />}
+                                </button>
+                              ) : (
+                                <span className="text-stone-300" title="Nomor WA tidak valid">-</span>
+                              )}
+                            </td>
+                          )}
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-[#FFF5E5] flex items-center justify-center text-[#634930] font-bold">
+                                {(cust.nama_pelanggan || '?')[0].toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-bold text-sm text-stone-700 flex items-center gap-1">
+                                  {cust.nama_pelanggan}
+                                  {isLoyal && <Star size={14} className="text-amber-500 fill-amber-500" title="Pelanggan Loyal" />}
+                                </p>
+                                <p className="text-xs text-stone-500">{cust.no_telepon || '-'}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              isLoyal ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-600'
+                            }`}>
+                              {viewMode === 'bulanan' ? `${cust.kunjungan_bulan_ini || 0}x` : `${cust.total_kunjungan || 0}x`}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="text-sm font-bold text-[#21B214]">
+                              {formatRupiah(viewMode === 'bulanan' ? (cust.belanja_bulan_ini || 0) : (cust.total_belanja || 0))}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <span className="text-sm text-stone-600 flex items-center justify-end gap-1">
+                              <Calendar size={14} className="text-stone-400" />
+                              {formatDate(cust.kunjungan_terakhir)}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
@@ -453,6 +615,85 @@ export default function CRM() {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Member Modal */}
+      {editMemberModal.show && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-[#FDFBF7] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#C4A882]/30">
+            <div className="bg-[#634930] p-4 text-center">
+              <h2 className="text-lg font-bold text-white">Edit Member</h2>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#8B6F47] mb-1">Nomor HP / WA *</label>
+                <input type="text" value={editMemberModal.data.no_hp} onChange={e => setEditMemberModal({ ...editMemberModal, data: { ...editMemberModal.data, no_hp: e.target.value } })} className="w-full p-2.5 rounded-xl bg-[#F5F0E8] border border-[#C4A882]/40 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#8B6F47] mb-1">Nama (Sapaan/Struk) *</label>
+                <input type="text" value={editMemberModal.data.nama_panggilan || editMemberModal.data.nama || ''} onChange={e => setEditMemberModal({ ...editMemberModal, data: { ...editMemberModal.data, nama_panggilan: e.target.value } })} className="w-full p-2.5 rounded-xl bg-[#F5F0E8] border border-[#C4A882]/40 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#8B6F47] mb-1">Tanggal Lahir</label>
+                <input type="date" value={editMemberModal.data.tgl_lahir || ''} onChange={e => setEditMemberModal({ ...editMemberModal, data: { ...editMemberModal.data, tgl_lahir: e.target.value } })} className="w-full p-2.5 rounded-xl bg-[#F5F0E8] border border-[#C4A882]/40 focus:outline-none" />
+              </div>
+              <div className="pt-2 flex gap-3">
+                <button onClick={() => setEditMemberModal({ show: false, data: {} })} className="flex-1 py-3 bg-[#EDE0CC] text-[#634930] font-bold rounded-xl">Batal</button>
+                <button onClick={updateMember} className="flex-1 py-3 bg-[#21B214] text-white font-bold rounded-xl">Simpan</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Member Modal */}
+      {deleteMemberModal.show && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-[#FDFBF7] rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl border border-[#C4A882]/30 p-5 text-center">
+            <h3 className="text-xl font-bold text-[#442D1D] mb-2">Hapus Member?</h3>
+            <p className="text-[#8B6F47] text-sm mb-6">Anda yakin ingin menghapus <strong>{deleteMemberModal.nama}</strong> dari keanggotaan? Seluruh poinnya akan hilang.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteMemberModal({ show: false, id: null, nama: '' })} className="flex-1 py-3 bg-[#EDE0CC] text-[#634930] font-bold rounded-xl">Batal</button>
+              <button onClick={deleteMember} className="flex-1 py-3 bg-red-500 text-white font-bold rounded-xl">Ya, Hapus</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {historyModal.show && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden">
+            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+              <h3 className="font-bold text-[#442D1D]">Riwayat Poin: {historyModal.memberName}</h3>
+              <button onClick={() => setHistoryModal({ show: false, memberId: null, history: [], memberName: '' })} className="text-stone-500 hover:text-stone-700"><X size={20}/></button>
+            </div>
+            <div className="p-4 max-h-[60vh] overflow-y-auto">
+              {historyModal.history.length === 0 ? (
+                <p className="text-center text-stone-500 py-4">Belum ada riwayat</p>
+              ) : (
+                <div className="space-y-3">
+                  {historyModal.history.map((h, i) => (
+                    <div key={i} className="flex justify-between items-center p-3 rounded-lg border border-stone-100">
+                      <div>
+                        <p className="text-sm font-bold text-stone-800">
+                          {h.tipe === 'earn' ? 'Dapat Poin' : 'Tukar Poin'}
+                        </p>
+                        <p className="text-xs text-stone-500">{new Date(h.created_at).toLocaleString('id-ID')}</p>
+                        {h.pesanan_total && (
+                          <p className="text-xs text-stone-500">Trx: Rp {Number(h.pesanan_total).toLocaleString('id-ID')}</p>
+                        )}
+                      </div>
+                      <div className={`text-sm font-bold ${h.tipe === 'earn' ? 'text-green-600' : 'text-red-600'}`}>
+                        {h.tipe === 'earn' ? '+' : '-'}{h.jumlah_poin}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -13,7 +13,8 @@ exports.ringkasan = async (req, res) => {
     const [pendapatan] = await db.query(`
       SELECT COALESCE(SUM(pb.jumlah), 0) as total
       FROM pembayaran pb
-      WHERE pb.status = 'sukses'
+      JOIN pesanan p ON pb.pesanan_id = p.id
+      WHERE pb.status = 'sukses' AND p.status != 'batal'
       AND pb.created_at >= ? AND pb.created_at <= ?
     `, [startDate, endDate]);
 
@@ -21,7 +22,7 @@ exports.ringkasan = async (req, res) => {
     const [pesanan] = await db.query(`
       SELECT COUNT(*) as total
       FROM pesanan p
-      WHERE p.status = 'selesai'
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
     `, [startDate, endDate]);
 
@@ -31,9 +32,9 @@ exports.ringkasan = async (req, res) => {
       FROM detail_pesanan dp
       LEFT JOIN menu m ON dp.menu_id = m.id
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
-      WHERE p.status = 'selesai'
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
-      GROUP BY dp.menu_id
+      GROUP BY dp.menu_id, dp.harga
       ORDER BY total_terjual DESC
       LIMIT 5
     `, [startDate, endDate]);
@@ -43,7 +44,8 @@ exports.ringkasan = async (req, res) => {
       SELECT HOUR(pb.created_at) as jam, 
              SUM(pb.jumlah) as total
       FROM pembayaran pb
-      WHERE pb.status = 'sukses'
+      JOIN pesanan p ON pb.pesanan_id = p.id
+      WHERE pb.status = 'sukses' AND p.status != 'batal'
       AND pb.created_at >= ? AND pb.created_at <= ?
       GROUP BY HOUR(pb.created_at)
       ORDER BY jam
@@ -56,7 +58,8 @@ exports.ringkasan = async (req, res) => {
         COUNT(*) as jumlah_transaksi,
         COALESCE(SUM(pb.jumlah), 0) as total
       FROM pembayaran pb
-      WHERE pb.status = 'sukses'
+      JOIN pesanan p ON pb.pesanan_id = p.id
+      WHERE pb.status = 'sukses' AND p.status != 'batal'
       AND pb.created_at >= ? AND pb.created_at <= ?
       GROUP BY pb.metode
     `, [startDate, endDate]);
@@ -70,7 +73,7 @@ exports.ringkasan = async (req, res) => {
       FROM detail_pesanan dp
       LEFT JOIN menu m ON dp.menu_id = m.id
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
-      WHERE p.status = 'selesai'
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
     `, [startDate, endDate]);
     const grossProfit = grossRevenue - (hppRows[0]?.total_hpp || 0);
@@ -80,7 +83,7 @@ exports.ringkasan = async (req, res) => {
       SELECT 
         m.nama,
         k.nama as kategori,
-        m.harga as harga_jual,
+        dp.harga as harga_jual,
         COALESCE(m.hpp, 0) as hpp,
         SUM(dp.qty) as total_terjual,
         SUM(dp.qty * dp.harga) as total_pendapatan,
@@ -89,9 +92,9 @@ exports.ringkasan = async (req, res) => {
       LEFT JOIN menu m ON dp.menu_id = m.id
       LEFT JOIN kategori k ON m.kategori_id = k.id
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
-      WHERE p.status = 'selesai'
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
-      GROUP BY dp.menu_id
+      GROUP BY dp.menu_id, dp.harga
       ORDER BY total_terjual DESC
     `, [startDate, endDate]);
 
@@ -142,7 +145,8 @@ exports.laporanBulanan = async (req, res) => {
         DATE(pb.created_at) as tanggal,
         SUM(pb.jumlah) as pendapatan
       FROM pembayaran pb
-      WHERE pb.status = 'sukses'
+      JOIN pesanan p ON pb.pesanan_id = p.id
+      WHERE pb.status = 'sukses' AND p.status != 'batal'
       AND pb.created_at >= ? AND pb.created_at <= ?
       GROUP BY DATE(pb.created_at)
       ORDER BY tanggal
@@ -154,7 +158,7 @@ exports.laporanBulanan = async (req, res) => {
         DATE(p.created_at) as tanggal,
         COUNT(*) as total_pesanan
       FROM pesanan p
-      WHERE p.status = 'selesai'
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
       GROUP BY DATE(p.created_at)
       ORDER BY tanggal
@@ -219,7 +223,8 @@ exports.laporanBulanan = async (req, res) => {
         COUNT(*) as jumlah_transaksi,
         COALESCE(SUM(pb.jumlah), 0) as total
       FROM pembayaran pb
-      WHERE pb.status = 'sukses'
+      JOIN pesanan p ON pb.pesanan_id = p.id
+      WHERE pb.status = 'sukses' AND p.status != 'batal'
       AND pb.created_at >= ? AND pb.created_at <= ?
       GROUP BY pb.metode
     `, [startOfMonth, endOfMonth]);
@@ -232,7 +237,7 @@ exports.laporanBulanan = async (req, res) => {
       FROM detail_pesanan dp
       LEFT JOIN menu m ON dp.menu_id = m.id
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
-      WHERE p.status = 'selesai'
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
     `, [startOfMonth, endOfMonth]);
     const grossProfit = totalBulan - (hppRows[0]?.total_hpp || 0);
@@ -242,7 +247,7 @@ exports.laporanBulanan = async (req, res) => {
       SELECT 
         m.nama,
         k.nama as kategori,
-        m.harga as harga_jual,
+        dp.harga as harga_jual,
         COALESCE(m.hpp, 0) as hpp,
         SUM(dp.qty) as total_terjual,
         SUM(dp.qty * dp.harga) as total_pendapatan,
@@ -251,9 +256,9 @@ exports.laporanBulanan = async (req, res) => {
       LEFT JOIN menu m ON dp.menu_id = m.id
       LEFT JOIN kategori k ON m.kategori_id = k.id
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
-      WHERE p.status = 'selesai'
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
-      GROUP BY dp.menu_id
+      GROUP BY dp.menu_id, dp.harga
       ORDER BY total_terjual DESC
     `, [startOfMonth, endOfMonth]);
 
@@ -287,7 +292,8 @@ exports.laporanTahunan = async (req, res) => {
     const [pendapatanTahunan] = await db.query(`
       SELECT COALESCE(SUM(pb.jumlah), 0) as total
       FROM pembayaran pb
-      WHERE pb.status = 'sukses'
+      JOIN pesanan p ON pb.pesanan_id = p.id
+      WHERE pb.status = 'sukses' AND p.status != 'batal'
       AND pb.created_at >= ? AND pb.created_at <= ?
     `, [startOfYear, endOfYear]);
 
@@ -295,7 +301,7 @@ exports.laporanTahunan = async (req, res) => {
     const [pesananTahunan] = await db.query(`
       SELECT COUNT(*) as total
       FROM pesanan p
-      WHERE p.status = 'selesai'
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
     `, [startOfYear, endOfYear]);
 
@@ -305,7 +311,8 @@ exports.laporanTahunan = async (req, res) => {
         MONTH(pb.created_at) as bulan,
         SUM(pb.jumlah) as pendapatan
       FROM pembayaran pb
-      WHERE pb.status = 'sukses'
+      JOIN pesanan p ON pb.pesanan_id = p.id
+      WHERE pb.status = 'sukses' AND p.status != 'batal'
       AND pb.created_at >= ? AND pb.created_at <= ?
       GROUP BY MONTH(pb.created_at)
       ORDER BY bulan
@@ -317,7 +324,7 @@ exports.laporanTahunan = async (req, res) => {
         MONTH(p.created_at) as bulan,
         COUNT(*) as total_pesanan
       FROM pesanan p
-      WHERE p.status = 'selesai'
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
       GROUP BY MONTH(p.created_at)
       ORDER BY bulan
@@ -350,7 +357,8 @@ exports.laporanTahunan = async (req, res) => {
         COUNT(*) as jumlah_transaksi,
         COALESCE(SUM(pb.jumlah), 0) as total
       FROM pembayaran pb
-      WHERE pb.status = 'sukses'
+      JOIN pesanan p ON pb.pesanan_id = p.id
+      WHERE pb.status = 'sukses' AND p.status != 'batal'
       AND pb.created_at >= ? AND pb.created_at <= ?
       GROUP BY pb.metode
     `, [startOfYear, endOfYear]);
@@ -365,7 +373,7 @@ exports.laporanTahunan = async (req, res) => {
       FROM detail_pesanan dp
       LEFT JOIN menu m ON dp.menu_id = m.id
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
-      WHERE p.status = 'selesai'
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
     `, [startOfYear, endOfYear]);
     const grossProfit = grossRevenue - (hppRows[0]?.total_hpp || 0);
@@ -375,7 +383,7 @@ exports.laporanTahunan = async (req, res) => {
       SELECT 
         m.nama,
         k.nama as kategori,
-        m.harga as harga_jual,
+        dp.harga as harga_jual,
         COALESCE(m.hpp, 0) as hpp,
         SUM(dp.qty) as total_terjual,
         SUM(dp.qty * dp.harga) as total_pendapatan,
@@ -384,9 +392,9 @@ exports.laporanTahunan = async (req, res) => {
       LEFT JOIN menu m ON dp.menu_id = m.id
       LEFT JOIN kategori k ON m.kategori_id = k.id
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
-      WHERE p.status = 'selesai'
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
-      GROUP BY dp.menu_id
+      GROUP BY dp.menu_id, dp.harga
       ORDER BY total_terjual DESC
     `, [startOfYear, endOfYear]);
 
@@ -420,7 +428,7 @@ exports.laporanMenu = async (req, res) => {
       SELECT 
         m.nama,
         k.nama as kategori,
-        m.harga as harga_jual,
+        dp.harga as harga_jual,
         COALESCE(m.hpp, 0) as hpp,
         SUM(dp.qty) as total_terjual,
         SUM(dp.qty * dp.harga) as total_pendapatan,
@@ -429,9 +437,9 @@ exports.laporanMenu = async (req, res) => {
       LEFT JOIN menu m ON dp.menu_id = m.id
       LEFT JOIN kategori k ON m.kategori_id = k.id
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
-      WHERE p.status = 'selesai'
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
-      GROUP BY dp.menu_id
+      GROUP BY dp.menu_id, dp.harga
       ORDER BY total_terjual DESC
     `, [startDate, endDate]);
 
@@ -488,7 +496,7 @@ exports.historiPembelian = async (req, res) => {
       FROM pesanan p
       LEFT JOIN users u ON p.kasir_id = u.id
       LEFT JOIN pembayaran pb ON pb.pesanan_id = p.id AND pb.status = 'sukses'
-      WHERE p.status = 'selesai'
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
       ${filterQuery}
     `, [startDate, endDate, ...filterQuery ? (metode && metode !== 'semua' ? [metode] : []).concat(search ? [searchParam, searchParam] : []) : []]);
@@ -506,7 +514,7 @@ exports.historiPembelian = async (req, res) => {
       FROM pesanan p
       LEFT JOIN users u ON p.kasir_id = u.id
       LEFT JOIN pembayaran pb ON pb.pesanan_id = p.id AND pb.status = 'sukses'
-      WHERE p.status = 'selesai'
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
       ${filterQuery}
       GROUP BY DATE(p.created_at)
@@ -535,7 +543,7 @@ exports.historiPembelian = async (req, res) => {
       LEFT JOIN meja m ON p.meja_id = m.id
       LEFT JOIN users u ON p.kasir_id = u.id
       LEFT JOIN pembayaran pb ON pb.pesanan_id = p.id AND pb.status = 'sukses'
-      WHERE p.status = 'selesai'
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
       ${filterQuery}
       ORDER BY p.created_at DESC

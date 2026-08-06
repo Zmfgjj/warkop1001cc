@@ -13,7 +13,7 @@ function formatTanggal(date) {
 }
 
 // // Generate HTML struk untuk window.print()
-function generateStrukHTML({ pesananId, items, subtotal, total, metodeBayar, jumlahBayar, kembali, meja, tipe, kasir, tanggal, copyLabel, type, nama_pelanggan, no_telepon, discount_name, discount_value }) {
+function generateStrukHTML({ pesananId, items, subtotal, total, metodeBayar, jumlahBayar, kembali, meja, tipe, kasir, tanggal, copyLabel, type, nama_pelanggan, no_telepon, discount_name, discount_value, point_used, point_earned }) {
   const isDapurOrBar = type === 'dapur' || type === 'bar';
   const isMeja = type === 'meja';
   
@@ -108,10 +108,12 @@ function generateStrukHTML({ pesananId, items, subtotal, total, metodeBayar, jum
       <div style="font-size:12px">
         <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Subtotal</span><span>${isMeja ? `<del>${formatRupiah(subtotal)}</del>` : formatRupiah(subtotal)}</span></div>
         ${(!isMeja && discount_value > 0) ? `<div style="display:flex;justify-content:space-between;margin:2px 0;color:#c0392b;font-weight:bold;"><span>${discount_name || 'Promo'}</span><span>-${formatRupiah(discount_value)}</span></div>` : ''}
-        ${(!isMeja && !discount_value && (subtotal - total) > 0) ? `<div style="display:flex;justify-content:space-between;margin:2px 0;color:#c0392b;font-weight:bold;"><span>Diskon CAKRA</span><span>-${formatRupiah(subtotal - total)}</span></div>` : ''}
+        ${(!isMeja && !discount_value && (subtotal - total) > 0 && !point_used) ? `<div style="display:flex;justify-content:space-between;margin:2px 0;color:#c0392b;font-weight:bold;"><span>Diskon CAKRA</span><span>-${formatRupiah(subtotal - total)}</span></div>` : ''}
+        ${(!isMeja && point_used > 0) ? `<div style="display:flex;justify-content:space-between;margin:2px 0;color:#c0392b;font-weight:bold;"><span>Tukar Poin</span><span>-${formatRupiah(point_used)}</span></div>` : ''}
         <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Total Tagihan</span><span style="font-weight:bold;">${isMeja ? `<del>${formatRupiah(total)}</del>` : formatRupiah(total)}</span></div>
         <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Bayar (${metodeBayar === 'Tunai' ? 'Cash' : metodeBayar})</span><span>${isMeja ? `<del>${formatRupiah(metodeBayar === 'Tunai' ? jumlahBayar : total)}</del>` : formatRupiah(metodeBayar === 'Tunai' ? jumlahBayar : total)}</span></div>
         ${metodeBayar === 'Tunai' ? `<div style="display:flex;justify-content:space-between;margin:2px 0"><span>Kembali</span><span>${isMeja ? `<del>${formatRupiah(kembali)}</del>` : formatRupiah(kembali)}</span></div>` : ''}
+        ${(point_earned > 0) ? `<div style="display:flex;justify-content:space-between;margin:2px 0;color:#8B6F47;font-weight:bold;margin-top:4px;"><span>Poin Didapat</span><span>+${point_earned} Poin</span></div>` : ''}
       </div>
       <hr style="border:none;border-top:1px dashed #000;margin:8px 0">
       
@@ -423,9 +425,14 @@ async function _cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
         if (!isMeja && data.discount_value > 0) {
           const diskonStr = '-' + formatRupiah(data.discount_value);
           receipt += padRight(data.discount_name || 'Promo', 16) + padLeft(diskonStr, 16) + LF
-        } else if (!isMeja && (data.subtotal - data.total) > 0) {
+        } else if (!isMeja && (data.subtotal - data.total) > 0 && !data.point_used) {
           const diskonStr = '-' + formatRupiah(data.subtotal - data.total);
           receipt += padRight('Diskon CAKRA', 16) + padLeft(diskonStr, 16) + LF
+        }
+        
+        if (!isMeja && data.point_used > 0) {
+          const poinStr = '-' + formatRupiah(data.point_used);
+          receipt += padRight('Tukar Poin', 16) + padLeft(poinStr, 16) + LF
         }
 
         const totalStr = isMeja ? '------' : formatRupiah(data.total);
@@ -436,6 +443,9 @@ async function _cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
         if (data.metodeBayar === 'Tunai') {
           const kembaliStr = isMeja ? '------' : formatRupiah(data.kembali);
           receipt += padRight('Kembali', 16) + padLeft(kembaliStr, 16) + LF
+        }
+        if (data.point_earned > 0) {
+          receipt += padRight('Poin Didapat', 16) + padLeft(`+${data.point_earned} Poin`, 16) + LF
         }
         receipt += dashed
 

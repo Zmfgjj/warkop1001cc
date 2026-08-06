@@ -1,5 +1,31 @@
 const db = require('../config/database');
 
+async function processMemberPoints(conn, pesanan_id, jumlahBayar) {
+  const [pesanan] = await conn.query('SELECT member_id, point_used, point_earned FROM pesanan WHERE id = ?', [pesanan_id]);
+  if (pesanan.length > 0 && pesanan[0].member_id) {
+    const p = pesanan[0];
+    // Check if points already processed for this pesanan
+    if (p.point_earned > 0) return; // Prevent double point processing
+
+    const pointsEarned = Math.floor(jumlahBayar / 100);
+    
+    // Deduct redeemed points
+    if (p.point_used > 0) {
+      await conn.query('UPDATE members SET point = point - ? WHERE id = ?', [p.point_used, p.member_id]);
+      await conn.query('INSERT INTO member_points_history (member_id, pesanan_id, tipe, jumlah_poin) VALUES (?, ?, "redeem", ?)', [p.member_id, pesanan_id, p.point_used]);
+    }
+    
+    // Add earned points
+    if (pointsEarned > 0) {
+      await conn.query('UPDATE members SET point = point + ? WHERE id = ?', [pointsEarned, p.member_id]);
+      await conn.query('INSERT INTO member_points_history (member_id, pesanan_id, tipe, jumlah_poin) VALUES (?, ?, "earn", ?)', [p.member_id, pesanan_id, pointsEarned]);
+      
+      // Update pesanan to prevent duplicate earned points
+      await conn.query('UPDATE pesanan SET point_earned = ? WHERE id = ?', [pointsEarned, pesanan_id]);
+    }
+  }
+}
+
 exports.buatPembayaran = async (req, res) => {
   const conn = await db.getConnection();
   try {
@@ -42,6 +68,7 @@ exports.buatPembayaran = async (req, res) => {
     // Close open bill if cash/tunai (or wait for QRIS)
     if (isInstantSuccess) {
       await conn.query('UPDATE pesanan SET is_open_bill = 0, payment_status = "paid" WHERE id = ?', [pesanan_id]);
+      await processMemberPoints(conn, pesanan_id, jumlahBayar);
     }
 
     // Pesanan tetap pending, biarkan KDS yang handle status pesanan
@@ -104,6 +131,7 @@ exports.konfirmasiQris = async (req, res) => {
 
     await conn.query('UPDATE pembayaran SET status = "sukses" WHERE id = ?', [id]);
     await conn.query('UPDATE pesanan SET is_open_bill = 0, payment_status = "paid" WHERE id = ?', [pembayaran[0].pesanan_id]);
+    await processMemberPoints(conn, pembayaran[0].pesanan_id, pembayaran[0].jumlah);
     // Pesanan tetap pending/diproses, biarkan KDS yang handle
 
     await conn.commit();

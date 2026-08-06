@@ -227,7 +227,7 @@ export default function Laporan() {
         const result = await Filesystem.writeFile({
           path,
           data: base64,
-          directory: Directory.Documents
+          directory: Directory.Cache
         });
 
         await Share.share({

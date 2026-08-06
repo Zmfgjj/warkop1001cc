@@ -36,8 +36,16 @@ async function getNomorAntrean(conn, isOffline) {
 exports.buatPesanan = async (req, res) => {
   const conn = await db.getConnection();
   try {
-    const { local_id, created_at, meja_id, tipe, catatan, items, is_offline_sync, pembayaran, nama_pelanggan, no_telepon, discount_name, discount_value, nomor_antrean: antreanClient } = req.body;
+    const { local_id, created_at, meja_id, tipe, catatan, items, is_offline_sync, pembayaran, nama_pelanggan, no_telepon, discount_name, discount_value, nomor_antrean: antreanClient, member_id: req_member_id, point_used } = req.body;
     
+    let member_id = req_member_id || null;
+    if (no_telepon) {
+      const [existingMember] = await conn.query('SELECT id FROM members WHERE no_hp = ?', [no_telepon]);
+      if (existingMember.length > 0) {
+        member_id = existingMember[0].id;
+      }
+    }
+
     // Cek idempotency: jika local_id sudah ada, kembalikan sukses (mencegah duplikat saat retry sync)
     if (local_id) {
       const [existing] = await conn.query('SELECT id, total FROM pesanan WHERE local_id = ?', [local_id]);
@@ -129,9 +137,12 @@ exports.buatPesanan = async (req, res) => {
 
     for (const item of items) {
       const [menu] = await conn.query(
-        `SELECT m.harga, m.harga_diskon, m.promo_mulai_jam, m.promo_selesai_jam, m.nama, k.nama as kategori_nama 
+        `SELECT m.harga, m.harga_diskon, m.promo_mulai_jam, m.promo_selesai_jam, m.nama, 
+         k.nama as kategori_nama, k.print_destination as kategori_print_destination,
+         k2.nama as kategori2_nama, k2.print_destination as kategori2_print_destination
          FROM menu m 
          LEFT JOIN kategori k ON m.kategori_id = k.id 
+         LEFT JOIN kategori k2 ON m.kategori2_id = k2.id
          WHERE m.id = ?`,
          [item.menu_id]
       );
@@ -150,11 +161,28 @@ exports.buatPesanan = async (req, res) => {
           itemHarga = Number(item.harga) || itemHarga;
         }
         totalBaru += itemHarga * item.qty;
+        let isKdsTarget = false;
+        const dest1 = menu[0].kategori_print_destination;
+        const dest2 = menu[0].kategori2_print_destination;
+        
+        if (dest1 === 'dapur' || dest1 === 'bar' || dest1 === 'semua' || dest2 === 'dapur' || dest2 === 'bar' || dest2 === 'semua') {
+          isKdsTarget = true;
+        } else if (!dest1 && !dest2) {
+          const k1 = (menu[0].kategori_nama || '').toLowerCase();
+          const k2 = (menu[0].kategori2_nama || '').toLowerCase();
+          const isDapur = k => k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie') || k.includes('dapur') || k.includes('add on') || k.includes('others') || k.includes('cemilan') || k.includes('camilan') || k.includes('gorengan') || k.includes('cireng');
+          const isBar = k => k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew') || k.includes('bar') || k.includes('coffe');
+          if (isDapur(k1) || isDapur(k2) || isBar(k1) || isBar(k2)) {
+            isKdsTarget = true;
+          }
+        }
+
         validatedItems.push({ 
           ...item, 
           harga: itemHarga,
           nama_menu: menu[0].nama,
-          kategori_nama: menu[0].kategori_nama
+          kategori_nama: menu[0].kategori_nama,
+          is_kds_target: isKdsTarget
         });
       }
     }
@@ -176,11 +204,11 @@ exports.buatPesanan = async (req, res) => {
 
     if (openBill.length > 0) {
       pesanan_id = openBill[0].id;
-      total = Math.max(0, parseFloat(openBill[0].total) + totalBaru - (Number(discount_value) || 0));
+      total = Math.max(0, parseFloat(openBill[0].total) + totalBaru - (Number(discount_value) || 0) - (Number(point_used) || 0));
       
       await conn.query(
-        'UPDATE pesanan SET total = ?, nama_pelanggan = COALESCE(nama_pelanggan, ?), no_telepon = COALESCE(no_telepon, ?), discount_name = COALESCE(discount_name, ?), discount_value = COALESCE(discount_value, ?) WHERE id = ?', 
-        [total, nama_pelanggan || null, no_telepon || null, discount_name || null, Number(discount_value) || 0, pesanan_id]
+        'UPDATE pesanan SET total = ?, nama_pelanggan = COALESCE(nama_pelanggan, ?), no_telepon = COALESCE(no_telepon, ?), discount_name = COALESCE(discount_name, ?), discount_value = COALESCE(discount_value, ?), member_id = COALESCE(member_id, ?), point_used = COALESCE(point_used, ?) WHERE id = ?', 
+        [total, nama_pelanggan || null, no_telepon || null, discount_name || null, Number(discount_value) || 0, member_id || null, Number(point_used) || 0, pesanan_id]
       );
       
       for (const item of validatedItems) {
@@ -190,7 +218,7 @@ exports.buatPesanan = async (req, res) => {
         );
       }
     } else {
-      total = Math.max(0, totalBaru - (Number(discount_value) || 0));
+      total = Math.max(0, totalBaru - (Number(discount_value) || 0) - (Number(point_used) || 0));
       const isOffline = kasir_id !== null;
       if (is_offline_sync && antreanClient) {
         nomor_antrean = antreanClient;
@@ -200,17 +228,18 @@ exports.buatPesanan = async (req, res) => {
 
       // Jika sync offline, transaksi sudah selesai di kasir (sudah dicetak struk & dibayar)
       // Jadi langsung masuk ke status 'selesai', bukan 'pending' agar masuk Laporan Pendapatan.
-      const statusValue = is_offline_sync ? 'selesai' : 'pending';
+      const allSelesai = validatedItems.every(i => !i.is_kds_target);
+      const statusValue = (is_offline_sync || allSelesai) ? 'selesai' : 'pending';
       const paymentStatusValue = is_offline_sync ? 'paid' : 'unpaid';
 
       const [result] = await conn.query(
-        'INSERT INTO pesanan (local_id, created_at, meja_id, kasir_id, tipe, catatan, total, nomor_antrean, status, payment_status, nama_pelanggan, no_telepon, discount_name, discount_value) VALUES (?, COALESCE(?, CURRENT_TIMESTAMP), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [local_id || null, created_at ? new Date(created_at) : null, meja_id, kasir_id, tipe, catatan, total, nomor_antrean, statusValue, paymentStatusValue, nama_pelanggan || null, no_telepon || null, discount_name || null, Number(discount_value) || 0]
+        'INSERT INTO pesanan (local_id, created_at, meja_id, kasir_id, tipe, catatan, total, nomor_antrean, status, payment_status, nama_pelanggan, no_telepon, discount_name, discount_value, member_id, point_used) VALUES (?, COALESCE(?, CURRENT_TIMESTAMP), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [local_id || null, created_at ? new Date(created_at) : null, meja_id, kasir_id, tipe, catatan, total, nomor_antrean, statusValue, paymentStatusValue, nama_pelanggan || null, no_telepon || null, discount_name || null, Number(discount_value) || 0, member_id || null, Number(point_used) || 0]
       );
       pesanan_id = result.insertId;
 
-      const itemStatusValue = is_offline_sync ? 'selesai' : 'pending';
       for (const item of validatedItems) {
+        const itemStatusValue = (is_offline_sync || !item.is_kds_target) ? 'selesai' : 'pending';
         await conn.query(
           'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, catatan, status) VALUES (?, ?, ?, ?, ?, ?)',
           [pesanan_id, item.menu_id, item.qty, item.harga, item.catatan || null, itemStatusValue]
@@ -222,11 +251,25 @@ exports.buatPesanan = async (req, res) => {
         const metodeSafe = (pembayaran.metode || 'tunai').toString().toLowerCase();
         await conn.query(
           'INSERT INTO pembayaran (pesanan_id, metode, jumlah, status, created_at) VALUES (?, ?, ?, "sukses", COALESCE(?, CURRENT_TIMESTAMP))',
-          [pesanan_id, metodeSafe, pembayaran.jumlah || total, created_at ? new Date(created_at) : null]
+          [pesanan_id, metodeSafe, total, created_at ? new Date(created_at) : null]
         );
+
+        if (member_id) {
+          const pointEarned = Math.floor(total / 1000) * 10;
+          const pointUsedNum = Number(point_used) || 0;
+          await conn.query('UPDATE pesanan SET point_earned = ? WHERE id = ?', [pointEarned, pesanan_id]);
+          await conn.query('UPDATE members SET point = point + ? - ? WHERE id = ?', [pointEarned, pointUsedNum, member_id]);
+          
+          if (pointEarned > 0) {
+            await conn.query('INSERT INTO member_points_history (member_id, pesanan_id, tipe, jumlah_poin, created_at) VALUES (?, ?, "earn", ?, COALESCE(?, CURRENT_TIMESTAMP))', [member_id, pesanan_id, pointEarned, created_at ? new Date(created_at) : null]);
+          }
+          if (pointUsedNum > 0) {
+            await conn.query('INSERT INTO member_points_history (member_id, pesanan_id, tipe, jumlah_poin, created_at) VALUES (?, ?, "redeem", ?, COALESCE(?, CURRENT_TIMESTAMP))', [member_id, pesanan_id, pointUsedNum, created_at ? new Date(created_at) : null]);
+          }
+        }
       }
 
-      if (meja_id && !is_offline_sync) {
+      if (meja_id && !is_offline_sync && !allSelesai) {
         await conn.query('UPDATE meja SET status = "terisi" WHERE id = ?', [meja_id]);
       }
     }
@@ -374,6 +417,23 @@ exports.updateStatus = async (req, res) => {
 
     await db.query('UPDATE pesanan SET status = ? WHERE id = ?', [status, id]);
 
+    if (status === 'batal') {
+      const [pesanan] = await db.query('SELECT member_id FROM pesanan WHERE id = ?', [id]);
+      if (pesanan.length > 0 && pesanan[0].member_id) {
+        const [historyRows] = await db.query('SELECT * FROM member_points_history WHERE pesanan_id = ?', [id]);
+        let pointsToDeduct = 0;
+        let pointsToRefund = 0;
+        for (const row of historyRows) {
+          if (row.tipe === 'earn') pointsToDeduct += Number(row.jumlah_poin);
+          if (row.tipe === 'redeem') pointsToRefund += Number(row.jumlah_poin);
+        }
+        if (pointsToDeduct > 0 || pointsToRefund > 0) {
+          await db.query('UPDATE members SET point = point - ? + ? WHERE id = ?', [pointsToDeduct, pointsToRefund, pesanan[0].member_id]);
+          await db.query('DELETE FROM member_points_history WHERE pesanan_id = ?', [id]);
+        }
+      }
+    }
+
     if (status === 'selesai' || status === 'diproses') {
       await db.query('UPDATE detail_pesanan SET status = ? WHERE pesanan_id = ? AND status != ?', [status, id, status]);
     }
@@ -493,13 +553,27 @@ exports.konfirmasiPembayaran = async (req, res) => {
     const { status } = req.body; // 'paid' or 'unpaid'
     
     if (status === 'paid') {
-      await conn.query("UPDATE pesanan SET payment_status = 'paid' WHERE id = ?", [id]);
-      const [p] = await conn.query("SELECT total FROM pesanan WHERE id = ?", [id]);
+      const [p] = await conn.query("SELECT total, member_id, point_used, point_earned FROM pesanan WHERE id = ?", [id]);
       
       // Check if pembayaran already exists
       const [ex] = await conn.query("SELECT id FROM pembayaran WHERE pesanan_id = ?", [id]);
       if (ex.length === 0 && p.length > 0) {
+        const pointEarned = Math.floor(p[0].total / 1000) * 10;
+        await conn.query("UPDATE pesanan SET payment_status = 'paid', point_earned = ? WHERE id = ?", [pointEarned, id]);
         await conn.query("INSERT INTO pembayaran (pesanan_id, metode, jumlah, status) VALUES (?, 'qris', ?, 'sukses')", [id, p[0].total]);
+        
+        if (p[0].member_id) {
+          const pointUsedNum = Number(p[0].point_used) || 0;
+          await conn.query('UPDATE members SET point = point + ? - ? WHERE id = ?', [pointEarned, pointUsedNum, p[0].member_id]);
+          if (pointEarned > 0) {
+            await conn.query('INSERT INTO member_points_history (member_id, pesanan_id, tipe, jumlah_poin) VALUES (?, ?, "earn", ?)', [p[0].member_id, id, pointEarned]);
+          }
+          if (pointUsedNum > 0) {
+            await conn.query('INSERT INTO member_points_history (member_id, pesanan_id, tipe, jumlah_poin) VALUES (?, ?, "redeem", ?)', [p[0].member_id, id, pointUsedNum]);
+          }
+        }
+      } else {
+        await conn.query("UPDATE pesanan SET payment_status = 'paid' WHERE id = ?", [id]);
       }
     } else {
       await conn.query("UPDATE pesanan SET payment_status = 'unpaid', bukti_pembayaran = NULL WHERE id = ?", [id]);
@@ -556,25 +630,76 @@ exports.hapusPesanan = async (req, res) => {
       [userId, username, description, JSON.stringify(backupObj)]
     );
 
+    // Rollback Member Points if any
+    if (pesananData.member_id) {
+      const [historyRows] = await conn.query('SELECT * FROM member_points_history WHERE pesanan_id = ?', [id]);
+      let pointsToDeduct = 0;
+      let pointsToRefund = 0;
+      for (const row of historyRows) {
+        if (row.tipe === 'earn') pointsToDeduct += Number(row.jumlah_poin);
+        if (row.tipe === 'redeem') pointsToRefund += Number(row.jumlah_poin);
+      }
+      if (pointsToDeduct > 0 || pointsToRefund > 0) {
+        await conn.query('UPDATE members SET point = point - ? + ? WHERE id = ?', [pointsToDeduct, pointsToRefund, pesananData.member_id]);
+        await conn.query('DELETE FROM member_points_history WHERE pesanan_id = ?', [id]);
+      }
+    }
+
     // Delete records
     await conn.query('DELETE FROM detail_pesanan WHERE pesanan_id = ?', [id]);
     await conn.query('DELETE FROM pembayaran WHERE pesanan_id = ?', [id]);
     await conn.query('DELETE FROM pesanan WHERE id = ?', [id]);
 
     await conn.commit();
-    
     const io = req.app.get('io');
     if (io) {
-      io.emit('status_pesanan', { pesanan_id: id, status: 'batal' });
-      io.emit('mejaUpdated');
-      io.emit('pesanan_baru', { pesanan_id: id });
+      if (pesananData.meja_id) io.emit('status_meja', { meja_id: pesananData.meja_id, status: 'kosong' });
+      io.emit('pesanan_batal', { pesanan_id: id });
     }
 
-    res.json({ message: 'Pesanan berhasil dihapus' });
+    res.json({ message: 'Pesanan dan histori poin berhasil dihapus' });
   } catch (err) {
     await conn.rollback();
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error(err); res.status(500).json({ message: 'Server error' });
+  } finally {
+    conn.release();
+  }
+};
+
+exports.autoCompleteOldOrders = async (io) => {
+  const conn = await db.getConnection();
+  try {
+    const [oldOrders] = await conn.query(
+      `SELECT id, meja_id FROM pesanan 
+       WHERE (status = 'pending' OR status = 'diproses') 
+       AND created_at < NOW() - INTERVAL 1 HOUR`
+    );
+
+    if (oldOrders.length > 0) {
+      const orderIds = oldOrders.map(o => o.id);
+      const mejaIds = oldOrders.map(o => o.meja_id).filter(id => id !== null);
+
+      await conn.query(`UPDATE detail_pesanan SET status = 'selesai' WHERE pesanan_id IN (?)`, [orderIds]);
+      await conn.query(`UPDATE pesanan SET status = 'selesai' WHERE id IN (?)`, [orderIds]);
+      
+      if (mejaIds.length > 0) {
+        await conn.query(`UPDATE meja SET status = 'kosong' WHERE id IN (?)`, [mejaIds]);
+      }
+
+      console.log(`[Auto-Complete] ${oldOrders.length} orders older than 1 hour were marked as selesai.`);
+
+      if (io) {
+        orderIds.forEach(id => {
+          io.emit('status_pesanan', { pesanan_id: id, status: 'selesai' });
+        });
+        mejaIds.forEach(id => {
+          io.emit('status_meja', { meja_id: id, status: 'kosong' });
+        });
+        io.emit('mejaUpdated');
+      }
+    }
+  } catch (err) {
+    console.error('[Auto-Complete Error]', err);
   } finally {
     conn.release();
   }

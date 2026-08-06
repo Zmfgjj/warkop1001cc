@@ -93,6 +93,32 @@ pool.getConnection()
         );
       `);
 
+      // 7. members table
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS members (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          nama VARCHAR(100) NOT NULL,
+          nama_panggilan VARCHAR(50) NULL,
+          no_hp VARCHAR(20) UNIQUE NOT NULL,
+          tgl_lahir DATE NULL,
+          point INT DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      // 8. member_points_history table
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS member_points_history (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          member_id INT NOT NULL,
+          pesanan_id INT NULL,
+          tipe VARCHAR(20) NOT NULL, -- 'earn', 'redeem'
+          jumlah_poin INT NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+        );
+      `);
+
       // Safe column addition helper
       const addColumn = async (table, columnDef) => {
         try {
@@ -112,8 +138,15 @@ pool.getConnection()
       await addColumn('pesanan', 'nomor_antrean INT NULL');
       await addColumn('pesanan', 'discount_name VARCHAR(100) NULL');
       await addColumn('pesanan', 'discount_value DECIMAL(10,2) DEFAULT 0');
+      await addColumn('pesanan', 'member_id INT NULL');
+      await addColumn('pesanan', 'point_earned INT DEFAULT 0');
+      await addColumn('pesanan', 'point_used INT DEFAULT 0');
+      await addColumn('pesanan', 'local_id VARCHAR(50) NULL UNIQUE');
       await addColumn('activity_logs', 'ip_address VARCHAR(45) NULL');
       await addColumn('activity_logs', 'user_agent TEXT NULL');
+      await addColumn('members', 'nama_panggilan VARCHAR(50) NULL AFTER nama');
+      await addColumn('menu', 'kategori2_id INT NULL AFTER kategori_id');
+      await addColumn('kategori', 'print_destination VARCHAR(50) DEFAULT "kasir"');
 
       // Safe Index addition
       try {
