@@ -155,7 +155,7 @@ app.get('/', (req, res) => {
 
 // Update Checker API
 app.get('/api/version', (req, res) => {
-  const latest_version = process.env.APP_VERSION || '1.0.61';
+  const latest_version = process.env.APP_VERSION || '1.0.62';
   res.json({
     latest_version: latest_version,
     bundle_url: `https://warkop1001cc.cloud/bundle.zip?v=${latest_version}`,

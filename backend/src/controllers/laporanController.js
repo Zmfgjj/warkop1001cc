@@ -65,7 +65,12 @@ exports.ringkasan = async (req, res) => {
     `, [startDate, endDate]);
 
     const [diskon] = await db.query(`
-      SELECT COALESCE(SUM(p.discount_value + p.point_used), 0) as total_diskon
+      SELECT COALESCE(SUM(
+        LEAST(
+          p.discount_value + COALESCE(p.point_used, 0),
+          (SELECT COALESCE(SUM(dp.qty * dp.harga), 0) FROM detail_pesanan dp WHERE dp.pesanan_id = p.id)
+        )
+      ), 0) as total_diskon
       FROM pesanan p
       WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
@@ -237,6 +242,20 @@ exports.laporanBulanan = async (req, res) => {
 
     const netRevenue = totalBulan;
 
+    // Diskon Bulanan
+    const [diskonRows] = await db.query(`
+      SELECT COALESCE(SUM(
+        LEAST(
+          p.discount_value + COALESCE(p.point_used, 0),
+          (SELECT COALESCE(SUM(dp.qty * dp.harga), 0) FROM detail_pesanan dp WHERE dp.pesanan_id = p.id)
+        )
+      ), 0) as total_diskon
+      FROM pesanan p
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
+      AND p.created_at >= ? AND p.created_at <= ?
+    `, [startOfMonth, endOfMonth]);
+    const totalDiskon = Number(diskonRows[0]?.total_diskon || 0);
+
     // HPP Bulanan
     const [hppRows] = await db.query(`
       SELECT SUM(dp.qty * COALESCE(m.hpp, 0)) as total_hpp
@@ -275,6 +294,7 @@ exports.laporanBulanan = async (req, res) => {
       total_pesanan: totalPesananBulan,
       total_kunjungan: totalKunjunganBulan,
       gross_profit: grossProfit,
+      total_diskon: totalDiskon,
       net_revenue: netRevenue,
       metode_pembayaran: metodePembayaran,
       menu_detail: menuDetail,
@@ -373,6 +393,20 @@ exports.laporanTahunan = async (req, res) => {
     const netRevenue = grossRevenue;
     const aov = pesananTahunan[0].total > 0 ? Math.round(grossRevenue / pesananTahunan[0].total) : 0;
 
+    // Diskon Tahunan
+    const [diskonRows] = await db.query(`
+      SELECT COALESCE(SUM(
+        LEAST(
+          p.discount_value + COALESCE(p.point_used, 0),
+          (SELECT COALESCE(SUM(dp.qty * dp.harga), 0) FROM detail_pesanan dp WHERE dp.pesanan_id = p.id)
+        )
+      ), 0) as total_diskon
+      FROM pesanan p
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
+      AND p.created_at >= ? AND p.created_at <= ?
+    `, [startOfYear, endOfYear]);
+    const totalDiskon = Number(diskonRows[0]?.total_diskon || 0);
+
     // HPP Tahunan
     const [hppRows] = await db.query(`
       SELECT SUM(dp.qty * COALESCE(m.hpp, 0)) as total_hpp
@@ -410,6 +444,7 @@ exports.laporanTahunan = async (req, res) => {
       total_pesanan: pesananTahunan[0].total,
       aov,
       gross_profit: grossProfit,
+      total_diskon: totalDiskon,
       net_revenue: netRevenue,
       metode_pembayaran: metodePembayaran,
       menu_detail: menuDetail,
@@ -494,6 +529,12 @@ exports.historiPembelian = async (req, res) => {
         COUNT(DISTINCT p.id) as total_pesanan,
         COALESCE(SUM(p.total), 0) as total_pendapatan,
         COALESCE(SUM(
+          LEAST(
+            p.discount_value + COALESCE(p.point_used, 0),
+            (SELECT COALESCE(SUM(dp.qty * dp.harga), 0) FROM detail_pesanan dp WHERE dp.pesanan_id = p.id)
+          )
+        ), 0) as total_diskon,
+        COALESCE(SUM(
           (SELECT SUM(dp.qty * COALESCE(mn.hpp, 0)) 
            FROM detail_pesanan dp 
            LEFT JOIN menu mn ON dp.menu_id = mn.id 
@@ -509,6 +550,7 @@ exports.historiPembelian = async (req, res) => {
 
     const total_pesanan = summaryRows[0]?.total_pesanan || 0;
     const total_pendapatan = Number(summaryRows[0]?.total_pendapatan || 0);
+    const total_diskon = Number(summaryRows[0]?.total_diskon || 0);
     const total_keuntungan = Math.max(0, total_pendapatan - Number(summaryRows[0]?.total_hpp || 0));
 
     // 2. Hitung chart data harian untuk date range
@@ -588,7 +630,8 @@ exports.historiPembelian = async (req, res) => {
       summary: {
         total_pesanan,
         total_pendapatan,
-        total_keuntungan
+        total_keuntungan,
+        total_diskon
       },
       chart: chartRows,
       data: rows

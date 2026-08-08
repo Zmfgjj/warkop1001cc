@@ -336,7 +336,9 @@ export default function Laporan() {
     if (!dataBulanan) return showAlert('Tidak ada data untuk diexport', 'Gagal', 'error')
     const d = dataBulanan
     const bulanNama = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
-    const gross = Number(d.total_pendapatan)
+    const netRevenue = Number(d.net_revenue) || 0
+    const totalDiskon = Number(d.total_diskon) || 0
+    const gross = netRevenue + totalDiskon
 
     const rows = [
       [createCell('LAPORAN POS BULANAN – WARKOP 1001 CC', styleTitle), '', '', ''],
@@ -345,8 +347,10 @@ export default function Laporan() {
       [],
       [createCell('A. RINGKASAN PENJUALAN', styleSubHeader)],
       [createCell('Keterangan', styleHeader), createCell('Nilai (Rp)', styleHeader)],
-      ['Gross Revenue', createCell(gross, styleCurrency)],
-      [createCell('Net Revenue', styleBold), createCell(d.net_revenue || gross, styleCurrencyBold)],
+      ['Gross Revenue (Total Penjualan Kotor)', createCell(gross, styleCurrency)],
+      ['Total Diskon / Promo', createCell(totalDiskon, styleCurrency)],
+      ['Service Charge', createCell(0, styleCurrency)],
+      [createCell('Net Revenue (Pendapatan Bersih)', styleBold), createCell(netRevenue, styleCurrencyBold)],
       ['Total Transaksi', createCell(d.total_pesanan || 0, styleCenter)],
       ['Average Order Value', createCell(gross > 0 && d.total_pesanan > 0 ? Math.round(gross / d.total_pesanan) : 0, styleCurrency)],
       [],
