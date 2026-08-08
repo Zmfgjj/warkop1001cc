@@ -64,7 +64,15 @@ exports.ringkasan = async (req, res) => {
       GROUP BY pb.metode
     `, [startDate, endDate]);
 
+    const [diskon] = await db.query(`
+      SELECT COALESCE(SUM(p.discount_value + p.point_used), 0) as total_diskon
+      FROM pesanan p
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
+      AND p.created_at >= ? AND p.created_at <= ?
+    `, [startDate, endDate]);
+
     const grossRevenue = Number(pendapatan[0].total);
+    const totalDiskon = Number(diskon[0].total_diskon);
     const aov = pesanan[0].total > 0 ? Math.round(grossRevenue / pesanan[0].total) : 0;
 
     // HPP Harian
@@ -108,6 +116,7 @@ exports.ringkasan = async (req, res) => {
     res.json({
       tanggal: filter,
       pendapatan: grossRevenue,
+      total_diskon: totalDiskon,
       gross_profit: grossProfit,
       net_revenue: grossRevenue, // Keep net_revenue same as grossRevenue just in case frontend needs it temporarily
       total_pesanan: pesanan[0].total,

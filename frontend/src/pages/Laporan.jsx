@@ -282,7 +282,9 @@ export default function Laporan() {
   const handleExportHarian = () => {
     if (!dataHarian) return showAlert('Tidak ada data untuk diexport', 'Gagal', 'error')
     const d = dataHarian
-    const gross = Number(d.pendapatan)
+    const netRevenue = Number(d.pendapatan) || 0
+    const totalDiskon = Number(d.total_diskon) || 0
+    const gross = netRevenue + totalDiskon
 
     const ringkasan = [
       [createCell('LAPORAN POS HARIAN – WARKOP 1001 CC', styleTitle), '', '', ''],
@@ -292,9 +294,9 @@ export default function Laporan() {
       [createCell('A. RINGKASAN PENJUALAN', styleSubHeader)],
       [createCell('Keterangan', styleHeader), createCell('Nilai (Rp)', styleHeader)],
       ['Gross Revenue (Total Penjualan Kotor)', createCell(gross, styleCurrency)],
-      ['Total Diskon / Promo', createCell(0, styleCurrency)],
+      ['Total Diskon / Promo', createCell(totalDiskon, styleCurrency)],
       ['Service Charge', createCell(0, styleCurrency)],
-      [createCell('Net Revenue (Pendapatan Bersih)', styleBold), createCell(d.net_revenue || gross, styleCurrencyBold)],
+      [createCell('Net Revenue (Pendapatan Bersih)', styleBold), createCell(netRevenue, styleCurrencyBold)],
       ['Jumlah Transaksi', createCell(d.total_pesanan, styleCenter)],
       ['Average Order Value (AOV)', createCell(d.aov || 0, styleCurrency)],
       [],
