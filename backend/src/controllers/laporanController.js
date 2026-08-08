@@ -151,57 +151,54 @@ exports.laporanBulanan = async (req, res) => {
     // Pendapatan harian dari pembayaran sukses
     const [harianPendapatan] = await db.query(`
       SELECT 
-        DATE(pb.created_at) as tanggal,
+        DATE_FORMAT(pb.created_at, '%Y-%m-%d') as tanggal,
         SUM(pb.jumlah) as pendapatan
       FROM pembayaran pb
       JOIN pesanan p ON pb.pesanan_id = p.id
       WHERE pb.status = 'sukses' AND p.status != 'batal'
       AND pb.created_at >= ? AND pb.created_at <= ?
-      GROUP BY DATE(pb.created_at)
+      GROUP BY DATE_FORMAT(pb.created_at, '%Y-%m-%d')
       ORDER BY tanggal
     `, [startOfMonth, endOfMonth]);
 
     // Total pesanan harian (Hanya pesanan berstatus selesai)
     const [harianPesanan] = await db.query(`
       SELECT 
-        DATE(p.created_at) as tanggal,
+        DATE_FORMAT(p.created_at, '%Y-%m-%d') as tanggal,
         COUNT(*) as total_pesanan
       FROM pesanan p
       WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
-      GROUP BY DATE(p.created_at)
+      GROUP BY DATE_FORMAT(p.created_at, '%Y-%m-%d')
       ORDER BY tanggal
     `, [startOfMonth, endOfMonth]);
 
     // Kunjungan menu publik harian bulan ini
     const [harianKunjungan] = await db.query(`
       SELECT 
-        tanggal,
+        DATE_FORMAT(tanggal, '%Y-%m-%d') as tanggal,
         COUNT(*) as total_kunjungan,
         COUNT(DISTINCT ip_address) as unik_kunjungan
       FROM public_menu_visits
       WHERE tanggal >= DATE(?) AND tanggal <= DATE(?)
-      GROUP BY tanggal
+      GROUP BY DATE_FORMAT(tanggal, '%Y-%m-%d')
       ORDER BY tanggal
     `, [startOfMonth, endOfMonth]);
 
     // Gabungkan data harian (petakan per tanggal)
     const pesananMap = {};
     harianPesanan.forEach(h => {
-      const tgl = new Date(h.tanggal).toISOString().split('T')[0];
-      pesananMap[tgl] = h.total_pesanan;
+      pesananMap[h.tanggal] = h.total_pesanan;
     });
 
     const pendapatanMap = {};
     harianPendapatan.forEach(h => {
-      const tgl = new Date(h.tanggal).toISOString().split('T')[0];
-      pendapatanMap[tgl] = h.pendapatan;
+      pendapatanMap[h.tanggal] = h.pendapatan;
     });
 
     const kunjunganMap = {};
     harianKunjungan.forEach(h => {
-      const tgl = new Date(h.tanggal).toISOString().split('T')[0];
-      kunjunganMap[tgl] = {
+      kunjunganMap[h.tanggal] = {
         total: h.total_kunjungan,
         unik: h.unik_kunjungan
       };
