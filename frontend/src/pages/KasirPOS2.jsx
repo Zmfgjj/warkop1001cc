@@ -73,7 +73,7 @@ export default function KasirPOS() {
     setTipePelanggan(val)
     if (val === 'CAKRA') {
       setNamaPelanggan('CAKRA')
-      setJumlahBayar('0')
+      setJumlahBayar('')
       setShowCustDetails(true)
     } else {
       if (namaPelanggan === 'CAKRA') setNamaPelanggan('')
@@ -283,7 +283,7 @@ export default function KasirPOS() {
   const getQty = (menu_id) => order.find(o => o.menu_id === menu_id)?.qty || 0
 
   const subtotal = order.reduce((sum, o) => sum + o.harga * o.qty, 0)
-  const total = tipePelanggan === 'CAKRA' ? 0 : Math.max(0, subtotal - (Number(discountValue) || 0) - (Number(pointUsed) || 0))
+  const total = Math.max(0, subtotal - (Number(discountValue) || 0) - (Number(pointUsed) || 0))
   const kembali = jumlahBayar ? Math.max(0, parseInt(jumlahBayar.replace(/\D/g, '') || 0) - total) : 0
   const totalItems = order.reduce((s, o) => s + o.qty, 0)
 
@@ -347,7 +347,7 @@ export default function KasirPOS() {
 
       // Kalkulasi ulang total karena spin prize mungkin menambahkan item berbayar ke finalOrder
       const finalSubtotal = finalOrder.reduce((sum, o) => sum + o.harga * o.qty, 0);
-      const finalTotal = tipePelanggan === 'CAKRA' ? 0 : Math.max(0, finalSubtotal - (Number(discountValue) || 0) - (Number(pointUsed) || 0));
+      const finalTotal = Math.max(0, finalSubtotal - (Number(discountValue) || 0) - (Number(pointUsed) || 0));
       const finalKembali = jumlahBayar ? Math.max(0, parseInt(jumlahBayar.replace(/\D/g, '') || 0) - finalTotal) : 0;
 
       const pesananData = {

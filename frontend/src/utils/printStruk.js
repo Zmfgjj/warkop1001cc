@@ -108,7 +108,6 @@ function generateStrukHTML({ pesananId, items, subtotal, total, metodeBayar, jum
       <div style="font-size:12px">
         <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Subtotal</span><span>${isMeja ? `<del>${formatRupiah(subtotal)}</del>` : formatRupiah(subtotal)}</span></div>
         ${(!isMeja && discount_value > 0) ? `<div style="display:flex;justify-content:space-between;margin:2px 0;color:#c0392b;font-weight:bold;"><span>${discount_name || 'Promo'}</span><span>-${formatRupiah(discount_value)}</span></div>` : ''}
-        ${(!isMeja && !discount_value && (subtotal - total) > 0 && !point_used) ? `<div style="display:flex;justify-content:space-between;margin:2px 0;color:#c0392b;font-weight:bold;"><span>Diskon CAKRA</span><span>-${formatRupiah(subtotal - total)}</span></div>` : ''}
         ${(!isMeja && point_used > 0) ? `<div style="display:flex;justify-content:space-between;margin:2px 0;color:#c0392b;font-weight:bold;"><span>Tukar Poin</span><span>-${formatRupiah(point_used)}</span></div>` : ''}
         <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Total Tagihan</span><span style="font-weight:bold;">${isMeja ? `<del>${formatRupiah(total)}</del>` : formatRupiah(total)}</span></div>
         <div style="display:flex;justify-content:space-between;margin:2px 0"><span>Bayar (${metodeBayar === 'Tunai' ? 'Cash' : metodeBayar})</span><span>${isMeja ? `<del>${formatRupiah(metodeBayar === 'Tunai' ? jumlahBayar : total)}</del>` : formatRupiah(metodeBayar === 'Tunai' ? jumlahBayar : total)}</span></div>
@@ -425,9 +424,6 @@ async function _cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
         if (!isMeja && data.discount_value > 0) {
           const diskonStr = '-' + formatRupiah(data.discount_value);
           receipt += padRight(data.discount_name || 'Promo', 16) + padLeft(diskonStr, 16) + LF
-        } else if (!isMeja && (data.subtotal - data.total) > 0 && !data.point_used) {
-          const diskonStr = '-' + formatRupiah(data.subtotal - data.total);
-          receipt += padRight('Diskon CAKRA', 16) + padLeft(diskonStr, 16) + LF
         }
         
         if (!isMeja && data.point_used > 0) {

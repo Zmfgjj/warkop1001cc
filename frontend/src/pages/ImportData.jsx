@@ -95,9 +95,8 @@ export default function ImportData() {
     setItems(newItems);
   };
 
-  const isCakra = formData.pelanggan.toLowerCase().includes('cakra');
   const subtotalTagihan = items.reduce((sum, item) => sum + (item.harga * item.qty), 0);
-  const totalTagihan = isCakra ? 0 : subtotalTagihan;
+  const totalTagihan = subtotalTagihan;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -118,10 +117,6 @@ export default function ImportData() {
         total: totalTagihan,
         items: items
       };
-      
-      if (isCakra) {
-        orderData.catatan = orderData.catatan ? `${orderData.catatan} (Diskon 100% Tim Cakra)` : 'Diskon 100% Tim Cakra';
-      }
 
       await api.post('/pesanan/import', orderData);
       alert('Pesanan masa lalu berhasil dimasukkan ke riwayat!');
@@ -266,17 +261,7 @@ export default function ImportData() {
               <div className="flex justify-between items-center mb-4">
                 <span className="font-bold text-gray-700">Total Tagihan:</span>
                 <div className="text-right">
-                  {isCakra && (
-                    <div className="text-xs text-red-600 font-bold mb-1">Diskon 100% Tim Cakra</div>
-                  )}
-                  {isCakra ? (
-                    <div className="flex flex-col items-end">
-                      <span className="line-through text-gray-400 text-sm">Rp {subtotalTagihan.toLocaleString('id-ID')}</span>
-                      <span className="font-black text-xl text-blue-700">Rp 0</span>
-                    </div>
-                  ) : (
-                    <span className="font-black text-xl text-blue-700">Rp {totalTagihan.toLocaleString('id-ID')}</span>
-                  )}
+                  <span className="font-black text-xl text-blue-700">Rp {totalTagihan.toLocaleString('id-ID')}</span>
                 </div>
               </div>
               <button 
