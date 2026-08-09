@@ -353,7 +353,7 @@ export default function KasirPOS() {
       const pesananData = {
         meja_id: tipeOrder === 'dine-in' ? parseInt(selectedMejaId) : null,
         tipe: tipeOrder,
-        items: finalOrder.map(o => ({ menu_id: o.menu_id, qty: o.qty, catatan: o.catatan, kategori: o.kategori, kategori2: o.kategori2 })),
+        items: finalOrder.map(o => ({ menu_id: o.menu_id, qty: o.qty, harga: o.harga, catatan: o.catatan, kategori: o.kategori, kategori2: o.kategori2 })),
         pembayaran: { metode: metodeBayar.toLowerCase(), jumlah: finalTotal }, // payload offline
         nama_pelanggan: namaPelanggan.trim() || null,
         no_telepon: nomorHp.trim() || null,

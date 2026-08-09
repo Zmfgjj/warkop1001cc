@@ -64,7 +64,20 @@ exports.ringkasan = async (req, res) => {
       GROUP BY pb.metode
     `, [startDate, endDate]);
 
+    const [diskon] = await db.query(`
+      SELECT COALESCE(SUM(
+        LEAST(
+          p.discount_value + COALESCE(p.point_used, 0),
+          (SELECT COALESCE(SUM(dp.qty * dp.harga), 0) FROM detail_pesanan dp WHERE dp.pesanan_id = p.id)
+        )
+      ), 0) as total_diskon
+      FROM pesanan p
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
+      AND p.created_at >= ? AND p.created_at <= ?
+    `, [startDate, endDate]);
+
     const grossRevenue = Number(pendapatan[0].total);
+    const totalDiskon = Number(diskon[0].total_diskon);
     const aov = pesanan[0].total > 0 ? Math.round(grossRevenue / pesanan[0].total) : 0;
 
     // HPP Harian
@@ -108,6 +121,7 @@ exports.ringkasan = async (req, res) => {
     res.json({
       tanggal: filter,
       pendapatan: grossRevenue,
+      total_diskon: totalDiskon,
       gross_profit: grossProfit,
       net_revenue: grossRevenue, // Keep net_revenue same as grossRevenue just in case frontend needs it temporarily
       total_pesanan: pesanan[0].total,
@@ -142,57 +156,54 @@ exports.laporanBulanan = async (req, res) => {
     // Pendapatan harian dari pembayaran sukses
     const [harianPendapatan] = await db.query(`
       SELECT 
-        DATE(pb.created_at) as tanggal,
+        DATE_FORMAT(pb.created_at, '%Y-%m-%d') as tanggal,
         SUM(pb.jumlah) as pendapatan
       FROM pembayaran pb
       JOIN pesanan p ON pb.pesanan_id = p.id
       WHERE pb.status = 'sukses' AND p.status != 'batal'
       AND pb.created_at >= ? AND pb.created_at <= ?
-      GROUP BY DATE(pb.created_at)
+      GROUP BY DATE_FORMAT(pb.created_at, '%Y-%m-%d')
       ORDER BY tanggal
     `, [startOfMonth, endOfMonth]);
 
     // Total pesanan harian (Hanya pesanan berstatus selesai)
     const [harianPesanan] = await db.query(`
       SELECT 
-        DATE(p.created_at) as tanggal,
+        DATE_FORMAT(p.created_at, '%Y-%m-%d') as tanggal,
         COUNT(*) as total_pesanan
       FROM pesanan p
       WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
-      GROUP BY DATE(p.created_at)
+      GROUP BY DATE_FORMAT(p.created_at, '%Y-%m-%d')
       ORDER BY tanggal
     `, [startOfMonth, endOfMonth]);
 
     // Kunjungan menu publik harian bulan ini
     const [harianKunjungan] = await db.query(`
       SELECT 
-        tanggal,
+        DATE_FORMAT(tanggal, '%Y-%m-%d') as tanggal,
         COUNT(*) as total_kunjungan,
         COUNT(DISTINCT ip_address) as unik_kunjungan
       FROM public_menu_visits
       WHERE tanggal >= DATE(?) AND tanggal <= DATE(?)
-      GROUP BY tanggal
+      GROUP BY DATE_FORMAT(tanggal, '%Y-%m-%d')
       ORDER BY tanggal
     `, [startOfMonth, endOfMonth]);
 
     // Gabungkan data harian (petakan per tanggal)
     const pesananMap = {};
     harianPesanan.forEach(h => {
-      const tgl = new Date(h.tanggal).toISOString().split('T')[0];
-      pesananMap[tgl] = h.total_pesanan;
+      pesananMap[h.tanggal] = h.total_pesanan;
     });
 
     const pendapatanMap = {};
     harianPendapatan.forEach(h => {
-      const tgl = new Date(h.tanggal).toISOString().split('T')[0];
-      pendapatanMap[tgl] = h.pendapatan;
+      pendapatanMap[h.tanggal] = h.pendapatan;
     });
 
     const kunjunganMap = {};
     harianKunjungan.forEach(h => {
-      const tgl = new Date(h.tanggal).toISOString().split('T')[0];
-      kunjunganMap[tgl] = {
+      kunjunganMap[h.tanggal] = {
         total: h.total_kunjungan,
         unik: h.unik_kunjungan
       };
@@ -230,6 +241,20 @@ exports.laporanBulanan = async (req, res) => {
     `, [startOfMonth, endOfMonth]);
 
     const netRevenue = totalBulan;
+
+    // Diskon Bulanan
+    const [diskonRows] = await db.query(`
+      SELECT COALESCE(SUM(
+        LEAST(
+          p.discount_value + COALESCE(p.point_used, 0),
+          (SELECT COALESCE(SUM(dp.qty * dp.harga), 0) FROM detail_pesanan dp WHERE dp.pesanan_id = p.id)
+        )
+      ), 0) as total_diskon
+      FROM pesanan p
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
+      AND p.created_at >= ? AND p.created_at <= ?
+    `, [startOfMonth, endOfMonth]);
+    const totalDiskon = Number(diskonRows[0]?.total_diskon || 0);
 
     // HPP Bulanan
     const [hppRows] = await db.query(`
@@ -269,6 +294,7 @@ exports.laporanBulanan = async (req, res) => {
       total_pesanan: totalPesananBulan,
       total_kunjungan: totalKunjunganBulan,
       gross_profit: grossProfit,
+      total_diskon: totalDiskon,
       net_revenue: netRevenue,
       metode_pembayaran: metodePembayaran,
       menu_detail: menuDetail,
@@ -367,6 +393,20 @@ exports.laporanTahunan = async (req, res) => {
     const netRevenue = grossRevenue;
     const aov = pesananTahunan[0].total > 0 ? Math.round(grossRevenue / pesananTahunan[0].total) : 0;
 
+    // Diskon Tahunan
+    const [diskonRows] = await db.query(`
+      SELECT COALESCE(SUM(
+        LEAST(
+          p.discount_value + COALESCE(p.point_used, 0),
+          (SELECT COALESCE(SUM(dp.qty * dp.harga), 0) FROM detail_pesanan dp WHERE dp.pesanan_id = p.id)
+        )
+      ), 0) as total_diskon
+      FROM pesanan p
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
+      AND p.created_at >= ? AND p.created_at <= ?
+    `, [startOfYear, endOfYear]);
+    const totalDiskon = Number(diskonRows[0]?.total_diskon || 0);
+
     // HPP Tahunan
     const [hppRows] = await db.query(`
       SELECT SUM(dp.qty * COALESCE(m.hpp, 0)) as total_hpp
@@ -404,6 +444,7 @@ exports.laporanTahunan = async (req, res) => {
       total_pesanan: pesananTahunan[0].total,
       aov,
       gross_profit: grossProfit,
+      total_diskon: totalDiskon,
       net_revenue: netRevenue,
       metode_pembayaran: metodePembayaran,
       menu_detail: menuDetail,
@@ -488,6 +529,12 @@ exports.historiPembelian = async (req, res) => {
         COUNT(DISTINCT p.id) as total_pesanan,
         COALESCE(SUM(p.total), 0) as total_pendapatan,
         COALESCE(SUM(
+          LEAST(
+            p.discount_value + COALESCE(p.point_used, 0),
+            (SELECT COALESCE(SUM(dp.qty * dp.harga), 0) FROM detail_pesanan dp WHERE dp.pesanan_id = p.id)
+          )
+        ), 0) as total_diskon,
+        COALESCE(SUM(
           (SELECT SUM(dp.qty * COALESCE(mn.hpp, 0)) 
            FROM detail_pesanan dp 
            LEFT JOIN menu mn ON dp.menu_id = mn.id 
@@ -503,6 +550,7 @@ exports.historiPembelian = async (req, res) => {
 
     const total_pesanan = summaryRows[0]?.total_pesanan || 0;
     const total_pendapatan = Number(summaryRows[0]?.total_pendapatan || 0);
+    const total_diskon = Number(summaryRows[0]?.total_diskon || 0);
     const total_keuntungan = Math.max(0, total_pendapatan - Number(summaryRows[0]?.total_hpp || 0));
 
     // 2. Hitung chart data harian untuk date range
@@ -582,7 +630,8 @@ exports.historiPembelian = async (req, res) => {
       summary: {
         total_pesanan,
         total_pendapatan,
-        total_keuntungan
+        total_keuntungan,
+        total_diskon
       },
       chart: chartRows,
       data: rows
