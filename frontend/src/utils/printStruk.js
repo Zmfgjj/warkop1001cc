@@ -158,12 +158,12 @@ function getFilteredItems(items, type) {
     const k2 = (i.kategori2_nama || i.kategori2 || '').toLowerCase();
 
     if (type === 'dapur') {
-      const isDapur = k => k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie') || k.includes('dapur') || k.includes('add on') || k.includes('others');
+      const isDapur = k => (k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie') || k.includes('dapur') || k.includes('add on') || k.includes('others')) && !k.includes('ice cream');
       return isDapur(k1) || isDapur(k2);
     }
 
     if (type === 'bar') {
-      const isBar = k => k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew') || k.includes('non coffee') || k.includes('non-coffee') || k.includes('coklat') || k.includes('chocolate') || k.includes('susu') || k.includes('blend') || k.includes('yakult') || k.includes('squash') || k.includes('bar') || k.includes('coffe') || k.includes('juice') || k.includes('jus') || k.includes('ice') || k.includes('es') || k.includes('frappe') || k.includes('smoothie') || k.includes('spesial') || k.includes('special');
+      const isBar = k => k.includes('ice cream') || k.includes('minuman') || k.includes('kopi') || k.includes('drink') || k.includes('tea') || k.includes('signature') || k.includes('coffee') || k.includes('mocktail') || k.includes('manual brew') || k.includes('non coffee') || k.includes('non-coffee') || k.includes('coklat') || k.includes('chocolate') || k.includes('susu') || k.includes('blend') || k.includes('yakult') || k.includes('squash') || k.includes('bar') || k.includes('coffe') || k.includes('juice') || k.includes('jus') || k.includes('ice') || k.includes('es') || k.includes('frappe') || k.includes('smoothie') || k.includes('spesial') || k.includes('special');
       return isBar(k1) || isBar(k2);
     }
 
