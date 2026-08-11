@@ -124,7 +124,11 @@ exports.hapusUser = async (req, res) => {
     await db.query('DELETE FROM users WHERE id = ?', [userId]);
     res.json({ message: 'User dihapus' });
   } catch (err) {
-    console.error(err); res.status(500).json({ message: 'Server error' });
+    console.error(err);
+    if (err.code === 'ER_ROW_IS_REFERENCED_2') {
+      return res.status(400).json({ message: 'Gagal dihapus: User ini memiliki riwayat pesanan/log. Silakan nonaktifkan (ubah status aktif) user ini.' });
+    }
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
