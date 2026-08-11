@@ -1,0 +1,22 @@
+const fs = require('fs');
+const { execSync } = require('child_process');
+
+console.log('Building frontend...');
+execSync('cd frontend && npm run build', {stdio: 'inherit'});
+
+console.log('Zipping dist...');
+execSync('cd frontend && tar -czf dist.tar.gz dist', {stdio: 'inherit'});
+
+console.log('Deploying via base64...');
+const content = fs.readFileSync('frontend/dist.tar.gz');
+const b64 = content.toString('base64');
+fs.writeFileSync('temp_dist.b64', b64);
+
+execSync('ssh -o StrictHostKeyChecking=no root@202.155.157.13 "base64 -d > /tmp/dist.tar.gz" < temp_dist.b64', { stdio: 'inherit' });
+execSync('ssh -o StrictHostKeyChecking=no root@202.155.157.13 "cd /tmp && tar -xzf dist.tar.gz && rm -rf /var/www/frontend/assets/* && cp -r dist/* /var/www/frontend/ && cp /var/www/frontend/capacitor.config.json /var/www/frontend/ || true"', { stdio: 'inherit' });
+
+console.log('Creating OTA bundle.zip on VPS directly...');
+execSync('ssh -o StrictHostKeyChecking=no root@202.155.157.13 "mkdir -p /tmp/ota && cp -r /var/www/frontend/assets /var/www/frontend/index.html /var/www/frontend/manifest.json /var/www/frontend/sw.js /var/www/frontend/logo* /tmp/ota/ && cp /var/www/frontend/capacitor.config.json /tmp/ota/ && cd /tmp/ota && rm -f /var/www/landing_page/bundle.zip && zip -r /var/www/landing_page/bundle.zip * && rm -rf /tmp/ota"', {stdio: 'inherit'});
+
+execSync('ssh -o StrictHostKeyChecking=no root@202.155.157.13 "chmod -R 755 /var/www/frontend && chown -R www-data:www-data /var/www/frontend"', {stdio: 'inherit'});
+console.log('Deployed frontend fallback!');

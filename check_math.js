@@ -1,0 +1,3 @@
+const { execSync } = require('child_process');
+const cmd = `ssh -o StrictHostKeyChecking=no root@202.155.157.13 "mysql -D warkop1001cc -e \\"SELECT SUM(pb.jumlah) as revenue, (SELECT SUM(total) FROM pesanan WHERE DATE(created_at) = '2026-08-07' AND payment_status='paid' AND status!='batal') as pesanan_total, (SELECT SUM(discount_value + COALESCE(point_used, 0)) FROM pesanan WHERE DATE(created_at) = '2026-08-07' AND payment_status='paid' AND status!='batal') as total_diskon FROM pembayaran pb JOIN pesanan p ON pb.pesanan_id = p.id WHERE DATE(pb.created_at) = '2026-08-07' AND pb.status = 'sukses' AND p.status != 'batal'\\""`;
+console.log(execSync(cmd).toString());

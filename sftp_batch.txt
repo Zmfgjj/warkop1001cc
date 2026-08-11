@@ -1,0 +1,3 @@
+
+put warkop-pos.apk /tmp/warkop-pos.apk
+exit

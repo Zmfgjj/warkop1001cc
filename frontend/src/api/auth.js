@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { Capacitor } from '@capacitor/core'
+import { globalAlert } from '../context/AlertContext'
 
 const isNative = Capacitor.isNativePlatform();
 const API_URL = isNative
@@ -19,6 +20,23 @@ api.interceptors.request.use((config) => {
   }
   return config
 })
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      const originalRequest = error.config;
+      if (originalRequest.url !== '/auth/login' && originalRequest.url !== '/auth/me') {
+        globalAlert('Sesi habis, silakan login ulang', 'Perhatian', 'error');
+        localStorage.removeItem('auth_token');
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1500);
+      }
+    }
+    return Promise.reject(error);
+  }
+)
 
 export const login = async (username, password, force = false) => {
   const res = await api.post('/auth/login', { username, password, force })
