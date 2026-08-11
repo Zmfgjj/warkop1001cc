@@ -29,7 +29,7 @@ export default function UserManage() {
   // Modal edit user
   const [showEditRole, setShowEditRole] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
-  const [editForm, setEditForm] = useState({ nama: '', username: '', role: '', password: '' })
+  const [editForm, setEditForm] = useState({ nama: '', username: '', role: '', aktif: 1, password: '' })
   const [loadingEdit, setLoadingEdit] = useState(false)
 
   // Modal konfirmasi hapus
@@ -123,7 +123,7 @@ export default function UserManage() {
         nama: editForm.nama,
         username: editForm.username,
         role: editForm.role,
-        aktif: editTarget.aktif ?? 1
+        aktif: editForm.aktif ?? 1
       }
       // Hanya kirim password kalau diisi
       if (editForm.password && editForm.password.trim() !== '') {
@@ -275,6 +275,9 @@ export default function UserManage() {
                                 {(u.nama || '?')[0].toUpperCase()}
                               </div>
                               <span className="font-bold text-[#634930] text-base">{u.nama}</span>
+                              {u.aktif === 0 && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-600 border border-red-200">Nonaktif</span>
+                              )}
                             </div>
                           </td>
                           <td className="px-8 py-5 text-gray-500 font-medium">{u.username}</td>
@@ -318,7 +321,7 @@ export default function UserManage() {
                                   <button
                                     onClick={() => { 
                                       setEditTarget(u); 
-                                      setEditForm({ nama: u.nama, username: u.username, role: u.role, password: '' }); 
+                                      setEditForm({ nama: u.nama, username: u.username, role: u.role, aktif: u.aktif ?? 1, password: '' }); 
                                       setShowEditRole(true) 
                                     }}
                                     className="px-4 py-2 rounded-xl text-xs font-bold transition-all hover:opacity-80 shadow-sm border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
@@ -478,6 +481,18 @@ export default function UserManage() {
                   style={{ backgroundColor: '#F9F5F0', color: '#634930', border: '1px solid #EDE0CC' }}
                 >
                   {roleList.map(r => <option key={r} value={r} className="uppercase">{r}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Status Akun</label>
+                <select
+                  value={editForm.aktif}
+                  onChange={e => setEditForm(p => ({ ...p, aktif: parseInt(e.target.value) }))}
+                  className="w-full px-4 py-3 rounded-xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-amber-500/20 transition-all"
+                  style={{ backgroundColor: '#F9F5F0', color: '#634930', border: '1px solid #EDE0CC' }}
+                >
+                  <option value={1}>Aktif (Bisa Login)</option>
+                  <option value={0}>Nonaktif (Tidak Bisa Login)</option>
                 </select>
               </div>
             </div>
