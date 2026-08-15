@@ -71,14 +71,7 @@ export default function KasirPOS() {
 
   const handleTipePelangganChange = (val) => {
     setTipePelanggan(val)
-    if (val === 'CAKRA') {
-      setNamaPelanggan('CAKRA')
-      setJumlahBayar('')
-      setShowCustDetails(true)
-    } else {
-      if (namaPelanggan === 'CAKRA') setNamaPelanggan('')
-      setJumlahBayar('')
-    }
+    setJumlahBayar('')
   }
 
   const formatRibuan = (val) => {
@@ -683,7 +676,6 @@ export default function KasirPOS() {
                     <select value={tipePelanggan} onChange={e => handleTipePelangganChange(e.target.value)}
                       className="w-full text-[11px] px-2.5 py-1.5 rounded-lg font-bold focus:outline-none cursor-pointer" style={{ backgroundColor: '#F5F0E8', color: '#634930', border: '1px solid #C4A882' }}>
                       <option value="Umum">👤 Umum</option>
-                      <option value="CAKRA">👑 Staff (CAKRA)</option>
                     </select>
                   </div>
                   <div className="col-span-2 flex gap-2">
