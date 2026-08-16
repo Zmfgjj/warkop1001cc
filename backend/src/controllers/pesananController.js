@@ -143,7 +143,7 @@ exports.buatPesanan = async (req, res) => {
          FROM menu m 
          LEFT JOIN kategori k ON m.kategori_id = k.id 
          LEFT JOIN kategori k2 ON m.kategori2_id = k2.id
-         WHERE m.id = ?`,
+         WHERE m.id = ? AND m.is_deleted = FALSE`,
          [item.menu_id]
       );
       if (menu.length > 0) {

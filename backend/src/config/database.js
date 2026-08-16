@@ -147,6 +147,7 @@ pool.getConnection()
       await addColumn('members', 'nama_panggilan VARCHAR(50) NULL AFTER nama');
       await addColumn('menu', 'kategori2_id INT NULL AFTER kategori_id');
       await addColumn('kategori', 'print_destination VARCHAR(50) DEFAULT "kasir"');
+      await addColumn('menu', 'is_deleted BOOLEAN DEFAULT FALSE');
 
       // Safe Index addition
       try {

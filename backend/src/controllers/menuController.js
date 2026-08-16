@@ -39,7 +39,7 @@ exports.hapusKategori = async (req, res) => {
   try {
     const { id } = req.params;
     // Cek apakah ada menu yang menggunakan kategori ini
-    const [menus] = await db.query('SELECT id FROM menu WHERE kategori_id = ?', [id]);
+    const [menus] = await db.query('SELECT id FROM menu WHERE kategori_id = ? AND is_deleted = FALSE', [id]);
     if (menus.length > 0) {
       return res.status(400).json({ message: 'Kategori tidak bisa dihapus karena masih digunakan oleh menu.' });
     }
@@ -57,6 +57,7 @@ exports.getMenu = async (req, res) => {
       FROM menu m 
       LEFT JOIN kategori k ON m.kategori_id = k.id
       LEFT JOIN kategori k2 ON m.kategori2_id = k2.id
+      WHERE m.is_deleted = FALSE
       ORDER BY k.urutan, m.nama
     `);
 
@@ -269,16 +270,13 @@ exports.updateMenu = async (req, res) => {
 exports.hapusMenu = async (req, res) => {
   try {
     const { id } = req.params;
-    await db.query('DELETE FROM menu WHERE id = ?', [id]);
+    await db.query('UPDATE menu SET is_deleted = TRUE WHERE id = ?', [id]);
     
     const io = req.app.get('io');
     io.emit('menuDeleted', { id: parseInt(id) });
     
     res.json({ message: 'Menu dihapus' });
   } catch (err) {
-    if (err.code === 'ER_ROW_IS_REFERENCED_2') {
-      return res.status(400).json({ message: 'Menu tidak bisa dihapus karena sudah tercatat di riwayat pesanan. Silakan Edit menu ini dan jadikan "Tidak Tersedia".' });
-    }
     console.error(err); res.status(500).json({ message: 'Server error' });
   }
 };
