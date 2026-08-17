@@ -333,7 +333,10 @@ export default function KasirPOS() {
             harga: specialPrice,
             qty: prizeQty,
             catatan: 'Hadiah Spin Wheel (>100k) - Harga Promo',
-            kategori: menuMatch ? (menuMatch.kategori || '') : 'minuman'
+            kategori: menuMatch ? (menuMatch.kategori || menuMatch.kategori_nama || 'minuman') : 'minuman',
+            kategori_nama: menuMatch ? (menuMatch.kategori_nama || menuMatch.kategori || 'minuman') : 'minuman',
+            kategori_print_destination: menuMatch ? (menuMatch.kategori_print_destination || null) : 'bar',
+            kategori2_print_destination: menuMatch ? (menuMatch.kategori2_print_destination || null) : null
           });
         }
       });
@@ -346,7 +349,7 @@ export default function KasirPOS() {
       const pesananData = {
         meja_id: tipeOrder === 'dine-in' ? parseInt(selectedMejaId) : null,
         tipe: tipeOrder,
-        items: finalOrder.map(o => ({ menu_id: o.menu_id, qty: o.qty, harga: o.harga, catatan: o.catatan, kategori: o.kategori, kategori2: o.kategori2 })),
+        items: finalOrder.map(o => ({ menu_id: o.menu_id, nama: o.nama, qty: o.qty, harga: o.harga, catatan: o.catatan, kategori: o.kategori, kategori2: o.kategori2 })),
         pembayaran: { metode: metodeBayar.toLowerCase(), jumlah: finalTotal }, // payload offline
         nama_pelanggan: namaPelanggan.trim() || null,
         no_telepon: nomorHp.trim() || null,

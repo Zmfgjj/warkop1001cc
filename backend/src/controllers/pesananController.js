@@ -180,7 +180,7 @@ exports.buatPesanan = async (req, res) => {
         validatedItems.push({ 
           ...item, 
           harga: itemHarga,
-          nama_menu: menu[0].nama,
+          nama_menu: (item.catatan && item.catatan.includes('Hadiah Spin Wheel') && item.nama) ? item.nama : menu[0].nama,
           kategori_nama: menu[0].kategori_nama,
           is_kds_target: isKdsTarget
         });

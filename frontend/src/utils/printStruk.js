@@ -292,8 +292,8 @@ export function cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
         console.error('Error in print queue:', err);
       }
       resolve(true);
-      // Jeda 1 detik antar antrean struk agar printer ada nafas sedikit
-      await new Promise(r => setTimeout(r, 1000));
+      // Jeda 3 detik antar antrean struk agar printer ada nafas sedikit
+      await new Promise(r => setTimeout(r, 3000));
     });
   });
 }
@@ -499,7 +499,7 @@ async function _cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
           // ----------------------------------------------------------------
           const CHUNK_SIZE = 64;   // Kecil supaya buffer printer tidak overflow
           const CHUNK_DELAY = 50;  // ms jeda antar chunk
-          const RECEIPT_GAP = 7000; // ms jeda antar struk dalam 1 printer (cukup untuk cut)
+          const RECEIPT_GAP = 8500; // ms jeda antar struk dalam 1 printer (cukup untuk cut)
           const CONNECT_RETRY = 3;
 
           const writeBytes = (bytes) => new Promise(async (res, rej) => {
@@ -531,10 +531,10 @@ async function _cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
                 } catch (e) {
                   console.error('[BT] Error saat menulis ke printer:', e);
                 }
-                // Perbaikan: Tunggu sampai proses disconnect benar-benar tuntas + beri napas 2 detik
+                // Perbaikan: Tunggu sampai proses disconnect benar-benar tuntas + beri napas 3 detik
                 window.bluetoothSerial.disconnect(
-                  () => { setTimeout(res, 2000); }, 
-                  () => { setTimeout(res, 2000); }
+                  () => { setTimeout(res, 3000); }, 
+                  () => { setTimeout(res, 3000); }
                 );
               }, (err) => {
                 console.error(`[BT] Gagal konek ke ${mac}:`, err);
