@@ -162,8 +162,10 @@ exports.buatPesanan = async (req, res) => {
         }
         totalBaru += itemHarga * item.qty;
         let isKdsTarget = false;
-        const dest1 = menu[0].kategori_print_destination;
-        const dest2 = menu[0].kategori2_print_destination;
+        const rawDest1 = menu[0].kategori_print_destination;
+        const rawDest2 = menu[0].kategori2_print_destination;
+        const dest1 = rawDest1 === 'kasir' ? null : rawDest1;
+        const dest2 = rawDest2 === 'kasir' ? null : rawDest2;
         
         if (dest1 === 'dapur' || dest1 === 'bar' || dest1 === 'semua' || dest2 === 'dapur' || dest2 === 'bar' || dest2 === 'semua') {
           isKdsTarget = true;

@@ -98,11 +98,15 @@ export default function KDS() {
       // Saring item yang relevan untuk KDS ini (Dapur / Bar)
       const relevantItems = (data.items || []).filter(i => {
         if (i.kategori_print_destination || i.kategori2_print_destination) {
-          const isDapur = i.kategori_print_destination === 'dapur' || i.kategori_print_destination === 'semua' || i.kategori2_print_destination === 'dapur' || i.kategori2_print_destination === 'semua';
-          const isBar = i.kategori_print_destination === 'bar' || i.kategori_print_destination === 'semua' || i.kategori2_print_destination === 'bar' || i.kategori2_print_destination === 'semua';
-          if (kdsMode === 'dapur') return isDapur;
-          if (kdsMode === 'bar') return isBar;
-          return true;
+          const dest1 = i.kategori_print_destination === 'kasir' ? null : i.kategori_print_destination;
+          const dest2 = i.kategori2_print_destination === 'kasir' ? null : i.kategori2_print_destination;
+          if (dest1 || dest2) {
+            const isDapur = dest1 === 'dapur' || dest1 === 'semua' || dest2 === 'dapur' || dest2 === 'semua';
+            const isBar = dest1 === 'bar' || dest1 === 'semua' || dest2 === 'bar' || dest2 === 'semua';
+            if (kdsMode === 'dapur') return isDapur;
+            if (kdsMode === 'bar') return isBar;
+            return true;
+          }
         }
         const k1 = (i.kategori_nama || i.kategori || '').toLowerCase();
         const k2 = (i.kategori2_nama || i.kategori2 || '').toLowerCase();
@@ -133,6 +137,7 @@ export default function KDS() {
     }
 
     socket.on('pesanan_baru', onChange)
+    socket.on('pembayaran', onChange)
     socket.on('status_pesanan', onChange)
     socket.on('status_item', onChange)
     socket.on('catatan_item', onChange)
@@ -140,6 +145,7 @@ export default function KDS() {
 
     return () => {
       socket.off('pesanan_baru', onChange)
+      socket.off('pembayaran', onChange)
       socket.off('status_pesanan', onChange)
       socket.off('status_item', onChange)
       socket.off('catatan_item', onChange)
@@ -226,11 +232,15 @@ export default function KDS() {
         }
         const hasRelevantItem = p.items.some(i => {
           if (i.kategori_print_destination || i.kategori2_print_destination) {
-            const isDapur = i.kategori_print_destination === 'dapur' || i.kategori_print_destination === 'semua' || i.kategori2_print_destination === 'dapur' || i.kategori2_print_destination === 'semua';
-            const isBar = i.kategori_print_destination === 'bar' || i.kategori_print_destination === 'semua' || i.kategori2_print_destination === 'bar' || i.kategori2_print_destination === 'semua';
-            if (kdsMode === 'dapur') return isDapur;
-            if (kdsMode === 'bar') return isBar;
-            return true;
+            const dest1 = i.kategori_print_destination === 'kasir' ? null : i.kategori_print_destination;
+            const dest2 = i.kategori2_print_destination === 'kasir' ? null : i.kategori2_print_destination;
+            if (dest1 || dest2) {
+              const isDapur = dest1 === 'dapur' || dest1 === 'semua' || dest2 === 'dapur' || dest2 === 'semua';
+              const isBar = dest1 === 'bar' || dest1 === 'semua' || dest2 === 'bar' || dest2 === 'semua';
+              if (kdsMode === 'dapur') return isDapur;
+              if (kdsMode === 'bar') return isBar;
+              return true;
+            }
           }
           const k1 = (i.kategori_nama || i.kategori || '').toLowerCase();
           const k2 = (i.kategori2_nama || i.kategori2 || '').toLowerCase();
@@ -265,11 +275,15 @@ export default function KDS() {
     if (kdsMode === 'semua') return p;
     const filteredItems = p.items.filter(i => {
       if (i.kategori_print_destination || i.kategori2_print_destination) {
-        const isDapur = i.kategori_print_destination === 'dapur' || i.kategori_print_destination === 'semua' || i.kategori2_print_destination === 'dapur' || i.kategori2_print_destination === 'semua';
-        const isBar = i.kategori_print_destination === 'bar' || i.kategori_print_destination === 'semua' || i.kategori2_print_destination === 'bar' || i.kategori2_print_destination === 'semua';
-        if (kdsMode === 'dapur') return isDapur;
-        if (kdsMode === 'bar') return isBar;
-        return true;
+        const dest1 = i.kategori_print_destination === 'kasir' ? null : i.kategori_print_destination;
+        const dest2 = i.kategori2_print_destination === 'kasir' ? null : i.kategori2_print_destination;
+        if (dest1 || dest2) {
+          const isDapur = dest1 === 'dapur' || dest1 === 'semua' || dest2 === 'dapur' || dest2 === 'semua';
+          const isBar = dest1 === 'bar' || dest1 === 'semua' || dest2 === 'bar' || dest2 === 'semua';
+          if (kdsMode === 'dapur') return isDapur;
+          if (kdsMode === 'bar') return isBar;
+          return true;
+        }
       }
       const k1 = (i.kategori_nama || i.kategori || '').toLowerCase();
       const k2 = (i.kategori2_nama || i.kategori2 || '').toLowerCase();

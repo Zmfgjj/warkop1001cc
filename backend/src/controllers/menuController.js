@@ -464,10 +464,10 @@ exports.deleteCampaignPromo = async (req, res) => {
 
 exports.updateBulkHPP = async (req, res) => {
   try {
-    // Formula: HPP = Harga Jual - 15% (Harga Jual * 0.85)
-    await db.query(`UPDATE menu SET hpp = harga * 0.85`);
+    // Formula: HPP = Harga Jual - 24% (Harga Jual * 0.76)
+    await db.query(`UPDATE menu SET hpp = harga * 0.76`);
 
-    res.json({ message: 'HPP berhasil diperbarui secara massal (Harga Jual - 15%)' });
+    res.json({ message: 'HPP berhasil diperbarui secara massal (Harga Jual - 24%)' });
   } catch (err) {
     console.error('❌ Error update bulk HPP:', err.message);
     res.status(500).json({ message: 'Server error' });

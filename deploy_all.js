@@ -3,8 +3,11 @@ const { execSync } = require('child_process');
 console.log('--- DEPLOY ALL ---');
 
 try {
-  console.log('1. Deploy Frontend Web to VPS...');
-  execSync('node deploy_frontend_scp.js', { stdio: 'inherit' });
+  console.log('1. Deploy Backend to VPS...');
+  execSync('node deploy_backend_base64.js', { stdio: 'inherit' });
+
+  console.log('1.5. Deploy Frontend Web to VPS...');
+  execSync('node deploy_frontend_base64.js', { stdio: 'inherit' });
 
   console.log('2. Sync Capacitor & Build Android APK...');
   execSync('cd frontend && npx cap sync android && cd android && gradlew assembleDebug', { stdio: 'inherit' });
@@ -17,8 +20,8 @@ try {
 
   console.log('5. Commit and Push...');
   execSync('git add .', { stdio: 'inherit' });
-  execSync('git commit -m "Update frontend auth interceptor 401 & bump version 1.0.65"', { stdio: 'inherit' });
-  execSync('git push vps-repo revisi', { stdio: 'inherit' });
+  execSync('git commit -m "Update bulk HPP to 24% profit & bump version 1.0.66"', { stdio: 'inherit' });
+  execSync('git push origin revisi', { stdio: 'inherit' });
 
   console.log('--- ALL DEPLOYMENTS FINISHED SUCCESSFULLY ---');
 } catch (e) {
