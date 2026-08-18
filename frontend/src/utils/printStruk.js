@@ -119,8 +119,10 @@ function generateStrukHTML({ pesananId, items, subtotal, total, metodeBayar, jum
       <div style="text-align:center;font-size:12px;margin-top:8px">
         <p style="margin:2px 0">Good Vibes In Every Cup</p>
         <p style="margin:2px 0">Password Wifi :</p>
-        <p style="margin:2px 0">Lt 1: kopicakramantap</p>
-        <p style="margin:2px 0">Lt 2: warkopnaikkelaz</p>
+        <p style="margin:2px 0">1. User: 1001_CC_5G</p>
+        <p style="margin:2px 0">   Pass: warkopnaikkelaz</p>
+        <p style="margin:2px 0">2. User: warkop1001cc_5G</p>
+        <p style="margin:2px 0">   Pass: kopicakramantap</p>
         <br>
         <p style="margin:2px 0">Bantu kami jadi lebih baik!</p>
         <p style="margin:2px 0">Beri ulasan di Google Maps:</p>
@@ -447,8 +449,10 @@ async function _cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
 
         receipt += CENTER + 'Good Vibes In Every Cup' + LF
         receipt += CENTER + 'Password Wifi :' + LF
-        receipt += CENTER + 'Lt 1: kopicakramantap' + LF
-        receipt += CENTER + 'Lt 2: warkopnaikkelaz' + LF + LF
+        receipt += CENTER + '1. User: 1001_CC_5G' + LF
+        receipt += CENTER + '   Pass: warkopnaikkelaz' + LF
+        receipt += CENTER + '2. User: warkop1001cc_5G' + LF
+        receipt += CENTER + '   Pass: kopicakramantap' + LF + LF
         receipt += CENTER + 'Terima kasih telah menjadi' + LF
         receipt += 'bagian dari cerita 1001cc.' + LF + LF
         receipt += 'follow kami @warkop1001cc' + LF

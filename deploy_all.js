@@ -4,7 +4,7 @@ console.log('--- DEPLOY ALL ---');
 
 try {
   console.log('1. Deploy Backend to VPS...');
-  execSync('node deploy_backend_base64.js', { stdio: 'inherit' });
+  execSync('node deploy_app_js.js', { stdio: 'inherit' });
 
   console.log('1.5. Deploy Frontend Web to VPS...');
   execSync('node deploy_frontend_base64.js', { stdio: 'inherit' });
@@ -20,7 +20,7 @@ try {
 
   console.log('5. Commit and Push...');
   execSync('git add .', { stdio: 'inherit' });
-  execSync('git commit -m "Update bulk HPP to 24% profit & bump version 1.0.66"', { stdio: 'inherit' });
+  execSync('git commit -m "Update password wifi di struk kasir"', { stdio: 'inherit' });
   execSync('git push origin revisi', { stdio: 'inherit' });
 
   console.log('--- ALL DEPLOYMENTS FINISHED SUCCESSFULLY ---');
