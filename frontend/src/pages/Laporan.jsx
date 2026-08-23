@@ -27,17 +27,36 @@ export default function Laporan() {
   const [loading, setLoading] = useState(false)
   
   // KPI Target Karyawan
-  const [kpiTarget, setKpiTarget] = useState(() => {
-    return Number(localStorage.getItem('laporan_kpi_target') || 50000000)
-  })
+  const [kpiTarget, setKpiTarget] = useState(50000000)
   const [showEditTarget, setShowEditTarget] = useState(false)
-  const [tempTarget, setTempTarget] = useState(kpiTarget)
+  const [tempTarget, setTempTarget] = useState(50000000)
 
-  const handleSaveTarget = () => {
-    setKpiTarget(tempTarget)
-    localStorage.setItem('laporan_kpi_target', String(tempTarget))
-    setShowEditTarget(false)
-    showAlert('Target KPI Karyawan berhasil diperbarui!', 'Sukses', 'success')
+  useEffect(() => {
+    const fetchTarget = async () => {
+      try {
+        const res = await api.get('/settings/target-kpi')
+        setKpiTarget(res.data.target)
+        setTempTarget(res.data.target)
+      } catch (err) {
+        console.error('Failed to fetch KPI target', err)
+      }
+    }
+    fetchTarget()
+  }, [])
+
+  const handleSaveTarget = async () => {
+    try {
+      setLoading(true)
+      const res = await api.put('/settings/target-kpi', { target: tempTarget })
+      setKpiTarget(res.data.target)
+      setShowEditTarget(false)
+      showAlert('Target KPI Karyawan berhasil diperbarui!', 'Sukses', 'success')
+    } catch (err) {
+      console.error('Failed to update KPI target', err)
+      showAlert('Gagal memperbarui target', 'Error', 'error')
+    } finally {
+      setLoading(false)
+    }
   }
   
   // Harian

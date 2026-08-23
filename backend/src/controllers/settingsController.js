@@ -67,3 +67,46 @@ exports.uploadKdsAudio = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 };
+
+// Get KPI Target
+exports.getKpiTarget = async (req, res) => {
+  try {
+    const key = 'laporan_kpi_target';
+    const [rows] = await db.query("SELECT nilai FROM settings WHERE `key` = ? LIMIT 1", [key]);
+    
+    if (rows.length === 0 || !rows[0].nilai) {
+      return res.json({ target: 50000000 }); // Default 50 juta
+    }
+    
+    res.json({ target: Number(rows[0].nilai) });
+  } catch (err) {
+    console.error('Error getKpiTarget:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Update KPI Target
+exports.updateKpiTarget = async (req, res) => {
+  try {
+    const { target } = req.body;
+    if (target === undefined || isNaN(Number(target))) {
+      return res.status(400).json({ message: 'Target tidak valid' });
+    }
+    
+    const key = 'laporan_kpi_target';
+    const stringValue = String(target);
+    
+    const [existing] = await db.query("SELECT id FROM settings WHERE `key` = ?", [key]);
+    
+    if (existing.length > 0) {
+      await db.query("UPDATE settings SET nilai = ? WHERE `key` = ?", [stringValue, key]);
+    } else {
+      await db.query("INSERT INTO settings (`key`, nilai) VALUES (?, ?)", [key, stringValue]);
+    }
+    
+    res.json({ message: 'Target KPI berhasil diperbarui', target: Number(target) });
+  } catch (err) {
+    console.error('Error updateKpiTarget:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
