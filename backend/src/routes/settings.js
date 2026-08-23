@@ -40,4 +40,7 @@ const upload = multer({
 router.get('/kds-audio', auth(), settingsController.getKdsAudio);
 router.post('/kds-audio', auth(), upload.single('audio'), settingsController.uploadKdsAudio);
 
+router.get('/target-kpi', auth(), settingsController.getKpiTarget);
+router.put('/target-kpi', auth(), settingsController.updateKpiTarget);
+
 module.exports = router;
