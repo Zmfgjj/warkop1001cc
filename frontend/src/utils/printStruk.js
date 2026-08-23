@@ -529,9 +529,14 @@ async function _cetakStrukThermal(data, printTypes = ['kasir', 'pelanggan']) {
                   for (let idx = 0; idx < jobs.length; idx++) {
                     await writeBytes(jobs[idx].byteArray);
                     console.log(`[BT] Struk '${jobs[idx].type}' selesai.`);
-                    // Jeda antar struk di printer yang sama — beri waktu printer memotong kertas
+                    
                     if (idx < jobs.length - 1) {
+                      // Jeda antar struk di printer yang sama — beri waktu printer memotong kertas
                       await new Promise(r => setTimeout(r, RECEIPT_GAP));
+                    } else {
+                      // TAMBAHAN: Jeda untuk struk TERAKHIR agar printer sempat 
+                      // memproses sisa buffer dan memotong kertas sebelum koneksi Bluetooth dimatikan.
+                      await new Promise(r => setTimeout(r, 4000));
                     }
                   }
                 } catch (e) {

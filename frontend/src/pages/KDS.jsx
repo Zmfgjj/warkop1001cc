@@ -119,6 +119,10 @@ export default function KDS() {
       });
 
       if (relevantItems.length > 0) {
+        // [PERBAIKAN]: KDS tidak lagi mencetak ulang pesanan hasil offline-sync 
+        // karena Kasir sudah mencetaknya secara fisik saat mode offline.
+        // Mencegah masalah 'Print Flood' (banjir cetak) saat internet kembali nyala.
+        /*
         const targetPrint = kdsMode === 'semua' ? ['dapur', 'bar'] : [kdsMode];
         const strukData = {
           pesananId: data.id || data.pesanan_id,
@@ -132,6 +136,7 @@ export default function KDS() {
         cetakStrukThermal(strukData, targetPrint).catch(err => {
           console.error('[KDS] Gagal cetak background thermal:', err);
         });
+        */
       }
       debouncedFetch()
     }
