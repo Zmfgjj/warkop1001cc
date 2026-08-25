@@ -87,7 +87,7 @@ class SyncService {
               harga: item.harga,
               catatan: item.catatan || null
             })),
-            is_offline_sync: true, // flag to skip open bill check & auto pay
+            is_offline_sync: order.was_offline === 1, // flag to skip open bill check & auto pay (hanya jika memang offline)
             pembayaran: {
               metode: order.metode_bayar || 'tunai',
               jumlah: order.jumlah_bayar || order.total

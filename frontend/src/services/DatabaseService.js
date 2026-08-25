@@ -37,6 +37,7 @@ class DatabaseService {
           jumlah_bayar REAL,
           kembali REAL,
           synced INTEGER DEFAULT 0,
+          was_offline INTEGER DEFAULT 0,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );
         CREATE TABLE IF NOT EXISTS local_order_items (
@@ -50,7 +51,13 @@ class DatabaseService {
         );
       `;
       await db.execute(schema);
-      
+        
+      try {
+        await db.execute('ALTER TABLE local_orders ADD COLUMN was_offline INTEGER DEFAULT 0;');
+      } catch(e) {
+        // Ignored if column already exists
+      }
+
       this.db = db;
       this.isReady = true;
       console.log('[SQLite] Local database initialized successfully');
@@ -70,14 +77,14 @@ class DatabaseService {
     try {
       const qOrder = `INSERT INTO local_orders (
         local_id, meja_id, kasir_id, tipe, catatan, total, diskon_nama, diskon_nilai,
-        nama_pelanggan, no_telepon, metode_bayar, jumlah_bayar, kembali, synced, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`;
+        nama_pelanggan, no_telepon, metode_bayar, jumlah_bayar, kembali, synced, was_offline, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`;
       
       const vOrder = [
         orderData.local_id, orderData.meja_id || null, orderData.kasir_id || null, orderData.tipe, 
         orderData.catatan || null, orderData.total, orderData.discount_name || null, orderData.discount_value || 0,
         orderData.nama_pelanggan || null, orderData.no_telepon || null, orderData.metodeBayar || null, 
-        orderData.jumlahBayar || 0, orderData.kembali || 0, orderData.created_at || new Date().toISOString()
+        orderData.jumlahBayar || 0, orderData.kembali || 0, orderData.was_offline ? 1 : 0, orderData.created_at || new Date().toISOString()
       ];
 
       await this.db.run(qOrder, vOrder);

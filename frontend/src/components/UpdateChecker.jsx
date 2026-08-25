@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import api from '../api/auth';
 
-export const CURRENT_APP_VERSION = '1.0.70'; // Sesuaikan ini setiap kali build APK / OTA baru
+export const CURRENT_APP_VERSION = '1.0.71'; // Sesuaikan ini setiap kali build APK / OTA baru
 
 export default function UpdateChecker() {
   const [updateInfo, setUpdateInfo] = useState(null);

@@ -392,7 +392,8 @@ export default function KasirPOS() {
             total: finalTotal,
             metodeBayar,
             jumlahBayar: parseInt(jumlahBayar.replace(/\D/g, '') || 0),
-            kembali: finalKembali
+            kembali: finalKembali,
+            was_offline: !navigator.onLine
           }, finalOrder);
           
           if (!success) throw new Error('Gagal menyimpan ke database lokal');
