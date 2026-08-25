@@ -162,7 +162,7 @@ function getFilteredItems(items, type) {
     const k2 = (i.kategori2_nama || i.kategori2 || '').toLowerCase();
 
     if (type === 'dapur') {
-      const isDapur = k => (k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie') || k.includes('dapur') || k.includes('add on') || k.includes('others')) && !k.includes('ice cream');
+      const isDapur = k => (k.includes('makanan') || k.includes('snack') || k.includes('food') || k.includes('main course') || k.includes('indomie') || k.includes('dapur') || k.includes('add on') || k.includes('others') || k.includes('roti') || k.includes('cemilan') || k.includes('paket') || k.includes('mie') || k.includes('gorengan') || k.includes('promo') || k.includes('dimsum') || k.includes('toast') || k.includes('pastry')) && !k.includes('ice cream');
       return isDapur(k1) || isDapur(k2);
     }
 
