@@ -34,7 +34,7 @@ exports.ringkasan = async (req, res) => {
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
       WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
-      GROUP BY dp.menu_id, dp.harga
+      GROUP BY dp.menu_id, dp.harga, dp.harga
       ORDER BY total_terjual DESC
       LIMIT 5
     `, [startDate, endDate]);
@@ -107,7 +107,7 @@ exports.ringkasan = async (req, res) => {
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
       WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
-      GROUP BY dp.menu_id, dp.harga
+      GROUP BY dp.menu_id, dp.harga, dp.harga
       ORDER BY total_terjual DESC
     `, [startDate, endDate]);
 
@@ -283,7 +283,7 @@ exports.laporanBulanan = async (req, res) => {
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
       WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
-      GROUP BY dp.menu_id, dp.harga
+      GROUP BY dp.menu_id, dp.harga, dp.harga
       ORDER BY total_terjual DESC
     `, [startOfMonth, endOfMonth]);
 
@@ -434,7 +434,7 @@ exports.laporanTahunan = async (req, res) => {
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
       WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
-      GROUP BY dp.menu_id, dp.harga
+      GROUP BY dp.menu_id, dp.harga, dp.harga
       ORDER BY total_terjual DESC
     `, [startOfYear, endOfYear]);
 
@@ -480,7 +480,7 @@ exports.laporanMenu = async (req, res) => {
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
       WHERE p.payment_status = 'paid' AND p.status != 'batal'
       AND p.created_at >= ? AND p.created_at <= ?
-      GROUP BY dp.menu_id, dp.harga
+      GROUP BY dp.menu_id, dp.harga, dp.harga
       ORDER BY total_terjual DESC
     `, [startDate, endDate]);
 

@@ -64,7 +64,7 @@ class SyncService {
     try {
       const unsyncedOrders = await dbService.getUnsyncedOrders();
       const localOfflineOrders = await getOfflineOrders();
-      
+
       if (unsyncedOrders.length === 0 && localOfflineOrders.length === 0) {
         this.isSyncing = false;
         return;
@@ -107,7 +107,7 @@ class SyncService {
           }
         } catch (err) {
           console.error(`[SyncService] Failed to sync DB order ${order.local_id}`, err);
-          
+
           if (err.response && err.response.status >= 400 && err.response.status < 500) {
             console.warn(`[SyncService] Order ${order.local_id} permanently rejected by server (4xx). Skipping to unblock queue.`);
             // Jika ingin menghapus order yang korup agar tidak spam: await dbService.markAsSynced(order.local_id);
@@ -116,7 +116,7 @@ class SyncService {
           }
 
           // Stop syncing if backend is down (5xx) or network failed midway to prevent duplicate processing issues
-          break; 
+          break;
         }
       }
 
@@ -176,7 +176,7 @@ class SyncService {
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       const limitDateStr = sevenDaysAgo.toISOString();
-      
+
       const count = await dbService.deleteOldSyncedOrders(limitDateStr);
       if (count > 0) {
         console.log(`[SyncService] Cleaned up ${count} old synced orders.`);

@@ -88,7 +88,7 @@ export default function UpdateChecker() {
           <h3 className="text-lg font-black mb-2">Memperbarui Aplikasi</h3>
           <p className="text-xs opacity-90 mb-4">{statusText}</p>
           <div className="w-full bg-black/30 rounded-full h-3 overflow-hidden p-0.5 border border-white/20">
-            <div 
+            <div
               className="bg-[#0B8500] h-full rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             />

@@ -62,7 +62,7 @@ const strictLimiter = rateLimit({
 });
 
 // Middleware
-app.use(helmet({ 
+app.use(helmet({
   contentSecurityPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" }
 })); // Security headers
@@ -191,14 +191,14 @@ setInterval(() => {
 app.use((err, req, res, next) => {
   // Log error aslinya ke console server
   console.error(`[ERROR] ${req.method} ${req.originalUrl}:`, err.message);
-  
+
   // Jika production, sembunyikan detail error dari client
   const isProduction = process.env.NODE_ENV === 'production';
-  
-  res.status(err.status || 500).json({ 
+
+  res.status(err.status || 500).json({
     message: isProduction ? 'Terjadi kesalahan internal server' : err.message,
     // Jangan pernah kirim stack trace ke production!
-    stack: isProduction ? undefined : err.stack 
+    stack: isProduction ? undefined : err.stack
   });
 });
 
