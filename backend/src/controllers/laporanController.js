@@ -11,11 +11,10 @@ exports.ringkasan = async (req, res) => {
 
     // Total pendapatan hari ini (gross revenue)
     const [pendapatan] = await db.query(`
-      SELECT COALESCE(SUM(pb.jumlah), 0) as total
-      FROM pembayaran pb
-      JOIN pesanan p ON pb.pesanan_id = p.id
-      WHERE pb.status = 'sukses' AND p.status != 'batal'
-      AND pb.created_at >= ? AND pb.created_at <= ?
+      SELECT COALESCE(SUM(p.total), 0) as total
+      FROM pesanan p
+      WHERE p.payment_status = 'paid' AND p.status != 'batal'
+      AND p.created_at >= ? AND p.created_at <= ?
     `, [startDate, endDate]);
 
     // Total pesanan hari ini (hanya yang berstatus selesai)

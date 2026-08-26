@@ -247,11 +247,20 @@ exports.buatPesanan = async (req, res) => {
       // Jika pesanan masih segar (meskipun offline sync) dan ada item KDS, maka pending (masuk KDS).
       const statusValue = (isOldOffline || allSelesai) ? 'selesai' : 'pending';
       
-      let paymentStatusValue = is_offline_sync ? 'paid' : 'unpaid';
-      if (pembayaran) {
-          const metodeSafe = (pembayaran.metode || 'tunai').toString().toLowerCase();
-          const isInstantSuccess = (metodeSafe === 'cash' || metodeSafe === 'tunai' || pembayaran.is_kasir || is_offline_sync);
+      // DEFAULT TO PAID to prevent "nyangkut" orders
+      let paymentStatusValue = 'paid';
+      
+      let finalPembayaran = pembayaran;
+      // Jika pembayaran tidak dikirim dari front-end lama, kita buat otomatis agar masuk laporan
+      if (!pembayaran && !is_offline_sync) {
+          finalPembayaran = { metode: 'tunai', is_kasir: true };
+      }
+
+      if (finalPembayaran) {
+          const metodeSafe = (finalPembayaran.metode || 'tunai').toString().toLowerCase();
+          const isInstantSuccess = (metodeSafe === 'cash' || metodeSafe === 'tunai' || finalPembayaran.is_kasir || is_offline_sync);
           if (isInstantSuccess) paymentStatusValue = 'paid';
+          else paymentStatusValue = 'unpaid'; // Jika QRIS dan belum dibayar
       }
 
       // Beri tanda khusus [Offline] pada KDS agar koki tahu jika ini pesanan tertunda
@@ -280,9 +289,9 @@ exports.buatPesanan = async (req, res) => {
     }
 
     // Simpan pembayaran secara otomatis dalam satu transaksi (Berlaku untuk Order Baru maupun Pembayaran Open Bill)
-    if (pembayaran || is_offline_sync) {
-      const metodeSafe = (pembayaran?.metode || 'tunai').toString().toLowerCase();
-      const isInstantSuccess = (metodeSafe === 'cash' || metodeSafe === 'tunai' || pembayaran?.is_kasir || is_offline_sync);
+    if (finalPembayaran || is_offline_sync) {
+      const metodeSafe = (finalPembayaran?.metode || 'tunai').toString().toLowerCase();
+      const isInstantSuccess = (metodeSafe === 'cash' || metodeSafe === 'tunai' || finalPembayaran?.is_kasir || is_offline_sync);
       
       await conn.query(
         'INSERT INTO pembayaran (pesanan_id, metode, jumlah, status, created_at) VALUES (?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))',
@@ -611,9 +620,10 @@ exports.konfirmasiPembayaran = async (req, res) => {
             await conn.query('INSERT INTO member_points_history (member_id, pesanan_id, tipe, jumlah_poin) VALUES (?, ?, "redeem", ?)', [p[0].member_id, id, pointUsedNum]);
           }
         }
-      } else {
-        await conn.query("UPDATE pesanan SET payment_status = 'paid' WHERE id = ?", [id]);
-      }
+        } else {
+          await conn.query("UPDATE pesanan SET payment_status = 'paid' WHERE id = ?", [id]);
+          await conn.query("UPDATE pembayaran SET status = 'sukses', metode = COALESCE(?, metode) WHERE pesanan_id = ?", [req.body.metode || null, id]);
+        }
     } else {
       await conn.query("UPDATE pesanan SET payment_status = 'unpaid', bukti_pembayaran = NULL WHERE id = ?", [id]);
     }

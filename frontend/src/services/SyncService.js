@@ -90,12 +90,15 @@ class SyncService {
             is_offline_sync: order.was_offline === 1, // flag to skip open bill check & auto pay (hanya jika memang offline)
             pembayaran: {
               metode: order.metode_bayar || 'tunai',
-              jumlah: order.jumlah_bayar || order.total
+              jumlah: order.jumlah_bayar || order.total,
+              is_kasir: true
             },
             nama_pelanggan: order.nama_pelanggan || null,
             no_telepon: order.no_telepon || null,
             discount_name: order.diskon_nama || null,
             discount_value: order.diskon_nilai || 0,
+            member_id: order.member_id || null,
+            point_used: order.point_used || 0,
             created_at: order.created_at || new Date().toISOString(),
             nomor_antrean: order.nomor_antrean || null
           };
@@ -137,12 +140,15 @@ class SyncService {
             is_offline_sync: true,
             pembayaran: {
               metode: order.pembayaran?.metode || order.metode_bayar || 'tunai',
-              jumlah: order.pembayaran?.jumlah || order.jumlah_bayar || order.total
+              jumlah: order.pembayaran?.jumlah || order.jumlah_bayar || order.total,
+              is_kasir: true
             },
             nama_pelanggan: order.nama_pelanggan || null,
             no_telepon: order.no_telepon || null,
             discount_name: order.discount_name || order.diskon_nama || null,
             discount_value: order.discount_value || order.diskon_nilai || 0,
+            member_id: order.member_id || null,
+            point_used: order.point_used || 0,
             created_at: order.created_at || new Date().toISOString(),
             nomor_antrean: order.nomor_antrean || null
           };
