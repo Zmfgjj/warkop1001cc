@@ -405,9 +405,12 @@ export default function KasirPOS() {
           // ---------------------------------------------------------
           // ONLINE FLOW (WEB)
           // ---------------------------------------------------------
-          const payload = { ...pesananData, local_id: localId };
+          const payload = { 
+            ...pesananData, 
+            local_id: localId,
+            pembayaran: { metode: metodeBayar.toLowerCase(), jumlah: finalTotal, is_kasir: true }
+          };
           const resPesanan = await api.post('/pesanan', payload)
-          await api.post('/pembayaran', { pesanan_id: resPesanan.data.pesanan_id, metode: metodeBayar.toLowerCase(), jumlah: finalTotal, is_kasir: true })
           strukData.pesananId = resPesanan.data.pesanan_id
         } else {
           // ---------------------------------------------------------

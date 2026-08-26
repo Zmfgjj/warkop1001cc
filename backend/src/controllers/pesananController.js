@@ -243,7 +243,13 @@ exports.buatPesanan = async (req, res) => {
       // Jika pesanan basi (offline sync > 30 menit) ATAU semua item bukan target KDS, maka selesai.
       // Jika pesanan masih segar (meskipun offline sync) dan ada item KDS, maka pending (masuk KDS).
       const statusValue = (isOldOffline || allSelesai) ? 'selesai' : 'pending';
-      const paymentStatusValue = is_offline_sync ? 'paid' : 'unpaid';
+      
+      let paymentStatusValue = is_offline_sync ? 'paid' : 'unpaid';
+      if (pembayaran) {
+          const metodeSafe = (pembayaran.metode || 'tunai').toString().toLowerCase();
+          const isInstantSuccess = (metodeSafe === 'cash' || metodeSafe === 'tunai' || pembayaran.is_kasir || is_offline_sync);
+          if (isInstantSuccess) paymentStatusValue = 'paid';
+      }
 
       // Beri tanda khusus [Offline] pada KDS agar koki tahu jika ini pesanan tertunda
       let finalCatatan = catatan || '';
@@ -265,16 +271,18 @@ exports.buatPesanan = async (req, res) => {
         );
       }
 
-      // Jika sync offline, simpan pembayaran secara otomatis
-      if (is_offline_sync && pembayaran) {
-        const metodeSafe = (pembayaran.metode || 'tunai').toString().toLowerCase();
+      // Simpan pembayaran secara otomatis dalam satu transaksi
+      if (pembayaran || is_offline_sync) {
+        const metodeSafe = (pembayaran?.metode || 'tunai').toString().toLowerCase();
+        const isInstantSuccess = (metodeSafe === 'cash' || metodeSafe === 'tunai' || pembayaran?.is_kasir || is_offline_sync);
+        
         await conn.query(
-          'INSERT INTO pembayaran (pesanan_id, metode, jumlah, status, created_at) VALUES (?, ?, ?, "sukses", COALESCE(?, CURRENT_TIMESTAMP))',
-          [pesanan_id, metodeSafe, total, created_at ? new Date(created_at) : null]
+          'INSERT INTO pembayaran (pesanan_id, metode, jumlah, status, created_at) VALUES (?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))',
+          [pesanan_id, metodeSafe, total, isInstantSuccess ? 'sukses' : 'pending', created_at ? new Date(created_at) : null]
         );
 
-        if (member_id) {
-          const pointEarned = Math.floor(total / 1000) * 10;
+        if (member_id && isInstantSuccess) {
+          const pointEarned = Math.floor(total / 100);
           const pointUsedNum = Number(point_used) || 0;
           await conn.query('UPDATE pesanan SET point_earned = ? WHERE id = ?', [pointEarned, pesanan_id]);
           await conn.query('UPDATE members SET point = point + ? - ? WHERE id = ?', [pointEarned, pointUsedNum, member_id]);
