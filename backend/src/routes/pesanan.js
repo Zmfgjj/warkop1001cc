@@ -12,7 +12,7 @@ router.put('/:id/status', auth({ module: ['pos', 'kds'], action: 'edit' }), pesa
 router.put('/detail/:id/status', auth({ module: ['pos', 'kds'], action: 'edit' }), pesananController.updateStatusDetail);
 router.put('/detail/:id/catatan', auth({ module: ['pos', 'kds'], action: 'edit' }), pesananController.updateDetailCatatan);
 router.put('/:id/pembayaran', auth({ module: ['pos', 'kds'], action: 'edit' }), pesananController.konfirmasiPembayaran);
-router.delete('/:id', auth({ module: 'laporan', action: 'edit' }), pesananController.hapusPesanan);
+router.delete('/:id', auth({ module: ['pos', 'laporan'] }), pesananController.hapusPesanan);
 
 router.get('/debug/jeni', async (req, res) => {
   const db = require('../config/database');
