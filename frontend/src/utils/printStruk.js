@@ -147,11 +147,9 @@ function getFilteredItems(items, type) {
     const dest1 = i.kategori_print_destination; // null, 'dapur', 'bar', 'semua'
     const dest2 = i.kategori2_print_destination; // null, 'dapur', 'bar', 'semua'
 
-    // 1. Jika ada dest eksplisit yang cocok dengan type → tampilkan
-    if (dest1 === type || dest2 === type) return true;
-
-    // 2. Jika ada dest eksplisit 'semua' → tampilkan di semua printer
+    // 1. Jika ada dest eksplisit yang cocok dengan type -> tampilkan, ATAU jika dest adalah 'semua'
     if (dest1 === 'semua' || dest2 === 'semua') return true;
+    if (dest1 === type || dest2 === type) return true;
 
     // 3. Jika dest1 ada dan eksplisit (bukan null, bukan 'semua') tapi BUKAN type → jangan tampilkan
     if (dest1 && dest1 !== 'semua' && dest1 !== type) return false;
