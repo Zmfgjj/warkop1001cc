@@ -213,10 +213,13 @@ exports.buatPesanan = async (req, res) => {
         [total, nama_pelanggan || null, no_telepon || null, discount_name || null, Number(discount_value) || 0, member_id || null, Number(point_used) || 0, pesanan_id]
       );
 
+      // We only insert items here. 
+      // Note: This currently re-inserts all items from the cart, which may cause duplicates if the cart includes old items.
       for (const item of validatedItems) {
+        const itemStatusValue = (!item.is_kds_target) ? 'selesai' : 'pending';
         await conn.query(
-          'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, catatan) VALUES (?, ?, ?, ?, ?)',
-          [pesanan_id, item.menu_id, item.qty, item.harga, item.catatan || null]
+          'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, catatan, status) VALUES (?, ?, ?, ?, ?, ?)',
+          [pesanan_id, item.menu_id, item.qty, item.harga, item.catatan || null, itemStatusValue]
         );
       }
     } else {
@@ -271,17 +274,30 @@ exports.buatPesanan = async (req, res) => {
         );
       }
 
-      // Simpan pembayaran secara otomatis dalam satu transaksi
-      if (pembayaran || is_offline_sync) {
-        const metodeSafe = (pembayaran?.metode || 'tunai').toString().toLowerCase();
-        const isInstantSuccess = (metodeSafe === 'cash' || metodeSafe === 'tunai' || pembayaran?.is_kasir || is_offline_sync);
-        
-        await conn.query(
-          'INSERT INTO pembayaran (pesanan_id, metode, jumlah, status, created_at) VALUES (?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))',
-          [pesanan_id, metodeSafe, total, isInstantSuccess ? 'sukses' : 'pending', created_at ? new Date(created_at) : null]
-        );
+      if (meja_id && !is_offline_sync && !allSelesai) {
+        await conn.query('UPDATE meja SET status = "terisi" WHERE id = ?', [meja_id]);
+      }
+    }
 
-        if (member_id && isInstantSuccess) {
+    // Simpan pembayaran secara otomatis dalam satu transaksi (Berlaku untuk Order Baru maupun Pembayaran Open Bill)
+    if (pembayaran || is_offline_sync) {
+      const metodeSafe = (pembayaran?.metode || 'tunai').toString().toLowerCase();
+      const isInstantSuccess = (metodeSafe === 'cash' || metodeSafe === 'tunai' || pembayaran?.is_kasir || is_offline_sync);
+      
+      await conn.query(
+        'INSERT INTO pembayaran (pesanan_id, metode, jumlah, status, created_at) VALUES (?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))',
+        [pesanan_id, metodeSafe, total, isInstantSuccess ? 'sukses' : 'pending', created_at ? new Date(created_at) : null]
+      );
+
+      if (isInstantSuccess) {
+        // Jika sukses dibayar (termasuk Open Bill yang baru dibayar), tutup bill-nya
+        await conn.query('UPDATE pesanan SET is_open_bill = 0, payment_status = "paid", status = IF(status = "pending", "pending", "selesai") WHERE id = ?', [pesanan_id]);
+      }
+
+      if (member_id && isInstantSuccess) {
+        // Cek dulu apakah poin sudah pernah ditambahkan untuk order ini (mencegah double poin untuk Open Bill)
+        const [cekPoin] = await conn.query('SELECT point_earned FROM pesanan WHERE id = ?', [pesanan_id]);
+        if (cekPoin.length > 0 && cekPoin[0].point_earned === 0) {
           const pointEarned = Math.floor(total / 100);
           const pointUsedNum = Number(point_used) || 0;
           await conn.query('UPDATE pesanan SET point_earned = ? WHERE id = ?', [pointEarned, pesanan_id]);
@@ -294,10 +310,6 @@ exports.buatPesanan = async (req, res) => {
             await conn.query('INSERT INTO member_points_history (member_id, pesanan_id, tipe, jumlah_poin, created_at) VALUES (?, ?, "redeem", ?, COALESCE(?, CURRENT_TIMESTAMP))', [member_id, pesanan_id, pointUsedNum, created_at ? new Date(created_at) : null]);
           }
         }
-      }
-
-      if (meja_id && !is_offline_sync && !allSelesai) {
-        await conn.query('UPDATE meja SET status = "terisi" WHERE id = ?', [meja_id]);
       }
     }
 
