@@ -198,6 +198,13 @@ exports.buatPesanan = async (req, res) => {
       await conn.query('SELECT id FROM meja WHERE id = ? FOR UPDATE', [meja_id]);
     }
 
+    // Deklarasi di sini agar accessible di luar blok if/else
+    let finalPembayaran = pembayaran;
+    // Jika pembayaran tidak dikirim dari front-end lama, kita buat otomatis agar masuk laporan
+    if (!pembayaran && !is_offline_sync) {
+      finalPembayaran = { metode: 'tunai', is_kasir: true };
+    }
+
     // Cek Open Bill (Bypass jika ini pesanan sinkronisasi offline)
     const [openBill] = is_offline_sync ? [[]] : await conn.query(
       "SELECT id, total FROM pesanan WHERE meja_id = ? AND is_open_bill = 1 AND status != 'selesai' AND status != 'batal' LIMIT 1",
@@ -249,12 +256,6 @@ exports.buatPesanan = async (req, res) => {
       
       // DEFAULT TO PAID to prevent "nyangkut" orders
       let paymentStatusValue = 'paid';
-      
-      let finalPembayaran = pembayaran;
-      // Jika pembayaran tidak dikirim dari front-end lama, kita buat otomatis agar masuk laporan
-      if (!pembayaran && !is_offline_sync) {
-          finalPembayaran = { metode: 'tunai', is_kasir: true };
-      }
 
       if (finalPembayaran) {
           const metodeSafe = (finalPembayaran.metode || 'tunai').toString().toLowerCase();
