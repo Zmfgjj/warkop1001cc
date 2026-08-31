@@ -81,7 +81,7 @@ exports.ringkasan = async (req, res) => {
 
     // HPP Harian
     const [hppRows] = await db.query(`
-      SELECT SUM(dp.qty * COALESCE(m.hpp, 0)) as total_hpp
+      SELECT SUM(dp.qty * COALESCE(dp.hpp, 0)) as total_hpp
       FROM detail_pesanan dp
       LEFT JOIN menu m ON dp.menu_id = m.id
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
@@ -96,10 +96,10 @@ exports.ringkasan = async (req, res) => {
         m.nama,
         k.nama as kategori,
         dp.harga as harga_jual,
-        COALESCE(m.hpp, 0) as hpp,
+        COALESCE(dp.hpp, 0) as hpp,
         SUM(dp.qty) as total_terjual,
         SUM(dp.qty * dp.harga) as total_pendapatan,
-        SUM(dp.qty * COALESCE(m.hpp, 0)) as total_hpp
+        SUM(dp.qty * COALESCE(dp.hpp, 0)) as total_hpp
       FROM detail_pesanan dp
       LEFT JOIN menu m ON dp.menu_id = m.id
       LEFT JOIN kategori k ON m.kategori_id = k.id
@@ -257,7 +257,7 @@ exports.laporanBulanan = async (req, res) => {
 
     // HPP Bulanan
     const [hppRows] = await db.query(`
-      SELECT SUM(dp.qty * COALESCE(m.hpp, 0)) as total_hpp
+      SELECT SUM(dp.qty * COALESCE(dp.hpp, 0)) as total_hpp
       FROM detail_pesanan dp
       LEFT JOIN menu m ON dp.menu_id = m.id
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
@@ -272,10 +272,10 @@ exports.laporanBulanan = async (req, res) => {
         m.nama,
         k.nama as kategori,
         dp.harga as harga_jual,
-        COALESCE(m.hpp, 0) as hpp,
+        COALESCE(dp.hpp, 0) as hpp,
         SUM(dp.qty) as total_terjual,
         SUM(dp.qty * dp.harga) as total_pendapatan,
-        SUM(dp.qty * COALESCE(m.hpp, 0)) as total_hpp
+        SUM(dp.qty * COALESCE(dp.hpp, 0)) as total_hpp
       FROM detail_pesanan dp
       LEFT JOIN menu m ON dp.menu_id = m.id
       LEFT JOIN kategori k ON m.kategori_id = k.id
@@ -408,7 +408,7 @@ exports.laporanTahunan = async (req, res) => {
 
     // HPP Tahunan
     const [hppRows] = await db.query(`
-      SELECT SUM(dp.qty * COALESCE(m.hpp, 0)) as total_hpp
+      SELECT SUM(dp.qty * COALESCE(dp.hpp, 0)) as total_hpp
       FROM detail_pesanan dp
       LEFT JOIN menu m ON dp.menu_id = m.id
       LEFT JOIN pesanan p ON dp.pesanan_id = p.id
@@ -423,10 +423,10 @@ exports.laporanTahunan = async (req, res) => {
         m.nama,
         k.nama as kategori,
         dp.harga as harga_jual,
-        COALESCE(m.hpp, 0) as hpp,
+        COALESCE(dp.hpp, 0) as hpp,
         SUM(dp.qty) as total_terjual,
         SUM(dp.qty * dp.harga) as total_pendapatan,
-        SUM(dp.qty * COALESCE(m.hpp, 0)) as total_hpp
+        SUM(dp.qty * COALESCE(dp.hpp, 0)) as total_hpp
       FROM detail_pesanan dp
       LEFT JOIN menu m ON dp.menu_id = m.id
       LEFT JOIN kategori k ON m.kategori_id = k.id
@@ -469,10 +469,10 @@ exports.laporanMenu = async (req, res) => {
         m.nama,
         k.nama as kategori,
         dp.harga as harga_jual,
-        COALESCE(m.hpp, 0) as hpp,
+        COALESCE(dp.hpp, 0) as hpp,
         SUM(dp.qty) as total_terjual,
         SUM(dp.qty * dp.harga) as total_pendapatan,
-        SUM(dp.qty * COALESCE(m.hpp, 0)) as total_hpp
+        SUM(dp.qty * COALESCE(dp.hpp, 0)) as total_hpp
       FROM detail_pesanan dp
       LEFT JOIN menu m ON dp.menu_id = m.id
       LEFT JOIN kategori k ON m.kategori_id = k.id
@@ -534,7 +534,7 @@ exports.historiPembelian = async (req, res) => {
           )
         ), 0) as total_diskon,
         COALESCE(SUM(
-          (SELECT SUM(dp.qty * COALESCE(mn.hpp, 0)) 
+          (SELECT SUM(dp.qty * COALESCE(dp.hpp, 0)) 
            FROM detail_pesanan dp 
            LEFT JOIN menu mn ON dp.menu_id = mn.id 
            WHERE dp.pesanan_id = p.id)
@@ -580,7 +580,7 @@ exports.historiPembelian = async (req, res) => {
         p.nama_pelanggan,
         p.no_telepon,
         COALESCE(
-          (SELECT SUM(dp.qty * COALESCE(mn.hpp, 0)) 
+          (SELECT SUM(dp.qty * COALESCE(dp.hpp, 0)) 
            FROM detail_pesanan dp 
            LEFT JOIN menu mn ON dp.menu_id = mn.id 
            WHERE dp.pesanan_id = p.id), 

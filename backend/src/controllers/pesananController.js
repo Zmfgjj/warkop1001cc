@@ -137,7 +137,7 @@ exports.buatPesanan = async (req, res) => {
 
     for (const item of items) {
       const [menu] = await conn.query(
-        `SELECT m.harga, m.harga_diskon, m.promo_mulai_jam, m.promo_selesai_jam, m.nama, 
+        `SELECT m.harga, m.harga_diskon, m.hpp, m.promo_mulai_jam, m.promo_selesai_jam, m.nama, 
          k.nama as kategori_nama, k.print_destination as kategori_print_destination,
          k2.nama as kategori2_nama, k2.print_destination as kategori2_print_destination
          FROM menu m 
@@ -182,6 +182,7 @@ exports.buatPesanan = async (req, res) => {
         validatedItems.push({
           ...item,
           harga: itemHarga,
+          hpp: menu[0].hpp,
           nama_menu: (item.catatan && item.catatan.includes('Hadiah Spin Wheel') && item.nama) ? item.nama : menu[0].nama,
           kategori_nama: menu[0].kategori_nama,
           is_kds_target: isKdsTarget
@@ -225,8 +226,8 @@ exports.buatPesanan = async (req, res) => {
       for (const item of validatedItems) {
         const itemStatusValue = (!item.is_kds_target) ? 'selesai' : 'pending';
         await conn.query(
-          'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, catatan, status) VALUES (?, ?, ?, ?, ?, ?)',
-          [pesanan_id, item.menu_id, item.qty, item.harga, item.catatan || null, itemStatusValue]
+          'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, hpp, catatan, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [pesanan_id, item.menu_id, item.qty, item.harga, item.hpp || 0, item.catatan || null, itemStatusValue]
         );
       }
     } else {
@@ -279,8 +280,8 @@ exports.buatPesanan = async (req, res) => {
       for (const item of validatedItems) {
         const itemStatusValue = (isOldOffline || !item.is_kds_target) ? 'selesai' : 'pending';
         await conn.query(
-          'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, catatan, status) VALUES (?, ?, ?, ?, ?, ?)',
-          [pesanan_id, item.menu_id, item.qty, item.harga, item.catatan || null, itemStatusValue]
+          'INSERT INTO detail_pesanan (pesanan_id, menu_id, qty, harga, hpp, catatan, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [pesanan_id, item.menu_id, item.qty, item.harga, item.hpp || 0, item.catatan || null, itemStatusValue]
         );
       }
 
