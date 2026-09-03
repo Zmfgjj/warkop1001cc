@@ -236,7 +236,7 @@ export default function ManajemenMenu() {
   }
 
   const handleBulkHPP = async () => {
-    if (!window.confirm('Yakin ingin mengatur ulang semua HPP menjadi murni 24% dari Harga Jual? Tindakan ini akan menimpa seluruh data HPP yang sudah ada.')) return
+    if (!window.confirm('Yakin ingin mengatur ulang semua HPP menjadi murni 35% dari Harga Jual? Tindakan ini akan menimpa seluruh data HPP yang sudah ada.')) return
     try {
       await api.put('/menu/hpp/bulk')
       showAlert('HPP berhasil diperbarui secara massal!', 'Sukses')
@@ -296,7 +296,7 @@ export default function ManajemenMenu() {
                 <button
                   onClick={handleBulkHPP}
                   className="flex items-center gap-2 px-6 py-3 rounded-2xl font-medium text-amber-50 bg-[#725a3a] hover:bg-[#5C4033] transition-all duration-300 shadow-lg shadow-[#725a3a]/20 hover:shadow-[#725a3a]/30 hover:-translate-y-0.5 active:scale-95"
-                  title="Atur HPP (Harga Modal) semua menu menjadi 24% dari Harga Jual"
+                  title="Atur HPP (Harga Modal) semua menu menjadi 35% dari Harga Jual"
                 >
                   📉 Set Massal HPP
                 </button>
