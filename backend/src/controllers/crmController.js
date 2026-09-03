@@ -3,6 +3,9 @@ const waGateway = require('../services/waGateway');
 
 exports.getPelanggan = async (req, res) => {
   try {
+    const month = req.query.month ? parseInt(req.query.month) : new Date().getMonth() + 1;
+    const year = req.query.year ? parseInt(req.query.year) : new Date().getFullYear();
+
     const [rows] = await db.query(`
       SELECT 
         nama_pelanggan, 
@@ -11,8 +14,8 @@ exports.getPelanggan = async (req, res) => {
         COUNT(id) as total_kunjungan, 
         SUM(total) as total_belanja,
         MAX(created_at) as kunjungan_terakhir,
-        SUM(CASE WHEN MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE()) THEN 1 ELSE 0 END) as kunjungan_bulan_ini,
-        SUM(CASE WHEN MONTH(created_at) = MONTH(CURRENT_DATE()) AND YEAR(created_at) = YEAR(CURRENT_DATE()) THEN total ELSE 0 END) as belanja_bulan_ini
+        SUM(CASE WHEN MONTH(created_at) = ? AND YEAR(created_at) = ? THEN 1 ELSE 0 END) as kunjungan_bulan_ini,
+        SUM(CASE WHEN MONTH(created_at) = ? AND YEAR(created_at) = ? THEN total ELSE 0 END) as belanja_bulan_ini
       FROM pesanan 
       WHERE 
         status = 'selesai' 
@@ -22,7 +25,7 @@ exports.getPelanggan = async (req, res) => {
         no_telepon, nama_pelanggan, email
       ORDER BY 
         total_belanja DESC
-    `);
+    `, [month, year, month, year]);
     
     // Format the phone numbers (ensure starting with 62)
     const formattedRows = rows.map(r => {
