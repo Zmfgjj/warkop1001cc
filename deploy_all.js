@@ -20,7 +20,7 @@ try {
 
   console.log('5. Commit and Push...');
   execSync('git add .', { stdio: 'inherit' });
-  execSync('git commit -m "Update password wifi di struk kasir"', { stdio: 'inherit' });
+  execSync('git commit -m "Update fitur diskon persentase dan rupiah di kasir"', { stdio: 'inherit' });
   execSync('git push origin revisi', { stdio: 'inherit' });
 
   console.log('--- ALL DEPLOYMENTS FINISHED SUCCESSFULLY ---');

@@ -1,4 +1,4 @@
-const db = require('./backend/src/config/database');
+const db = require('./src/config/database');
 
 async function run() {
   const conn = await db.getConnection();
@@ -23,6 +23,9 @@ async function run() {
       // Ambil semua menu yang namanya mirip
       const [menus] = await conn.query('SELECT id, nama, harga, is_deleted FROM menu WHERE nama LIKE ?', [t.searchName]);
       
+      console.log(`📋 Ditemukan ${menus.length} menu dengan nama mirip:`);
+      menus.forEach(m => console.log(`   - ID: ${m.id} | Nama: "${m.nama}" | Harga: ${m.harga} | is_deleted: ${m.is_deleted}`));
+
       // Cari menu baru (yang harganya 15000 dan tidak dihapus)
       const newMenu = menus.find(m => Number(m.harga) === t.newPrice && m.is_deleted === 0);
       

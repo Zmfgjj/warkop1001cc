@@ -41,6 +41,7 @@ export default function KasirPOS() {
   const [promoCampaigns, setPromoCampaigns] = useState([])
   const [discountName, setDiscountName] = useState('')
   const [discountValue, setDiscountValue] = useState('')
+  const [discountType, setDiscountType] = useState('nominal')
   const [showPromoPanel, setShowPromoPanel] = useState(false)
   const [showCustDetails, setShowCustDetails] = useState(false)
   const [memberInfo, setMemberInfo] = useState(null)
@@ -276,7 +277,10 @@ export default function KasirPOS() {
   const getQty = (menu_id) => order.find(o => o.menu_id === menu_id)?.qty || 0
 
   const subtotal = order.reduce((sum, o) => sum + o.harga * o.qty, 0)
-  const total = Math.max(0, subtotal - (Number(discountValue) || 0) - (Number(pointUsed) || 0))
+  const calculatedDiscount = discountType === 'percent' 
+      ? Math.round(subtotal * (Number(discountValue) || 0) / 100)
+      : (Number(discountValue) || 0);
+  const total = Math.max(0, subtotal - calculatedDiscount - (Number(pointUsed) || 0))
   const kembali = jumlahBayar ? Math.max(0, parseInt(jumlahBayar.replace(/\D/g, '') || 0) - total) : 0
   const totalItems = order.reduce((s, o) => s + o.qty, 0)
 
@@ -343,7 +347,10 @@ export default function KasirPOS() {
 
       // Kalkulasi ulang total karena spin prize mungkin menambahkan item berbayar ke finalOrder
       const finalSubtotal = finalOrder.reduce((sum, o) => sum + o.harga * o.qty, 0);
-      const finalTotal = Math.max(0, finalSubtotal - (Number(discountValue) || 0) - (Number(pointUsed) || 0));
+      const finalCalculatedDiscount = discountType === 'percent' 
+          ? Math.round(finalSubtotal * (Number(discountValue) || 0) / 100) 
+          : (Number(discountValue) || 0);
+      const finalTotal = Math.max(0, finalSubtotal - finalCalculatedDiscount - (Number(pointUsed) || 0));
       const finalKembali = jumlahBayar ? Math.max(0, parseInt(jumlahBayar.replace(/\D/g, '') || 0) - finalTotal) : 0;
 
       const pesananData = {
@@ -354,7 +361,7 @@ export default function KasirPOS() {
         nama_pelanggan: namaPelanggan.trim() || null,
         no_telepon: nomorHp.trim() || null,
         discount_name: discountName.trim() || null,
-        discount_value: Number(discountValue) || 0,
+        discount_value: finalCalculatedDiscount || 0,
         member_id: memberInfo ? memberInfo.id : null,
         point_used: Number(pointUsed) || 0,
         created_at: new Date().toISOString()
@@ -372,7 +379,7 @@ export default function KasirPOS() {
         nama_pelanggan: namaPelanggan.trim() || null,
         no_telepon: nomorHp.trim() || null,
         discount_name: discountName.trim() || null,
-        discount_value: Number(discountValue) || 0,
+        discount_value: finalCalculatedDiscount || 0,
         member_id: memberInfo ? memberInfo.id : null,
         point_used: Number(pointUsed) || 0,
         point_earned: memberInfo ? Math.floor(finalTotal / 1000) * 10 : 0
@@ -452,7 +459,7 @@ export default function KasirPOS() {
         Haptics.impact({ style: ImpactStyle.Heavy }).catch(() => {});
       }
       
-      setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); setNamaPelanggan(''); setNomorHp(''); setSelectedMejaId(''); setTipePelanggan('Umum'); setDiscountName(''); setDiscountValue(''); setMemberInfo(null); setPointUsed(0); setSelectedSpinPrizes([]); setShowSpinModal(false); fetchData()
+      setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); setNamaPelanggan(''); setNomorHp(''); setSelectedMejaId(''); setTipePelanggan('Umum'); setDiscountName(''); setDiscountValue(''); setDiscountType('nominal'); setMemberInfo(null); setPointUsed(0); setSelectedSpinPrizes([]); setShowSpinModal(false); fetchData()
     } catch (err) { 
       showAlert(err.response?.data?.message || 'Gagal memproses pembayaran', 'Gagal') 
     } finally { 
@@ -460,7 +467,7 @@ export default function KasirPOS() {
     }
   }
 
-  const handleCancel = () => { setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); setTipePelanggan('Umum'); setDiscountName(''); setDiscountValue(''); setMemberInfo(null); setPointUsed(0); setSelectedSpinPrizes([]); setShowSpinModal(false); }
+  const handleCancel = () => { setOrder([]); setJumlahBayar(''); setTipeOrder('dine-in'); setTipePelanggan('Umum'); setDiscountName(''); setDiscountValue(''); setDiscountType('nominal'); setMemberInfo(null); setPointUsed(0); setSelectedSpinPrizes([]); setShowSpinModal(false); }
 
   return (
     <MobileLayout activeMenu="Kasir (POS)" overflowClass="overflow-hidden flex flex-col">
@@ -701,10 +708,10 @@ export default function KasirPOS() {
                         </div>
                         {memberInfo.point > 0 && (
                           <button type="button" onClick={() => {
-                            const usePoints = Math.min(memberInfo.point, Math.max(0, subtotal - (Number(discountValue) || 0)));
+                            const usePoints = Math.min(memberInfo.point, Math.max(0, subtotal - calculatedDiscount));
                             setPointUsed(usePoints);
                           }} className="px-2 py-1 text-[9px] bg-[#634930] text-white rounded font-bold">
-                            Max (Rp {Math.min(memberInfo.point, Math.max(0, subtotal - (Number(discountValue) || 0))).toLocaleString('id-ID')})
+                            Max (Rp {Math.min(memberInfo.point, Math.max(0, subtotal - calculatedDiscount)).toLocaleString('id-ID')})
                           </button>
                         )}
                       </div>
@@ -716,7 +723,7 @@ export default function KasirPOS() {
                             value={pointUsed || ''} 
                             onChange={e => {
                                let val = Number(e.target.value);
-                               const maxAllowed = Math.min(memberInfo.point, Math.max(0, subtotal - (Number(discountValue) || 0)));
+                               const maxAllowed = Math.min(memberInfo.point, Math.max(0, subtotal - calculatedDiscount));
                                if (val > maxAllowed) val = maxAllowed;
                                if (val < 0) val = 0;
                                setPointUsed(val);
@@ -821,10 +828,10 @@ export default function KasirPOS() {
             
             {/* Footer */}
             <div className="p-4 border-t" style={{ borderColor: '#EDE0CC' }}>
-              {Number(pointUsed) > 0 || Number(discountValue) > 0 ? (
+              {Number(pointUsed) > 0 || calculatedDiscount > 0 ? (
                 <>
                   <div className="flex justify-between text-xs mb-1"><span style={{ color: '#8B6F47' }}>Subtotal</span><span style={{ color: '#634930' }}>Rp {subtotal.toLocaleString('id-ID')}</span></div>
-                  {Number(discountValue) > 0 && <div className="flex justify-between text-xs mb-1"><span style={{ color: '#8B6F47' }}>Diskon ({discountName})</span><span className="text-red-500">-Rp {Number(discountValue).toLocaleString('id-ID')}</span></div>}
+                  {calculatedDiscount > 0 && <div className="flex justify-between text-xs mb-1"><span style={{ color: '#8B6F47' }}>Diskon ({discountName || 'Kustom'})</span><span className="text-red-500">-Rp {calculatedDiscount.toLocaleString('id-ID')}</span></div>}
                   {Number(pointUsed) > 0 && <div className="flex justify-between text-xs mb-1"><span style={{ color: '#8B6F47' }}>Tukar Poin</span><span className="text-red-500">-Rp {Number(pointUsed).toLocaleString('id-ID')}</span></div>}
                 </>
               ) : null}
@@ -839,9 +846,9 @@ export default function KasirPOS() {
                     className="w-full text-xs font-bold text-[#8B6F47] hover:text-[#634930] flex items-center justify-between transition-colors bg-[#FDFBF7] hover:bg-[#F5F0E8] px-3 py-2 rounded-xl border border-[#C4A882]/20 shadow-sm"
                   >
                     <span className="flex items-center gap-1.5">🎁 Terapkan Promo / Potongan</span>
-                    {discountValue > 0 ? (
+                    {calculatedDiscount > 0 ? (
                       <span className="bg-[#634930] text-white px-2 py-0.5 rounded text-[10px] font-black">
-                        -{Number(discountValue).toLocaleString('id-ID')}
+                        -{calculatedDiscount.toLocaleString('id-ID')}
                       </span>
                     ) : (
                       <span className="text-[10px] text-gray-400">Pilih / Input</span>
@@ -873,17 +880,18 @@ export default function KasirPOS() {
                             if (!val) {
                               setDiscountName('');
                               setDiscountValue('');
+                              setDiscountType('nominal');
                             } else {
                               const p = promoCampaigns.find(c => String(c.id) === val);
                               if (p) {
                                 setDiscountName(p.nama);
-                                let valDisc = 0;
                                 if (p.tipe_promo === 'fixed' || p.tipe_promo === 'nominal') {
-                                  valDisc = Number(p.nilai_promo);
+                                  setDiscountType('nominal');
+                                  setDiscountValue(Number(p.nilai_promo).toString());
                                 } else if (p.tipe_promo === 'percent') {
-                                  valDisc = Math.round(subtotal * (Number(p.nilai_promo) / 100));
+                                  setDiscountType('percent');
+                                  setDiscountValue(Number(p.nilai_promo).toString());
                                 }
-                                setDiscountValue(valDisc.toString());
                               }
                             }
                           }}
@@ -907,13 +915,25 @@ export default function KasirPOS() {
                         style={{ color: '#634930' }}
                       />
                     </div>
-                    <div>
+                    <div className="flex gap-1">
+                      <select
+                        value={discountType}
+                        onChange={e => {
+                          setDiscountType(e.target.value);
+                          setDiscountValue('');
+                        }}
+                        className="px-2 py-1.5 rounded-lg bg-[#F5F0E8] text-[11px] font-bold text-[#634930] border border-[#C4A882] focus:outline-none cursor-pointer"
+                      >
+                        <option value="nominal">Rp</option>
+                        <option value="percent">%</option>
+                      </select>
                       <input
                         type="text"
-                        placeholder="Potongan (Rp)"
-                        value={discountValue ? Number(discountValue).toLocaleString('id-ID') : ''}
+                        placeholder={discountType === 'percent' ? "Potongan (%)" : "Potongan (Rp)"}
+                        value={discountType === 'percent' ? discountValue : (discountValue ? Number(discountValue).toLocaleString('id-ID') : '')}
                         onChange={e => {
                           const raw = e.target.value.replace(/\D/g, '');
+                          if (discountType === 'percent' && Number(raw) > 100) return;
                           setDiscountValue(raw);
                         }}
                         className="w-full px-2.5 py-1.5 rounded-lg bg-white text-[11px] text-right focus:outline-none border border-[#C4A882] font-bold"
