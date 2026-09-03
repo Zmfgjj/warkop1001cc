@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import MobileLayout from '../components/MobileLayout'
 import api from '../api/auth'
-import { Users, Search, MessageCircle, Calendar, Star, CheckSquare, Square, Send, Info, Smartphone, RefreshCw, LogOut, Trophy, Activity, X } from 'lucide-react'
+import { Users, Search, MessageCircle, Calendar, Star, CheckSquare, Square, Send, Info, Smartphone, RefreshCw, LogOut, Trophy, Activity, X, Download } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { useAuth } from '../hooks/useAuth'
 import { io } from 'socket.io-client'
 import { useAlert } from '../context/AlertContext'
@@ -25,6 +26,10 @@ export default function CRM() {
   const [searchQuery, setSearchQuery] = useState('')
   const [filterVisit, setFilterVisit] = useState(0) // 0: all, 5: >5, 10: >10
   const [viewMode, setViewMode] = useState('bulanan') // 'bulanan', 'total', 'member'
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })
   
   // Member States
   const [members, setMembers] = useState([])
@@ -45,7 +50,6 @@ export default function CRM() {
   const [waQr, setWaQr] = useState(null)
 
   useEffect(() => {
-    fetchCustomers()
     fetchMembers()
     checkWaStatus()
     
@@ -90,10 +94,15 @@ export default function CRM() {
     }
   }
 
+  useEffect(() => {
+    fetchCustomers()
+  }, [selectedMonth])
+
   const fetchCustomers = async () => {
     try {
       setLoading(true)
-      const res = await api.get('/crm/pelanggan')
+      const [y, m] = selectedMonth.split('-')
+      const res = await api.get('/crm/pelanggan', { params: { month: m, year: y } })
       setCustomers(res.data)
     } catch (err) {
       showAlert('Gagal memuat data pelanggan', 'Error')
@@ -101,6 +110,26 @@ export default function CRM() {
       setLoading(false)
     }
   }
+
+  const downloadExcel = () => {
+    const dataToExport = filteredCustomers.map((c, i) => ({
+      'No': i + 1,
+      'Nama': c.nama_pelanggan || '-',
+      'No WA': c.no_telepon_wa || '-',
+      'Email': c.email || '-',
+      'Total Kunjungan': c.total_kunjungan,
+      'Total Belanja': c.total_belanja,
+      'Kunjungan Bulan Ini': c.kunjungan_bulan_ini,
+      'Belanja Bulan Ini': c.belanja_bulan_ini,
+      'Kunjungan Terakhir': c.kunjungan_terakhir ? new Date(c.kunjungan_terakhir).toLocaleDateString('id-ID') : '-'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data_CRM");
+    XLSX.writeFile(workbook, `Laporan_CRM_${selectedMonth}.xlsx`);
+  }
+
 
   const fetchMembers = async () => {
     try {
@@ -326,25 +355,41 @@ export default function CRM() {
         {/* Filters and Search */}
         <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-start md:items-center">
           {viewMode === 'bulanan' ? (
-            <div className="flex gap-2 bg-white p-1 rounded-full border border-stone-200 shadow-sm overflow-x-auto scrollbar-hide">
-              {[
-                { val: 0, label: 'Semua' },
-                { val: 5, label: '≥ 5 Kali' },
-                { val: 10, label: '≥ 10 Kali' },
-                { val: 15, label: '≥ 15 Kali' },
-              ].map(f => (
+            <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+              <div className="flex items-center gap-2">
+                <input 
+                  type="month" 
+                  value={selectedMonth} 
+                  onChange={(e) => setSelectedMonth(e.target.value)} 
+                  className="px-4 py-2 bg-white border border-stone-200 rounded-full text-sm text-[#442D1D] font-bold focus:outline-none focus:border-[#634930] shadow-sm"
+                />
                 <button
-                  key={f.val}
-                  onClick={() => { setFilterVisit(f.val); setSelectedPhones([]) }}
-                  className={`px-5 py-2 rounded-full font-bold text-xs whitespace-nowrap transition-all ${
-                    filterVisit === f.val 
-                      ? 'bg-[#634930] text-white shadow-md' 
-                      : 'text-[#8B6F47] hover:bg-stone-100'
-                  }`}
+                  onClick={downloadExcel}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#107C41] text-white rounded-full text-sm font-bold shadow-sm hover:bg-[#185c37] transition-colors"
                 >
-                  {f.label}
+                  <Download size={16} /> Excel
                 </button>
-              ))}
+              </div>
+              <div className="flex gap-2 bg-white p-1 rounded-full border border-stone-200 shadow-sm overflow-x-auto scrollbar-hide">
+                {[
+                  { val: 0, label: 'Semua' },
+                  { val: 5, label: '≥ 5 Kali' },
+                  { val: 10, label: '≥ 10 Kali' },
+                  { val: 15, label: '≥ 15 Kali' },
+                ].map(f => (
+                  <button
+                    key={f.val}
+                    onClick={() => { setFilterVisit(f.val); setSelectedPhones([]) }}
+                    className={`px-5 py-2 rounded-full font-bold text-xs whitespace-nowrap transition-all ${
+                      filterVisit === f.val 
+                        ? 'bg-[#634930] text-white shadow-md' 
+                        : 'text-[#8B6F47] hover:bg-stone-100'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : viewMode === 'total' ? (
             <div className="text-xs font-bold text-[#8B6F47] bg-[#FFF5E5] px-4 py-2 rounded-full border border-[#EDE0CC]">
@@ -369,6 +414,11 @@ export default function CRM() {
         </div>
 
         {/* Content Table */}
+        <div className="flex justify-between items-center mb-3 px-1">
+          <div className="text-sm font-bold text-stone-600">
+            Total Data: <span className="text-[#634930] text-base">{viewMode === 'member' ? filteredMembers.length : filteredCustomers.length}</span>
+          </div>
+        </div>
         <div className="bg-white rounded-2xl shadow-sm border border-stone-200 p-1">
           {loading ? (
             <div className="flex justify-center py-20 text-[#8B6F47]">

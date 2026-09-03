@@ -153,14 +153,17 @@ app.get('/', (req, res) => {
   });
 });
 
-// Update Checker API
+// Endpoint Cek Update (untuk OTA dan APK update)
 app.get('/api/version', (req, res) => {
-  const latest_version = process.env.APP_VERSION || '1.0.77';
+  const latest_version = process.env.APP_VERSION || '1.0.78';
+  const force_update = process.env.FORCE_UPDATE === 'true';
+  const download_url = process.env.DOWNLOAD_URL || 'https://warkop1001cc.cloud/warkop.apk';
+  const bundle_url = process.env.BUNDLE_URL || `https://warkop1001cc.cloud/bundle.zip?v=${latest_version}`;
   res.json({
-    latest_version: latest_version,
-    bundle_url: `https://warkop1001cc.cloud/bundle.zip?v=${latest_version}`,
-    download_url: 'https://warkop1001cc.cloud/warkop.apk',
-    force_update: false,
+    latest_version,
+    force_update,
+    download_url,
+    bundle_url,
     message: 'Ada update baru! Klik Update & Restart untuk langsung memasang tanpa install ulang APK.'
   });
 });
