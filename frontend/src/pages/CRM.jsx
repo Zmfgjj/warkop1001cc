@@ -113,24 +113,55 @@ export default function CRM() {
     }
   }
 
-  const downloadExcel = async () => {
+  const downloadExcel = async (mode = viewMode) => {
     try {
-      const dataToExport = filteredCustomers.map((c, i) => ({
-        'No': i + 1,
-        'Nama': c.nama_pelanggan || '-',
-        'No WA': c.no_telepon_wa || '-',
-        'Email': c.email || '-',
-        'Total Kunjungan': c.total_kunjungan,
-        'Total Belanja': c.total_belanja,
-        'Kunjungan Bulan Ini': c.kunjungan_bulan_ini,
-        'Belanja Bulan Ini': c.belanja_bulan_ini,
-        'Kunjungan Terakhir': c.kunjungan_terakhir ? new Date(c.kunjungan_terakhir).toLocaleDateString('id-ID') : '-'
-      }));
-
+      setLoading(true);
+      let dataToExport = [];
+      let filename = 'Data_CRM';
+      
+      if (mode === 'member') {
+        dataToExport = members.map((m, i) => ({
+          'No': i + 1,
+          'Nama': m.nama || '-',
+          'Nama Panggilan': m.nama_panggilan || '-',
+          'No WA': m.no_hp || '-',
+          'Email': m.email || '-',
+          'Total Poin': m.point || 0,
+          'Tgl Daftar': m.created_at ? new Date(m.created_at).toLocaleDateString('id-ID') : '-'
+        }));
+        filename = 'Data_Semua_Member_Loyalty';
+      } else if (mode === 'total') {
+        let allCustomers = filteredCustomers;
+        if (viewMode === 'bulanan') {
+          const res = await api.get('/crm/pelanggan');
+          allCustomers = res.data;
+        }
+        dataToExport = allCustomers.map((c, i) => ({
+          'No': i + 1,
+          'Nama': c.nama_pelanggan || '-',
+          'No WA': c.no_telepon_wa || '-',
+          'Email': c.email || '-',
+          'Total Kunjungan': c.total_kunjungan || 0,
+          'Total Belanja': c.total_belanja || 0,
+          'Kunjungan Terakhir': c.kunjungan_terakhir ? new Date(c.kunjungan_terakhir).toLocaleDateString('id-ID') : '-'
+        }));
+        filename = 'Laporan_CRM_Total_Akumulasi';
+      } else {
+        dataToExport = filteredCustomers.map((c, i) => ({
+          'No': i + 1,
+          'Nama': c.nama_pelanggan || '-',
+          'No WA': c.no_telepon_wa || '-',
+          'Email': c.email || '-',
+          'Kunjungan Bulan Ini': c.kunjungan_bulan_ini || 0,
+          'Belanja Bulan Ini': c.belanja_bulan_ini || 0,
+          'Kunjungan Terakhir': c.kunjungan_terakhir ? new Date(c.kunjungan_terakhir).toLocaleDateString('id-ID') : '-'
+        }));
+        filename = `Laporan_CRM_Bulanan_${selectedMonth}`;
+      }
+      
       const worksheet = XLSX.utils.json_to_sheet(dataToExport);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Data_CRM");
-      const filename = `Laporan_CRM_${selectedMonth}`;
 
       if (Capacitor.isNativePlatform()) {
         const base64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
@@ -380,52 +411,74 @@ export default function CRM() {
 
         {/* Filters and Search */}
         <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-start md:items-center">
-          {viewMode === 'bulanan' ? (
-            <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-              <div className="flex items-center gap-2">
-                <input 
-                  type="month" 
-                  value={selectedMonth} 
-                  onChange={(e) => setSelectedMonth(e.target.value)} 
-                  className="px-4 py-2 bg-white border border-stone-200 rounded-full text-sm text-[#442D1D] font-bold focus:outline-none focus:border-[#634930] shadow-sm"
-                />
-                <button
-                  onClick={downloadExcel}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#107C41] text-white rounded-full text-sm font-bold shadow-sm hover:bg-[#185c37] transition-colors"
-                >
-                  <Download size={16} /> Excel
-                </button>
+          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+            {viewMode === 'bulanan' ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="month" 
+                    value={selectedMonth} 
+                    onChange={(e) => setSelectedMonth(e.target.value)} 
+                    className="px-4 py-2 bg-white border border-stone-200 rounded-full text-sm text-[#442D1D] font-bold focus:outline-none focus:border-[#634930] shadow-sm"
+                  />
+                </div>
+                <div className="flex gap-2 bg-white p-1 rounded-full border border-stone-200 shadow-sm overflow-x-auto scrollbar-hide">
+                  {[
+                    { val: 0, label: 'Semua' },
+                    { val: 5, label: '≥ 5 Kali' },
+                    { val: 10, label: '≥ 10 Kali' },
+                    { val: 15, label: '≥ 15 Kali' },
+                  ].map(f => (
+                    <button
+                      key={f.val}
+                      onClick={() => { setFilterVisit(f.val); setSelectedPhones([]) }}
+                      className={`px-5 py-2 rounded-full font-bold text-xs whitespace-nowrap transition-all ${
+                        filterVisit === f.val 
+                          ? 'bg-[#634930] text-white shadow-md' 
+                          : 'text-[#8B6F47] hover:bg-stone-100'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : viewMode === 'total' ? (
+              <div className="flex items-center text-xs font-bold text-[#8B6F47] bg-[#FFF5E5] px-4 py-2 rounded-full border border-[#EDE0CC]">
+                🏆 Akumulasi Kunjungan Sepanjang Masa
               </div>
-              <div className="flex gap-2 bg-white p-1 rounded-full border border-stone-200 shadow-sm overflow-x-auto scrollbar-hide">
-                {[
-                  { val: 0, label: 'Semua' },
-                  { val: 5, label: '≥ 5 Kali' },
-                  { val: 10, label: '≥ 10 Kali' },
-                  { val: 15, label: '≥ 15 Kali' },
-                ].map(f => (
+            ) : (
+              <div className="flex items-center text-xs font-bold text-[#8B6F47] bg-[#FFF5E5] px-4 py-2 rounded-full border border-[#EDE0CC]">
+                ✨ Daftar Pelanggan dengan Membership Poin
+              </div>
+            )}
+            
+            <div className="flex gap-2">
+              {viewMode === 'bulanan' ? (
+                <>
                   <button
-                    key={f.val}
-                    onClick={() => { setFilterVisit(f.val); setSelectedPhones([]) }}
-                    className={`px-5 py-2 rounded-full font-bold text-xs whitespace-nowrap transition-all ${
-                      filterVisit === f.val 
-                        ? 'bg-[#634930] text-white shadow-md' 
-                        : 'text-[#8B6F47] hover:bg-stone-100'
-                    }`}
+                    onClick={() => downloadExcel('bulanan')}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#107C41] text-white rounded-full text-sm font-bold shadow-sm hover:bg-[#185c37] transition-colors whitespace-nowrap"
                   >
-                    {f.label}
+                    <Download size={16} /> Excel Bulan Ini
                   </button>
-                ))}
-              </div>
+                  <button
+                    onClick={() => downloadExcel('total')}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#634930] text-white rounded-full text-sm font-bold shadow-sm hover:bg-[#4a3523] transition-colors whitespace-nowrap"
+                  >
+                    <Download size={16} /> Excel Semua
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => downloadExcel()}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#107C41] text-white rounded-full text-sm font-bold shadow-sm hover:bg-[#185c37] transition-colors whitespace-nowrap"
+                >
+                  <Download size={16} /> Excel {viewMode === 'member' ? 'Member' : 'Semua'}
+                </button>
+              )}
             </div>
-          ) : viewMode === 'total' ? (
-            <div className="text-xs font-bold text-[#8B6F47] bg-[#FFF5E5] px-4 py-2 rounded-full border border-[#EDE0CC]">
-              🏆 Akumulasi Kunjungan Sepanjang Masa
-            </div>
-          ) : (
-            <div className="text-xs font-bold text-[#8B6F47] bg-[#FFF5E5] px-4 py-2 rounded-full border border-[#EDE0CC]">
-              ✨ Daftar Pelanggan dengan Membership Poin
-            </div>
-          )}
+          </div>
           
           <div className="relative w-full md:w-64">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"><Search size={16} /></span>

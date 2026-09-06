@@ -19,6 +19,7 @@ async function run() {
   ];
 
   try {
+    // 1. Update the 4 numbers
     for (const item of data) {
       const [rows] = await conn.query('SELECT * FROM members WHERE no_hp = ?', [item.no]);
       if (rows.length > 0) {
@@ -29,6 +30,14 @@ async function run() {
         console.log(\`Inserted \${item.nama} (\${item.no}) with \${item.point} points.\`);
       }
     }
+    
+    // 2. Set Isti and Yunus to 0
+    const [resIsti] = await conn.query('UPDATE members SET point = 0 WHERE nama LIKE ? OR nama_panggilan LIKE ?', ['%isti%', '%isti%']);
+    console.log(\`Updated Isti point to 0, matched: \${resIsti.affectedRows}\`);
+
+    const [resYunus] = await conn.query('UPDATE members SET point = 0 WHERE nama LIKE ? OR nama_panggilan LIKE ?', ['%yunus%', '%yunus%']);
+    console.log(\`Updated Yunus point to 0, matched: \${resYunus.affectedRows}\`);
+
   } catch(e) {
     console.log('Error:', e.message);
   } finally {
@@ -42,8 +51,8 @@ const base64Content = Buffer.from(scriptContent).toString('base64');
 
 try {
   console.log('Running points update script on VPS...');
-  const output = execSync(`ssh -o StrictHostKeyChecking=no root@202.155.157.13 "echo ${base64Content} | base64 -d > /var/www/backend/fix_points.js && cd /var/www/backend && node fix_points.js && rm fix_points.js"`, { encoding: 'utf-8' });
-  console.log('Output:', output);
+  execSync(`ssh -o StrictHostKeyChecking=no root@202.155.157.13 "echo ${base64Content} | base64 -d > /var/www/backend/fix_points.js && cd /var/www/backend && node fix_points.js && rm fix_points.js"`, { stdio: 'inherit' });
+  console.log('Update Poin Berhasil!');
 } catch (e) {
   console.error('Error:', e.message);
 }

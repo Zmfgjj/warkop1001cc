@@ -801,9 +801,14 @@ export default function Laporan() {
                     </button>
                   </div>
                   {dataBulanan && !isInvestor && (
-                    <button onClick={handleExportBulanan} className="w-full md:w-auto px-6 py-2.5 rounded-xl font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 transition-all hover:bg-emerald-600 hover:text-white shadow-sm flex items-center justify-center gap-2 text-sm h-[42px]">
-                      <Download size={18} /> Export Laporan Pro
-                    </button>
+                    <div className="flex gap-2 w-full md:w-auto">
+                      <button onClick={handleExportBulanan} className="flex-1 md:flex-none px-4 py-2.5 rounded-xl font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 transition-all hover:bg-emerald-600 hover:text-white shadow-sm flex items-center justify-center gap-2 text-sm h-[42px]">
+                        <Download size={18} /> 1 Bulan
+                      </button>
+                      <button onClick={() => setShowRangeModal(true)} className="flex-1 md:flex-none px-4 py-2.5 rounded-xl font-bold text-blue-700 bg-blue-50 border border-blue-200 transition-all hover:bg-blue-600 hover:text-white shadow-sm flex items-center justify-center gap-2 text-sm h-[42px]">
+                        <Download size={18} /> Multi-Bulan
+                      </button>
+                    </div>
                   )}
                 </div>
 
