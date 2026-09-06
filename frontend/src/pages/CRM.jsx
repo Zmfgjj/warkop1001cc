@@ -6,7 +6,9 @@ import * as XLSX from 'xlsx'
 import { useAuth } from '../hooks/useAuth'
 import { io } from 'socket.io-client'
 import { useAlert } from '../context/AlertContext'
-
+import { Capacitor } from '@capacitor/core'
+import { Filesystem, Directory } from '@capacitor/filesystem'
+import { Share } from '@capacitor/share'
 function formatRupiah(n) {
   return 'Rp ' + Number(n).toLocaleString('id-ID')
 }
@@ -111,23 +113,47 @@ export default function CRM() {
     }
   }
 
-  const downloadExcel = () => {
-    const dataToExport = filteredCustomers.map((c, i) => ({
-      'No': i + 1,
-      'Nama': c.nama_pelanggan || '-',
-      'No WA': c.no_telepon_wa || '-',
-      'Email': c.email || '-',
-      'Total Kunjungan': c.total_kunjungan,
-      'Total Belanja': c.total_belanja,
-      'Kunjungan Bulan Ini': c.kunjungan_bulan_ini,
-      'Belanja Bulan Ini': c.belanja_bulan_ini,
-      'Kunjungan Terakhir': c.kunjungan_terakhir ? new Date(c.kunjungan_terakhir).toLocaleDateString('id-ID') : '-'
-    }));
+  const downloadExcel = async () => {
+    try {
+      const dataToExport = filteredCustomers.map((c, i) => ({
+        'No': i + 1,
+        'Nama': c.nama_pelanggan || '-',
+        'No WA': c.no_telepon_wa || '-',
+        'Email': c.email || '-',
+        'Total Kunjungan': c.total_kunjungan,
+        'Total Belanja': c.total_belanja,
+        'Kunjungan Bulan Ini': c.kunjungan_bulan_ini,
+        'Belanja Bulan Ini': c.belanja_bulan_ini,
+        'Kunjungan Terakhir': c.kunjungan_terakhir ? new Date(c.kunjungan_terakhir).toLocaleDateString('id-ID') : '-'
+      }));
 
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Data_CRM");
-    XLSX.writeFile(workbook, `Laporan_CRM_${selectedMonth}.xlsx`);
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data_CRM");
+      const filename = `Laporan_CRM_${selectedMonth}`;
+
+      if (Capacitor.isNativePlatform()) {
+        const base64 = XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
+        const path = `${filename}.xlsx`;
+        
+        const result = await Filesystem.writeFile({
+          path,
+          data: base64,
+          directory: Directory.Cache
+        });
+
+        await Share.share({
+          title: filename,
+          files: [result.uri],
+          dialogTitle: 'Bagikan atau Simpan Data CRM'
+        });
+      } else {
+        XLSX.writeFile(workbook, `${filename}.xlsx`);
+      }
+    } catch (err) {
+      console.error('Gagal export CRM:', err);
+      showAlert('Gagal mengekspor laporan: ' + err.message, 'Error', 'error');
+    }
   }
 
 

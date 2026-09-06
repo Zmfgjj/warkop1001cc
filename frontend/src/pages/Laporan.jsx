@@ -67,6 +67,11 @@ export default function Laporan() {
   const [bulanBulanan, setBulanBulanan] = useState(new Date().getMonth() + 1)
   const [tahunBulanan, setTahunBulanan] = useState(new Date().getFullYear())
   const [dataBulanan, setDataBulanan] = useState(null)
+  const [showRangeModal, setShowRangeModal] = useState(false)
+  const [rangeStartMonth, setRangeStartMonth] = useState(new Date().getMonth() + 1)
+  const [rangeStartYear, setRangeStartYear] = useState(new Date().getFullYear())
+  const [rangeEndMonth, setRangeEndMonth] = useState(new Date().getMonth() + 1)
+  const [rangeEndYear, setRangeEndYear] = useState(new Date().getFullYear())
 
   // Tahunan
   const [tahunTahunan, setTahunTahunan] = useState(new Date().getFullYear())
@@ -251,7 +256,7 @@ export default function Laporan() {
 
         await Share.share({
           title: filename,
-          url: result.uri,
+          files: [result.uri],
           dialogTitle: 'Bagikan atau Simpan Laporan'
         });
       } else {
@@ -349,6 +354,74 @@ export default function Laporan() {
     ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }]
 
     exportToExcel([{ ws, name: 'Laporan Harian' }], `Laporan-Harian-${d.tanggal}`)
+  }
+
+  
+  const handleExportBulananRange = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/laporan/bulanan-range', { params: { startMonth: rangeStartMonth, startYear: rangeStartYear, endMonth: rangeEndMonth, endYear: rangeEndYear } });
+      const dataArr = res.data;
+      if (!dataArr || dataArr.length === 0) {
+        showAlert('Tidak ada data dalam rentang tersebut', 'Gagal', 'error');
+        setLoading(false);
+        return;
+      }
+      const sheets = [];
+      const bulanNama = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+
+      for (const d of dataArr) {
+        const netRevenue = Number(d.net_revenue) || 0;
+        const totalDiskon = Number(d.total_diskon) || 0;
+        const gross = netRevenue + totalDiskon;
+
+        const rows = [
+          [createCell('LAPORAN POS BULANAN', styleTitle), '', '', ''],
+          [],
+          [createCell('Periode', styleBold), createCell(`${bulanNama[d.bulan - 1]} ${d.tahun}`, styleBold)],
+          [],
+          [createCell('A. RINGKASAN PENJUALAN', styleSubHeader)],
+          [createCell('Keterangan', styleHeader), createCell('Nilai (Rp)', styleHeader)],
+          ['Gross Revenue (Total Penjualan Kotor)', createCell(gross, styleCurrency)],
+          ['Total Diskon / Promo', createCell(totalDiskon, styleCurrency)],
+          ['Service Charge', createCell(0, styleCurrency)],
+          [createCell('Net Revenue (Pendapatan Bersih)', styleBold), createCell(netRevenue, styleCurrencyBold)],
+          ['Total Transaksi', createCell(d.total_pesanan || 0, styleCenter)],
+          ['Average Order Value', createCell(gross > 0 && d.total_pesanan > 0 ? Math.round(gross / d.total_pesanan) : 0, styleCurrency)],
+        ];
+        
+        rows.push([]);
+        rows.push([createCell('B. METODE PEMBAYARAN', styleSubHeader)]);
+        rows.push([createCell('Metode', styleHeader), createCell('Jumlah Transaksi', styleHeader), createCell('Total (Rp)', styleHeader), createCell('% dari Total', styleHeader)]);
+        const metodeRows = buildMetodeRows(d.metode_pembayaran, gross);
+        metodeRows.forEach(m => rows.push([m.label, createCell(m.jumlah, styleCenter), createCell(m.total, styleCurrency), createCell(m.pct, styleCenter)]));
+        const totalTrx = metodeRows.reduce((s, m) => s + m.jumlah, 0);
+        rows.push([createCell('TOTAL', styleBold), createCell(totalTrx, {font: {bold: true}, alignment: {horizontal: "center"}}), createCell(gross, styleCurrencyBold), createCell('100%', {font: {bold: true}, alignment: {horizontal: "center"}})]);
+
+        rows.push([]);
+        rows.push([createCell('C. PENJUALAN PER MENU', styleSubHeader)]);
+        rows.push([createCell('Menu', styleHeader), createCell('Kategori', styleHeader), createCell('HPP', styleHeader), createCell('Harga Jual', styleHeader), createCell('Terjual', styleHeader), createCell('Omset', styleHeader), createCell('Total HPP', styleHeader), createCell('Gross Profit', styleHeader)]);
+        ;(d.menu_detail || []).forEach(m => {
+          const omset = Number(m.total_pendapatan);
+          const hppTotal = Number(m.total_hpp || 0);
+          rows.push([m.nama, m.kategori || '-', createCell(Number(m.hpp), styleCurrency), createCell(Number(m.harga_jual), styleCurrency), createCell(Number(m.total_terjual), styleCenter), createCell(omset, styleCurrency), createCell(hppTotal, styleCurrency), createCell(omset - hppTotal, styleCurrency)]);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(rows);
+        ws['!cols'] = [{ wch: 35 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 18 }];
+        ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }];
+
+        sheets.push({ ws, name: `${bulanNama[d.bulan - 1]} ${d.tahun}` });
+      }
+
+      exportToExcel(sheets, `Laporan-Range-${rangeStartMonth}-${rangeStartYear}-to-${rangeEndMonth}-${rangeEndYear}`);
+      setShowRangeModal(false);
+    } catch (err) {
+      console.error(err);
+      showAlert('Gagal export laporan range', 'Error', 'error');
+    } finally {
+      setLoading(false);
+    }
   }
 
   const handleExportBulanan = () => {
@@ -1302,6 +1375,43 @@ export default function Laporan() {
               >
                 Cetak
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    
+      {showRangeModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl">
+            <h2 className="text-xl font-bold text-[#634930] mb-4">Export Beberapa Bulan</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Dari Bulan</label>
+                <div className="flex gap-2">
+                  <select value={rangeStartMonth} onChange={(e) => setRangeStartMonth(parseInt(e.target.value))} className="flex-1 px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#634930]">
+                    {[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>{new Date(2024, i).toLocaleString('id-ID', { month: 'long' })}</option>)}
+                  </select>
+                  <select value={rangeStartYear} onChange={(e) => setRangeStartYear(parseInt(e.target.value))} className="w-24 px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#634930]">
+                    {[...Array(5)].map((_, i) => <option key={i} value={new Date().getFullYear() - 2 + i}>{new Date().getFullYear() - 2 + i}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 mb-1">Sampai Bulan</label>
+                <div className="flex gap-2">
+                  <select value={rangeEndMonth} onChange={(e) => setRangeEndMonth(parseInt(e.target.value))} className="flex-1 px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#634930]">
+                    {[...Array(12)].map((_, i) => <option key={i+1} value={i+1}>{new Date(2024, i).toLocaleString('id-ID', { month: 'long' })}</option>)}
+                  </select>
+                  <select value={rangeEndYear} onChange={(e) => setRangeEndYear(parseInt(e.target.value))} className="w-24 px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#634930]">
+                    {[...Array(5)].map((_, i) => <option key={i} value={new Date().getFullYear() - 2 + i}>{new Date().getFullYear() - 2 + i}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowRangeModal(false)} className="flex-1 py-2.5 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">Batal</button>
+              <button onClick={handleExportBulananRange} className="flex-1 py-2.5 rounded-xl font-bold text-white bg-gradient-to-r from-[#634930] to-[#8B6F47] hover:shadow-lg transition-all">Export Excel</button>
             </div>
           </div>
         </div>

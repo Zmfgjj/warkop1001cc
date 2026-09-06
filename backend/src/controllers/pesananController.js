@@ -43,6 +43,10 @@ exports.buatPesanan = async (req, res) => {
       const [existingMember] = await conn.query('SELECT id FROM members WHERE no_hp = ?', [no_telepon]);
       if (existingMember.length > 0) {
         member_id = existingMember[0].id;
+      } else if (nama_pelanggan) {
+        // Otomatis daftar member baru jika belum ada
+        const [result] = await conn.query('INSERT INTO members (nama, nama_panggilan, no_hp, point) VALUES (?, ?, ?, 0)', [nama_pelanggan, nama_pelanggan, no_telepon]);
+        member_id = result.insertId;
       }
     }
 
