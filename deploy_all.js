@@ -25,7 +25,7 @@ try {
 
   console.log('5. Commit and Push...');
   execSync('git add .', { stdio: 'inherit' });
-  execSync('git commit -m "Deploy update CRM dan fitur diskon persentase"', { stdio: 'inherit' });
+  execSync('git commit -m "Fix dapur role permission for dashboard"', { stdio: 'inherit' });
   execSync('git push origin revisi', { stdio: 'inherit' });
 
   console.log('--- ALL DEPLOYMENTS FINISHED SUCCESSFULLY ---');

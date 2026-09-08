@@ -3,7 +3,7 @@ const router = express.Router();
 const laporanController = require('../controllers/laporanController');
 const auth = require('../middleware/auth');
 
-router.get('/ringkasan', auth({ module: 'laporan', action: 'view' }), laporanController.ringkasan);
+router.get('/ringkasan', auth({ module: ['laporan', 'dashboard'], action: 'view' }), laporanController.ringkasan);
 router.get('/bulanan', auth({ module: 'laporan', action: 'view' }), laporanController.laporanBulanan);
 router.get('/bulanan-range', auth({ module: 'laporan', action: 'view' }), laporanController.laporanBulananRange);
 router.get('/tahunan', auth({ module: 'laporan', action: 'view' }), laporanController.laporanTahunan);
