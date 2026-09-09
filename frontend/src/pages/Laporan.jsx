@@ -482,8 +482,32 @@ export default function Laporan() {
     exportToExcel([{ ws, name: 'Laporan Bulanan' }], `Laporan-Bulanan-${d.bulan}-${d.tahun}`)
   }
 
-  const handleExportHistori = () => {
+  const handleExportHistori = async () => {
     if (!dataHistori || dataHistori.data.length === 0) return showAlert('Tidak ada data untuk diexport', 'Gagal', 'error')
+
+    setLoading(true);
+    let allData = [];
+    try {
+      const res = await api.get('/laporan/histori', { 
+        params: { 
+          dari: dariHistori, 
+          sampai: sampaiHistori, 
+          page: 1, 
+          limit: 10000,
+          metode: filterMetode,
+          search: searchHistori
+        } 
+      });
+      allData = res.data.data;
+    } catch (err) {
+      console.error('Gagal fetch all histori:', err);
+      showAlert('Gagal mengambil data lengkap untuk export', 'Error', 'error');
+      setLoading(false);
+      return;
+    }
+    setLoading(false);
+
+    if (!allData || allData.length === 0) return showAlert('Tidak ada data untuk diexport', 'Gagal', 'error');
 
     const rows = [
       [createCell('HISTORI PEMBELIAN POS – WARKOP 1001 CC', styleTitle), '', '', '', '', '', '', ''],
@@ -505,7 +529,7 @@ export default function Laporan() {
       ]
     ]
 
-    dataHistori.data.forEach(p => {
+    allData.forEach(p => {
       (p.items || []).forEach((item, idx) => {
         rows.push([
           idx === 0 ? `#${String(p.id).padStart(4, '0')}` : '',
