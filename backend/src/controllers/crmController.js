@@ -70,9 +70,9 @@ exports.logoutWa = async (req, res) => {
 
 exports.toggleWa = async (req, res) => {
   try {
-    const { action } = req.body;
+    const { action, phoneNumber } = req.body;
     if (action === 'start') {
-      waGateway.startService();
+      waGateway.startService(phoneNumber);
       res.json({ message: 'Memulai WhatsApp Gateway...' });
     } else if (action === 'stop') {
       waGateway.stopService().catch(e => console.error(e));

@@ -87,8 +87,16 @@ export default function CRM() {
   }
 
   const handleToggleWa = async (action) => {
+    let phoneNumber = '';
+    if (action === 'start') {
+      phoneNumber = window.prompt("Masukkan nomor WA Bot Warkop (contoh: 6285281155747).\n\nKarena QR diblokir oleh WhatsApp, kita akan menggunakan 'Kode Tautan' 8 digit yang 100% aman.\n\nNomor WA:");
+      if (!phoneNumber) return;
+      phoneNumber = phoneNumber.replace(/\D/g, '');
+      if (!phoneNumber.startsWith('62')) phoneNumber = '62' + phoneNumber.replace(/^0/, '');
+    }
+
     try {
-      const res = await api.post('/crm/wa-toggle', { action })
+      const res = await api.post('/crm/wa-toggle', { action, phoneNumber })
       showAlert(res.data.message, 'Sukses')
       checkWaStatus()
     } catch (err) {
@@ -352,9 +360,16 @@ export default function CRM() {
             <div className="flex flex-col sm:flex-row items-center gap-4">
               {waStatus === 'QR_READY' && waQr && (
                 <div className="flex flex-col items-center gap-3 bg-amber-50 p-4 rounded-xl border border-amber-100">
-                  <img src={waQr} alt="WhatsApp QR Code" className="w-48 h-48 md:w-64 md:h-64 rounded bg-white p-2 shadow-sm" />
+                  {waQr.startsWith('data:image') ? (
+                    <img src={waQr} alt="WhatsApp QR Code" className="w-48 h-48 md:w-64 md:h-64 rounded bg-white p-2 shadow-sm" />
+                  ) : (
+                    <div className="w-48 h-48 md:w-64 md:h-64 rounded bg-white p-4 shadow-sm flex flex-col items-center justify-center border-4 border-dashed border-amber-300">
+                      <span className="text-sm font-semibold text-stone-500 text-center mb-4">Pilih "Tautkan dengan Nomor Telepon" di HP, lalu masukkan kode ini:</span>
+                      <span className="text-3xl md:text-4xl font-black text-stone-800 tracking-widest bg-stone-100 px-4 py-2 rounded-lg">{waQr}</span>
+                    </div>
+                  )}
                   <p className="text-xs text-amber-800 font-bold text-center max-w-[200px]">
-                    Buka WhatsApp di HP Anda, lalu Scan QR ini untuk menghubungkan Gateway.
+                    Buka WhatsApp di HP &gt; Tautkan Perangkat
                   </p>
                 </div>
               )}

@@ -1,96 +1,98 @@
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode');
+const fs = require('fs');
+const path = require('path');
 
-let client;
+let sock = null;
 let qrCodeData = null;
 let status = 'DISCONNECTED'; // 'DISCONNECTED', 'QR_READY', 'CONNECTED', 'STOPPED', 'STARTING'
 let socketIo = null;
+const AUTH_DIR = path.join(__dirname, '../../wa_auth_info');
 
-const setSocketIo = (io) => {
-  socketIo = io;
-};
+const setSocketIo = (io) => { socketIo = io; };
 
-const initializeGateway = () => {
-  // Do nothing on boot, wait for manual start
-  status = 'STOPPED';
-};
+const initializeGateway = () => { status = 'STOPPED'; };
 
-const startService = () => {
+const startService = async (phoneNumber) => {
   if (status !== 'STOPPED' && status !== 'DISCONNECTED') return;
   status = 'STARTING';
   if (socketIo) socketIo.emit('wa_status', { status, qr: null });
 
   try {
-    // Cari path Chrome: dari env variable, atau dari cache Puppeteer
-    const fs = require('fs');
-    const path = require('path');
-    const chromeCachePath = path.join(process.env.HOME || '/root', '.cache/puppeteer/chrome');
-    let executablePath;
+    const { Browsers, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+    const { version } = await fetchLatestBaileysVersion();
     
-    if (fs.existsSync(chromeCachePath)) {
-      const versions = fs.readdirSync(chromeCachePath).filter(d => d.startsWith('linux-'));
-      if (versions.length > 0) {
-        const candidate = path.join(chromeCachePath, versions[0], 'chrome-linux64', 'chrome');
-        if (fs.existsSync(candidate)) executablePath = candidate;
-      }
-    }
-
-    client = new Client({
-      authStrategy: new LocalAuth({ clientId: "warkop-crm" }),
-      puppeteer: {
-        headless: true,
-        ...(executablePath ? { executablePath } : {}),
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu'
-        ]
-      },
-      webVersionCache: {
-        type: 'remote',
-        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.2412.54.html'
-      }
+    sock = makeWASocket({
+      version,
+      auth: state,
+      printQRInTerminal: false,
+      browser: Browsers.ubuntu('Desktop'),
+      syncFullHistory: false,
+      markOnlineOnConnect: false
     });
 
-    client.on('qr', (qr) => {
-      console.log('WhatsApp Gateway QR Code Generated!');
-      qrcode.toDataURL(qr, (err, url) => {
-        if (!err) {
-          qrCodeData = url;
+    sock.ev.on('creds.update', saveCreds);
+
+    if (phoneNumber && !sock.authState.creds.registered) {
+      setTimeout(async () => {
+        try {
+          const code = await sock.requestPairingCode(phoneNumber);
+          qrCodeData = code;
           status = 'QR_READY';
           if (socketIo) socketIo.emit('wa_status', { status, qr: qrCodeData });
+        } catch (e) {
+          console.error('Gagal meminta kode tautan:', e);
         }
-      });
-    });
+      }, 3000);
+    }
 
-    client.on('ready', () => {
-      console.log('WhatsApp Gateway is Ready!');
-      status = 'CONNECTED';
-      qrCodeData = null;
-      if (socketIo) socketIo.emit('wa_status', { status, qr: null });
-    });
+    sock.ev.on('connection.update', (update) => {
+      const { connection, lastDisconnect, qr } = update;
 
-    client.on('disconnected', (reason) => {
-      console.log('WhatsApp Gateway Disconnected', reason);
-      status = 'DISCONNECTED';
-      if (socketIo) socketIo.emit('wa_status', { status, qr: null });
-    });
+      // Only process QR if no phone number was provided (fallback to old behavior)
+      if (qr && !phoneNumber) {
+        qrcode.toDataURL(qr, (err, url) => {
+          if (!err) {
+            qrCodeData = url;
+            status = 'QR_READY';
+            if (socketIo) socketIo.emit('wa_status', { status, qr: qrCodeData });
+          }
+        });
+      }
 
-    // Initialize async - wrap dengan catch agar Puppeteer crash
-    // TIDAK membunuh seluruh backend / menyebabkan PM2 restart
-    (async () => {
-      try {
-        await client.initialize();
-      } catch (err) {
-        console.error('[WA Gateway] Puppeteer initialize error (ditangani, backend tetap jalan):', err.message);
+      if (connection === 'close') {
+        const statusCode = lastDisconnect.error?.output?.statusCode;
+        const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+        console.log(`WhatsApp connection closed. Reason: ${lastDisconnect.error?.message || statusCode}`);
+        
+        // Wajib hapus sesi JIKA logout ATAU jika putus SEBELUM terkoneksi penuh (mencegah sesi nyangkut/corrupt)
+        if (!shouldReconnect || status !== 'CONNECTED') {
+          console.log('WhatsApp logged out or failed during pairing. Wiping session to prevent corruption.');
+          if (fs.existsSync(AUTH_DIR)) {
+            fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+          }
+        }
+        
         status = 'STOPPED';
+        qrCodeData = null;
+        if (socketIo) socketIo.emit('wa_status', { status, qr: null });
+        
+        // Clean up socket to prevent zombies
+        if (sock) {
+          try {
+            if (sock.ws) sock.ws.close();
+            else sock.end(undefined);
+          } catch(e) {}
+        }
+
+      } else if (connection === 'open') {
+        console.log('WhatsApp Gateway is Ready (Baileys Engine)!');
+        status = 'CONNECTED';
+        qrCodeData = null;
         if (socketIo) socketIo.emit('wa_status', { status, qr: null });
       }
-    })();
+    });
 
   } catch (err) {
     console.error('Failed to initialize WhatsApp Gateway', err);
@@ -100,12 +102,14 @@ const startService = () => {
 };
 
 const stopService = async () => {
-  if (client) {
-    await client.destroy().catch(err => {
-      console.error('Ignored error during WA client destroy:', err.message);
-    });
+  if (sock) {
+    try {
+      sock.ev.removeAllListeners('connection.update');
+      if (sock.ws) sock.ws.close();
+      else sock.end(undefined);
+    } catch (e) {}
   }
-  client = null;
+  sock = null;
   qrCodeData = null;
   status = 'STOPPED';
   console.log('WhatsApp Gateway Stopped to save RAM');
@@ -117,20 +121,23 @@ const getStatus = () => {
 };
 
 const logout = async () => {
-  if (client) {
+  if (sock) {
     try {
-      await client.logout();
+      await sock.logout();
     } catch (err) {
       console.error(err);
     }
-    status = 'DISCONNECTED';
-    qrCodeData = null;
-    stopService();
   }
+  status = 'DISCONNECTED';
+  qrCodeData = null;
+  if (fs.existsSync(AUTH_DIR)) {
+    fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+  }
+  stopService();
 };
 
 const sendBroadcastMessage = async (targets, messageTemplate) => {
-  if (status !== 'CONNECTED') {
+  if (status !== 'CONNECTED' || !sock) {
     throw new Error('WhatsApp Gateway belum terkoneksi');
   }
 
@@ -140,8 +147,16 @@ const sendBroadcastMessage = async (targets, messageTemplate) => {
       const phone = target.phone;
       const name = target.name || '';
       const message = messageTemplate.replace(/\[Nama\]/gi, name);
-      const formattedPhone = phone.includes('@c.us') ? phone : `${phone}@c.us`;
-      await client.sendMessage(formattedPhone, message);
+      
+      // format for Baileys: 628xxx@s.whatsapp.net
+      let jid = phone;
+      if (jid.includes('@c.us')) {
+        jid = jid.replace('@c.us', '@s.whatsapp.net');
+      } else if (!jid.includes('@s.whatsapp.net')) {
+        jid = `${jid}@s.whatsapp.net`;
+      }
+
+      await sock.sendMessage(jid, { text: message });
       successCount++;
       const delay = Math.floor(Math.random() * (8000 - 4000 + 1)) + 4000;
       await new Promise(resolve => setTimeout(resolve, delay));
