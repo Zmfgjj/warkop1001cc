@@ -39,6 +39,14 @@ export default function ManajemenMenu() {
   const [kategoriForm, setKategoriForm] = useState({ id: null, nama: '', urutan: 0, print_destination: 'dapur' })
   const [loadingKategori, setLoadingKategori] = useState(false)
 
+  // Modal Set Massal HPP
+  const [showBulkHppModal, setShowBulkHppModal] = useState(false)
+  const [bulkHppForm, setBulkHppForm] = useState({
+    hppPercent: 45,
+    startDate: new Date().toISOString().split('T')[0]
+  })
+  const [loadingBulkHpp, setLoadingBulkHpp] = useState(false)
+
   const canEdit = userCanEdit('manajemen_menu', 'edit') || user?.role === 'admin' || user?.role === 'owner' || user?.role === 'investor'
 
   useEffect(() => { 
@@ -235,14 +243,26 @@ export default function ManajemenMenu() {
     setShowEdit(true)
   }
 
-  const handleBulkHPP = async () => {
-    if (!window.confirm('Yakin ingin mengatur ulang semua HPP menjadi murni 35% dari Harga Jual? Tindakan ini akan menimpa seluruh data HPP yang sudah ada.')) return
+  const handleBulkHPP = () => {
+    setShowBulkHppModal(true)
+  }
+
+  const submitBulkHpp = async (e) => {
+    e.preventDefault()
+    if (!window.confirm(`Yakin ingin mengatur ulang HPP menjadi ${bulkHppForm.hppPercent}% mulai tanggal ${bulkHppForm.startDate}? Tindakan ini akan menimpa data pada menu dan histori transaksi setelah tanggal tersebut.`)) return
+    setLoadingBulkHpp(true)
     try {
-      await api.put('/menu/hpp/bulk')
+      await api.put('/menu/hpp/bulk', { 
+        hpp_percent: bulkHppForm.hppPercent,
+        start_date: bulkHppForm.startDate
+      })
+      setShowBulkHppModal(false)
       showAlert('HPP berhasil diperbarui secara massal!', 'Sukses')
       fetchMenu()
     } catch (err) {
       showAlert(err.response?.data?.message || 'Gagal mengatur HPP massal', 'Error', 'error')
+    } finally {
+      setLoadingBulkHpp(false)
     }
   }
 
@@ -848,6 +868,68 @@ export default function ManajemenMenu() {
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Modal Bulk HPP */}
+      {showBulkHppModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md flex flex-col shadow-2xl">
+            <div className="px-8 py-6 border-b border-stone-100 flex justify-between items-center bg-stone-50/50 rounded-t-3xl">
+              <h2 className="text-xl font-black text-[#5C4033]">Set Massal HPP</h2>
+              <button onClick={() => setShowBulkHppModal(false)} className="text-stone-400 hover:text-stone-600 font-bold p-2 hover:bg-stone-100 rounded-xl transition-colors">✕</button>
+            </div>
+            <form onSubmit={submitBulkHpp} className="p-8">
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-stone-600 mb-2">Persentase HPP Baru (%)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    required
+                    value={bulkHppForm.hppPercent}
+                    onChange={e => setBulkHppForm({ ...bulkHppForm, hppPercent: e.target.value })}
+                    className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all"
+                  />
+                  <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none text-stone-500 font-bold">%</div>
+                </div>
+                <p className="text-xs text-stone-500 mt-2">Gross Profit akan otomatis menjadi {100 - bulkHppForm.hppPercent}%</p>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-stone-600 mb-2">Mulai dari Tanggal Transaksi</label>
+                <input
+                  type="date"
+                  required
+                  value={bulkHppForm.startDate}
+                  onChange={e => setBulkHppForm({ ...bulkHppForm, startDate: e.target.value })}
+                  className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl focus:ring-2 focus:ring-[#5C4033]/20 focus:border-[#5C4033] transition-all"
+                />
+                <p className="text-xs text-stone-500 mt-2">HPP pada histori transaksi sebelum tanggal ini tidak akan ikut diubah.</p>
+              </div>
+
+              <div className="bg-red-50 border border-red-100 p-4 rounded-xl mb-8">
+                <p className="text-sm text-red-600 font-medium">⚠️ Peringatan: Tindakan ini akan menimpa (mengganti) harga modal pada master menu saat ini dan juga data histori transaksi mulai tanggal di atas.</p>
+              </div>
+
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkHppModal(false)}
+                  className="flex-1 px-4 py-3 rounded-xl font-bold text-stone-600 bg-stone-100 hover:bg-stone-200 transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={loadingBulkHpp}
+                  className="flex-1 px-4 py-3 rounded-xl font-bold text-white bg-[#5C4033] hover:bg-[#4A3320] transition-colors disabled:opacity-50"
+                >
+                  {loadingBulkHpp ? 'Menyimpan...' : 'Terapkan'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

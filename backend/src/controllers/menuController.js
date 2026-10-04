@@ -463,14 +463,43 @@ exports.deleteCampaignPromo = async (req, res) => {
 };
 
 exports.updateBulkHPP = async (req, res) => {
+  const conn = await db.getConnection();
   try {
-    // Formula: HPP = 35% dari Harga Jual
-    await db.query(`UPDATE menu SET hpp = harga * 0.35`);
+    const hpp_percent = parseFloat(req.body?.hpp_percent) || 35;
+    const start_date = req.body?.start_date || null;
 
-    res.json({ message: 'HPP berhasil diperbarui secara massal (35% dari Harga Jual)' });
+    if (hpp_percent <= 0 || hpp_percent >= 100) {
+      conn.release();
+      return res.status(400).json({ message: 'Persentase HPP tidak valid (harus antara 1-99%)' });
+    }
+
+    const ratio = hpp_percent / 100;
+
+    // 1. Update master menu (untuk transaksi masa depan)
+    await conn.query(`UPDATE menu SET hpp = harga * ?`, [ratio]);
+
+    let affectedDetail = 0;
+    if (start_date) {
+      // 2. Update histori transaksi mulai tanggal start_date
+      const [resDetail] = await conn.query(`
+        UPDATE detail_pesanan dp
+        JOIN pesanan p ON dp.pesanan_id = p.id
+        SET dp.hpp = dp.harga * ?
+        WHERE p.created_at >= ? AND dp.harga > 0
+      `, [ratio, `${start_date} 00:00:00`]);
+      affectedDetail = resDetail.affectedRows;
+    }
+
+    res.json({
+      message: `HPP berhasil diatur menjadi ${hpp_percent}% (GP ${100 - hpp_percent}%) mulai ${start_date || 'sekarang'}`,
+      affected_menu: true,
+      affected_detail_pesanan: affectedDetail
+    });
   } catch (err) {
     console.error('❌ Error update bulk HPP:', err.message);
     res.status(500).json({ message: 'Server error' });
+  } finally {
+    conn.release();
   }
 };
 
