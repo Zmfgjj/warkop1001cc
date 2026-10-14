@@ -89,10 +89,21 @@ export default function KasirPOS() {
       setNamaPelanggan(res.data.nama_panggilan || res.data.nama);
       let msg = `Member ditemukan! Poin: ${res.data.point}`;
       if (res.data.tgl_lahir) {
-        const d = new Date(res.data.tgl_lahir);
+        let bYear, bMonth, bDay;
+        if (res.data.tgl_lahir.includes('T')) {
+          const d = new Date(res.data.tgl_lahir);
+          bYear = d.getFullYear();
+          bMonth = d.getMonth() + 1;
+          bDay = d.getDate();
+        } else {
+          const parts = res.data.tgl_lahir.substring(0, 10).split('-');
+          bYear = Number(parts[0]);
+          bMonth = Number(parts[1]);
+          bDay = Number(parts[2]);
+        }
         const today = new Date();
-        if (d.getDate() === today.getDate() && d.getMonth() === today.getMonth()) {
-          const age = today.getFullYear() - d.getFullYear();
+        if (bDay === today.getDate() && bMonth === (today.getMonth() + 1)) {
+          const age = today.getFullYear() - bYear;
           msg += `\n🎉 Customer ini sedang ulang tahun ke-${age} hari ini! 🎉`;
         }
       }
@@ -110,7 +121,11 @@ export default function KasirPOS() {
 
   const registerMember = async () => {
     try {
-      const payload = { ...newMemberForm, nama: newMemberForm.nama_panggilan };
+      const payload = { 
+        ...newMemberForm, 
+        nama: newMemberForm.nama_panggilan,
+        tgl_lahir: newMemberForm.tgl_lahir ? newMemberForm.tgl_lahir.substring(0, 10) : null
+      };
       const res = await api.post('/members/register', payload);
       setNamaPelanggan(payload.nama_panggilan || payload.nama);
       showAlert(`Berhasil daftar! Silakan cek member lagi untuk dapat poin`, 'Sukses');

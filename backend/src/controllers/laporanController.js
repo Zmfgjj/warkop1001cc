@@ -659,8 +659,8 @@ exports.laporanBulananRange = async (req, res) => {
       const blnStr = String(bln).padStart(2, '0');
       const lastDay = new Date(thn, bln, 0).getDate();
       
-      const startOfMonth = "${thn}--01 00:00:00";
-      const endOfMonth = "${thn}-- 23:59:59";
+      const startOfMonth = `${thn}-${blnStr}-01 00:00:00`;
+      const endOfMonth = `${thn}-${blnStr}-${lastDay} 23:59:59`;
 
       const [harianPendapatan] = await db.query(`SELECT DATE_FORMAT(pb.created_at, '%Y-%m-%d') as tanggal, SUM(pb.jumlah) as pendapatan FROM pembayaran pb JOIN pesanan p ON pb.pesanan_id = p.id WHERE pb.status = 'sukses' AND p.status != 'batal' AND pb.created_at >= ? AND pb.created_at <= ? GROUP BY DATE_FORMAT(pb.created_at, '%Y-%m-%d') ORDER BY tanggal`, [startOfMonth, endOfMonth]);
 
@@ -675,7 +675,7 @@ exports.laporanBulananRange = async (req, res) => {
       const harian = [];
       for (let d = 1; d <= lastDay; d++) {
         const dStr = String(d).padStart(2, '0');
-        const dateStr = "${thn}--";
+        const dateStr = `${thn}-${blnStr}-${dStr}`;
         harian.push({ tanggal: dateStr, pendapatan: Number(pendapatanMap[dateStr] || 0), total_pesanan: Number(pesananMap[dateStr] || 0) });
       }
 

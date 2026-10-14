@@ -1,7 +1,9 @@
+$ErrorActionPreference = 'Stop'
 cd frontend
 npx cap sync android
 cd android
 .\gradlew assembleDebug
+if ($LASTEXITCODE -ne 0) { throw "Gradle Build failed!" }
 cd ..\..
 Copy-Item frontend\android\app\build\outputs\apk\debug\app-debug.apk -Destination warkop-pos.apk -Force
 scp -o StrictHostKeyChecking=no warkop-pos.apk root@202.155.157.13:/root/warkop.apk

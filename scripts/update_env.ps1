@@ -1,8 +1,8 @@
 $success = $false
 for ($i=0; $i -lt 5; $i++) {
-    Write-Host "Updating env..."
-    ssh -o ConnectTimeout=15 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@202.155.157.13 "sed -i 's/1.0.35/1.0.36/g' /var/www/backend/.env"
-    if ($LASTEXITCODE -eq 0) {
+    Write-Host "Updating APP_VERSION to 1.0.87 on VPS..."
+    ssh -o ConnectTimeout=15 -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no root@202.155.157.13 "sed -i 's/APP_VERSION=.*/APP_VERSION=1.0.87/g' /var/www/backend/.env && pm2 restart warkop-backend --update-env"
+    if ($LASTEXITCODE -eq 0) { 
         $success = $true
         break
     }

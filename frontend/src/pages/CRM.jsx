@@ -133,6 +133,7 @@ export default function CRM() {
           'Nama': m.nama || '-',
           'Nama Panggilan': m.nama_panggilan || '-',
           'No WA': m.no_hp || '-',
+          'Tgl Lahir': formatTglDisplay(m.tgl_lahir),
           'Email': m.email || '-',
           'Total Poin': m.point || 0,
           'Tgl Daftar': m.created_at ? new Date(m.created_at).toLocaleDateString('id-ID') : '-'
@@ -215,13 +216,49 @@ export default function CRM() {
     }
   };
 
+  const formatTglDisplay = (val) => {
+    if (!val) return '-';
+    try {
+      if (typeof val === 'string' && val.includes('T')) {
+        const d = new Date(val);
+        return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+      }
+      const parts = String(val).substring(0, 10).split('-');
+      if (parts.length === 3) {
+        const [y, m, d] = parts.map(Number);
+        const dateObj = new Date(y, m - 1, d);
+        return dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+      }
+      return val;
+    } catch (e) {
+      return val;
+    }
+  };
+
+  const parseTglForInput = (val) => {
+    if (!val) return '';
+    try {
+      if (typeof val === 'string' && val.includes('T')) {
+        const d = new Date(val);
+        const y = d.getFullYear();
+        const mo = String(d.getMonth() + 1).padStart(2, '0');
+        const da = String(d.getDate()).padStart(2, '0');
+        return `${y}-${mo}-${da}`;
+      }
+      return String(val).substring(0, 10);
+    } catch (e) {
+      return '';
+    }
+  };
+
   const updateMember = async () => {
     try {
       const { id, nama_panggilan, no_hp, tgl_lahir } = editMemberModal.data;
       const finalNama = nama_panggilan || editMemberModal.data.nama;
       if (!finalNama || !no_hp) return showAlert('Nama dan No HP wajib diisi', 'Perhatian');
       
-      await api.put(`/members/${id}`, { nama: finalNama, nama_panggilan: finalNama, no_hp, tgl_lahir });
+      const cleanTgl = tgl_lahir ? String(tgl_lahir).trim().substring(0, 10) : null;
+      await api.put(`/members/${id}`, { nama: finalNama, nama_panggilan: finalNama, no_hp, tgl_lahir: cleanTgl });
       showAlert('Member berhasil diupdate', 'Sukses');
       setEditMemberModal({ show: false, data: {} });
       fetchMembers();
@@ -544,6 +581,7 @@ export default function CRM() {
                         </th>
                       )}
                       <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider">Nama & Kontak</th>
+                      <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-center">Tgl Lahir</th>
                       <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-center">Total Poin</th>
                       <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-right">Tgl Daftar</th>
                       <th className="py-3 px-4 font-bold text-xs text-stone-500 uppercase tracking-wider text-center">Aksi</th>
@@ -604,6 +642,11 @@ export default function CRM() {
                           </div>
                         </td>
                         <td className="py-3 px-4 text-center">
+                          <span className="text-xs font-semibold text-stone-600 bg-stone-100 px-2.5 py-1 rounded-lg">
+                            {formatTglDisplay(m.tgl_lahir)}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center">
                           <span className="bg-[#21B214]/10 text-[#21B214] text-xs font-black px-3 py-1 rounded-full">
                             {m.point}
                           </span>
@@ -625,7 +668,7 @@ export default function CRM() {
                             {canEdit('crm') && (
                               <>
                                 <button 
-                                  onClick={() => setEditMemberModal({ show: true, data: { ...m, tgl_lahir: m.tgl_lahir ? m.tgl_lahir.split('T')[0] : '' } })}
+                                  onClick={() => setEditMemberModal({ show: true, data: { ...m, tgl_lahir: parseTglForInput(m.tgl_lahir) } })}
                                   title="Edit Member"
                                   className="bg-blue-100 text-blue-600 hover:bg-blue-200 p-2 rounded-lg font-bold transition-colors"
                                 >

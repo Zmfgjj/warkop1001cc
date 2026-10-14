@@ -14,9 +14,11 @@ exports.registerMember = async (req, res) => {
       return res.status(400).json({ message: 'Nomor HP sudah terdaftar sebagai member' });
     }
 
+    const cleanTgl = tgl_lahir ? String(tgl_lahir).trim().substring(0, 10) : null;
+
     const [result] = await db.query(
       'INSERT INTO members (nama, nama_panggilan, no_hp, tgl_lahir, point) VALUES (?, ?, ?, ?, 0)',
-      [nama, nama_panggilan, no_hp, tgl_lahir || null]
+      [nama, nama_panggilan, no_hp, cleanTgl]
     );
 
     res.status(201).json({
@@ -32,7 +34,10 @@ exports.registerMember = async (req, res) => {
 exports.getMemberByPhone = async (req, res) => {
   try {
     const { no_hp } = req.params;
-    const [rows] = await db.query('SELECT * FROM members WHERE no_hp = ?', [no_hp]);
+    const [rows] = await db.query(
+      "SELECT id, nama, nama_panggilan, no_hp, DATE_FORMAT(tgl_lahir, '%Y-%m-%d') as tgl_lahir, point, created_at FROM members WHERE no_hp = ?",
+      [no_hp]
+    );
     
     if (rows.length === 0) {
       return res.status(404).json({ message: 'Member tidak ditemukan' });
@@ -47,7 +52,9 @@ exports.getMemberByPhone = async (req, res) => {
 
 exports.getAllMembers = async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM members ORDER BY created_at DESC');
+    const [rows] = await db.query(
+      "SELECT id, nama, nama_panggilan, no_hp, DATE_FORMAT(tgl_lahir, '%Y-%m-%d') as tgl_lahir, point, created_at FROM members ORDER BY created_at DESC"
+    );
     res.json(rows);
   } catch (err) {
     console.error('Error getAllMembers:', err);
@@ -83,9 +90,11 @@ exports.updateMember = async (req, res) => {
       return res.status(400).json({ message: 'Nomor HP sudah digunakan member lain' });
     }
 
+    const cleanTgl = tgl_lahir ? String(tgl_lahir).trim().substring(0, 10) : null;
+
     await db.query(
       'UPDATE members SET nama = ?, nama_panggilan = ?, no_hp = ?, tgl_lahir = ? WHERE id = ?',
-      [nama, nama_panggilan || null, no_hp, tgl_lahir || null, id]
+      [nama, nama_panggilan || null, no_hp, cleanTgl, id]
     );
 
     res.json({ message: 'Member berhasil diupdate' });
