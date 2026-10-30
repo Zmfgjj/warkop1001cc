@@ -9,12 +9,37 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 50,          // Batasi antrian koneksi (bukan unlimited)
+  connectTimeout: 10000,   // Timeout konek ke DB: 10 detik
+  acquireTimeout: 10000,   // Timeout tunggu koneksi dari pool: 10 detik
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 30000
 });
 
-// Auto migration function on DB connect
-pool.getConnection()
+// Auto migration function on DB connect - dengan retry
+const connectWithRetry = async (retries = 5, delay = 3000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const conn = await pool.getConnection();
+      return conn;
+    } catch (err) {
+      console.error(`❌ Database connection failed (attempt ${i + 1}/${retries}):`, err.message);
+      if (i < retries - 1) {
+        console.log(`⏳ Retry in ${delay / 1000}s...`);
+        await new Promise(r => setTimeout(r, delay));
+        delay = Math.min(delay * 1.5, 15000); // Exponential backoff, max 15 detik
+      }
+    }
+  }
+  return null;
+};
+
+connectWithRetry()
   .then(async conn => {
+    if (!conn) {
+      console.error('❌ Gagal konek ke database setelah beberapa percobaan.');
+      return;
+    }
     console.log('✅ Database connected!');
     try {
       // 1. activity_logs table

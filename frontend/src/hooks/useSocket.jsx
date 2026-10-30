@@ -4,19 +4,27 @@ import { Capacitor } from '@capacitor/core';
 
 let sharedSocket = null;
 let refCount = 0;
+let releaseTimer = null;
 
 const socketUrl = Capacitor.isNativePlatform()
   ? (import.meta.env.VITE_API_URL || 'http://202.155.157.13:3000')
   : window.location.origin;
 
 function getSocket() {
+  // Batalkan pending disconnect kalau ada komponen baru yang mount
+  if (releaseTimer) {
+    clearTimeout(releaseTimer);
+    releaseTimer = null;
+  }
   if (!sharedSocket) {
     sharedSocket = io(socketUrl, {
       reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: Infinity,
-      transports: ['websocket', 'polling'],
+      reconnectionDelay: 3000,        // Tunggu 3 detik sebelum retry (bukan 1 detik)
+      reconnectionDelayMax: 30000,    // Max 30 detik delay (bukan 5 detik)
+      randomizationFactor: 0.5,       // Jitter supaya tidak semua client retry bersamaan
+      reconnectionAttempts: 20,       // Max 20 percobaan (bukan Infinity)
+      transports: ['websocket'],      // Websocket only - hapus polling yang bikin banjir HTTP
+      timeout: 10000,                 // Timeout koneksi 10 detik
     });
   }
   refCount++;
@@ -25,10 +33,16 @@ function getSocket() {
 
 function releaseSocket() {
   refCount--;
-  if (refCount <= 0 && sharedSocket) {
-    sharedSocket.disconnect();
-    sharedSocket = null;
-    refCount = 0;
+  if (refCount <= 0) {
+    // Debounce disconnect 3 detik - cegah rapid disconnect saat komponen remount
+    releaseTimer = setTimeout(() => {
+      if (refCount <= 0 && sharedSocket) {
+        sharedSocket.disconnect();
+        sharedSocket = null;
+        refCount = 0;
+      }
+      releaseTimer = null;
+    }, 3000);
   }
 }
 

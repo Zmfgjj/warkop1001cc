@@ -10,13 +10,29 @@ const compression = require('compression');
 require('dotenv').config();
 
 const db = require('./config/database');
-const waGateway = require('./services/waGateway');
+
+// Safe import waGateway - tidak crash kalau @whiskeysockets/baileys belum terinstall
+let waGateway;
+try {
+  waGateway = require('./services/waGateway');
+} catch (e) {
+  console.warn('⚠️ waGateway tidak bisa dimuat:', e.message);
+  waGateway = {
+    setSocketIo: () => {},
+    initializeGateway: () => {},
+    getStatus: () => ({ connected: false, status: 'unavailable' })
+  };
+}
+
 const { autoCompleteOldOrders } = require('./controllers/pesananController');
 
 const rateLimit = require('express-rate-limit');
 
 const app = express();
 const server = http.createServer(app);
+
+// Trust proxy - wajib karena ada Nginx di depan
+app.set('trust proxy', 1);
 
 // CORS Config
 const allowedOrigins = process.env.ALLOWED_ORIGINS
